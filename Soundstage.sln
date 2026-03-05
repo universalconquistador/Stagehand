@@ -1,0 +1,49 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.2.11415.280
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Soundstage", "Soundstage\Soundstage.csproj", "{13C812E9-0D42-4B95-8646-40EEBF30636F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FFXIVClientStructs", "..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj", "{F150D743-1E63-2F31-90FD-3343C885D851}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Soundstage.Definitions", "Soundstage.Definitions\Soundstage.Definitions.csproj", "{EFF2607D-101F-4886-9EDC-1846367846E4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Soundstage.Api", "Soundstage.Api\Soundstage.Api.csproj", "{6E88FC38-1286-4A60-B0BC-CFA29DEC0084}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{2F5B5F49-A033-46EF-B3CB-ADC7A969AE33}"
+	ProjectSection(SolutionItems) = preProject
+		LICENSE.md = LICENSE.md
+		README.md = README.md
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{13C812E9-0D42-4B95-8646-40EEBF30636F}.Debug|x64.ActiveCfg = Debug|x64
+		{13C812E9-0D42-4B95-8646-40EEBF30636F}.Debug|x64.Build.0 = Debug|x64
+		{13C812E9-0D42-4B95-8646-40EEBF30636F}.Release|x64.ActiveCfg = Release|x64
+		{13C812E9-0D42-4B95-8646-40EEBF30636F}.Release|x64.Build.0 = Release|x64
+		{F150D743-1E63-2F31-90FD-3343C885D851}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F150D743-1E63-2F31-90FD-3343C885D851}.Debug|x64.Build.0 = Debug|Any CPU
+		{F150D743-1E63-2F31-90FD-3343C885D851}.Release|x64.ActiveCfg = Release|Any CPU
+		{F150D743-1E63-2F31-90FD-3343C885D851}.Release|x64.Build.0 = Release|Any CPU
+		{EFF2607D-101F-4886-9EDC-1846367846E4}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{EFF2607D-101F-4886-9EDC-1846367846E4}.Debug|x64.Build.0 = Debug|Any CPU
+		{EFF2607D-101F-4886-9EDC-1846367846E4}.Release|x64.ActiveCfg = Release|Any CPU
+		{EFF2607D-101F-4886-9EDC-1846367846E4}.Release|x64.Build.0 = Release|Any CPU
+		{6E88FC38-1286-4A60-B0BC-CFA29DEC0084}.Debug|x64.ActiveCfg = Debug|x64
+		{6E88FC38-1286-4A60-B0BC-CFA29DEC0084}.Debug|x64.Build.0 = Debug|x64
+		{6E88FC38-1286-4A60-B0BC-CFA29DEC0084}.Release|x64.ActiveCfg = Release|Any CPU
+		{6E88FC38-1286-4A60-B0BC-CFA29DEC0084}.Release|x64.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B17E85B1-5F60-4440-9F9A-3DDE877E8CDF}
+	EndGlobalSection
+EndGlobal

@@ -1,76 +1,48 @@
-> ⚠️ **Don't click Fork!**
-> 
-> This is a GitHub Template repo. If you want to use this for a plugin, [use this template][new-repo] to make a new repo!
->
-> ![image](https://github.com/goatcorp/SamplePlugin/assets/16760685/d9732094-e1ed-4769-a70b-58ed2b92580c)
+&nbsp;
+![Soundstage Logo](Soundstage%20Logo%202x.png)
 
-# SamplePlugin
-
-[![Use This Template badge](https://img.shields.io/badge/Use%20This%20Template-0?logo=github&labelColor=grey)][new-repo]
+Soundstage is an FFXIV plugin that lets the player place extra visual objects into the game world and manage them in sets called soundstages.
 
 
-Simple example plugin for Dalamud.
+## Installing
 
-This is not designed to be the simplest possible example, but it is also not designed to cover everything you might want to do. For more detailed questions, come ask in [the Discord](https://discord.gg/holdshift).
+(TODO: Add repo URL)
 
-## Main Points
+## Usage
 
-* Simple functional plugin
-  * Slash command
-  * Main UI
-  * Settings UI
-  * Image loading
-  * Plugin json
-* Simple, slightly-improved plugin configuration handling
-* Project organization
-  * Copies all necessary plugin files to the output directory
-    * Does not copy dependencies that are provided by dalamud
-    * Output directory can be zipped directly and have exactly what is required
-  * Hides data files from visual studio to reduce clutter
-    * Also allows having data files in different paths than VS would usually allow if done in the IDE directly
+Use the `/soundstage` command to bring up the main UI.
+
+The left side of the main window lists the soundstages in your Soundstage folder (by default in `C:\Users\<username>\Documents\Soundstages\`).
+The right side of the main window shows info about the selected soundstage and lets you edit it or assign it to automatically load for specific locations.
+
+So far there is no editor for soundstage definitions, so you have to edit the `.json` files by hand to match up with the `SoundstageDefinition` class. Work on an editor is underway.
 
 
-The intention is less that any of this is used directly in other projects, and more to show how similar things can be done.
+## Developers
 
-## How To Use
+### Repo Layout
 
-### Getting Started
+Soundstage is made up of several C# projects:
 
-To begin, [clone this template repository][new-repo] to your own GitHub account. This will automatically bring in everything you need to get a jumpstart on development. You do not need to fork this repository unless you intend to contribute modifications to it.
+**`Soundstage.Definitions`**: The object model for soundstage `.json` files and serialized strings used in IPC. Available as a NuGet package.
 
-Be sure to also check out the [Dalamud Developer Docs][dalamud-docs] for helpful information about building your own plugin. The Developer Docs includes helpful information about all sorts of things, including [how to submit][submit] your newly-created plugin to the official repository. Assuming you use this template repository, the provided project build configuration and license are already chosen to make everything a breeze.
+**`Soundstage.Api`**: A library for other plugins to interact with the Soundstage plugin via Dalamud IPC. Available as a NuGet package.
 
-[new-repo]: https://github.com/new?template_name=SamplePlugin&template_owner=goatcorp
-[dalamud-docs]: https://dalamud.dev
-[submit]: https://dalamud.dev/plugin-publishing/submission
+**`Soundstage`**: The Soundstage FFXIV plugin itself, including (but not limited to):
+ - The `Soundstage.Live` namespace, containing classes for creating objects ingame from soundstage definitions
+ - The `Soundstage.Windows` namespace, containing the Dear ImGui windows that make up the plugin's user interface
+ - The `Soundstage.Editor` namespace, containing all the code for the definition editor
 
-### Prerequisites
 
-SamplePlugin assumes all the following prerequisites are met:
+### IPC (NOT YET IMPLEMENTED)
 
-* XIVLauncher, FINAL FANTASY XIV, and Dalamud have all been installed and the game has been run with Dalamud at least once.
-* XIVLauncher is installed to its default directories and configurations.
-  * If a custom path is required for Dalamud's dev directory, it must be set with the `DALAMUD_HOME` environment variable.
-* A .NET Core 8 SDK has been installed and configured, or is otherwise available. (In most cases, the IDE will take care of this.)
+The Soundstage IPC API is defined in the `Soundstage.Api.ISoundstageApi` interface.
+It lets plugins query the local soundstage definitions, create and destroy temporary soundstages, and show and hide both local and temporary soundstages.
 
-### Building
+To get started, reference the `Soundstage.Api` NuGet package and call `SoundstageApi.CreateIpcClient()`.
+For more information, see the `ISoundstageApi` interface itself.
 
-1. Open up `SamplePlugin.sln` in your C# editor of choice (likely [Visual Studio 2022](https://visualstudio.microsoft.com) or [JetBrains Rider](https://www.jetbrains.com/rider/)).
-2. Build the solution. By default, this will build a `Debug` build, but you can switch to `Release` in your IDE.
-3. The resulting plugin can be found at `SamplePlugin/bin/x64/Debug/SamplePlugin.dll` (or `Release` if appropriate.)
 
-### Activating in-game
+## Human Project
 
-1. Launch the game and use `/xlsettings` in chat or `xlsettings` in the Dalamud Console to open up the Dalamud settings.
-    * In here, go to `Experimental`, and add the full path to the `SamplePlugin.dll` to the list of Dev Plugin Locations.
-2. Next, use `/xlplugins` (chat) or `xlplugins` (console) to open up the Plugin Installer.
-    * In here, go to `Dev Tools > Installed Dev Plugins`, and the `SamplePlugin` should be visible. Enable it.
-3. You should now be able to use `/pmycommand` (chat) or `pmycommand` (console)!
-
-Note that you only need to add it to the Dev Plugin Locations once (Step 1); it is preserved afterwards. You can disable, enable, or load your plugin on startup through the Plugin Installer.
-
-### Reconfiguring for your own uses
-
-Replace all references to `SamplePlugin` in all the files and filenames with your desired name, then start building the plugin of your dreams. You'll figure it out 😁
-
-Dalamud will load the JSON file (by default, `SamplePlugin/SamplePlugin.json`) next to your DLL and use it for metadata, including the description for your plugin in the Plugin Installer. Make sure to update this with information relevant to _your_ plugin!
+This whole thing is designed and typed by humans, so far just myself (UniversalConquistador), for you, for the joy of it.
