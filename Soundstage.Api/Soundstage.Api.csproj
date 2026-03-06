@@ -1,17 +1,42 @@
 ﻿<Project Sdk="Dalamud.NET.Sdk/14.0.1">
+    <Import Project="../Common.targets" />
 
     <PropertyGroup>
         <TargetFramework>net10.0-windows</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
 
+        <!-- NuGet package properties -->
+        <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+        <Authors>UniversalConquistador</Authors>
+        <Title>Soundstage IPC API</Title>
+        <Description>Defines the API for interacting with the Soundstage plugin via Dalamud IPC.</Description>
+        <PackageProjectUrl>https://github.com/universalconquistador/Soundstage</PackageProjectUrl>
+        <Copyright>Copyright (c) UniversalConquistador</Copyright>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <RepositoryType>git</RepositoryType>
+        <RepositoryUrl>https://github.com/universalconquistador/Soundstage.git</RepositoryUrl>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <PackageTags>FFXIV;Dalamud;Soundstage</PackageTags>
+        <IncludeSymbols>True</IncludeSymbols>
+        <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+        <Platforms>AnyCPU;x64</Platforms>
+
         <Use_DalamudPackager>false</Use_DalamudPackager>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="HQIPC" Version="1.1.0">
-            <ExcludeAssets>analyzers</ExcludeAssets>
-        </PackageReference>
+        <None Include="README.md">
+            <Pack>True</Pack>
+            <PackagePath>\</PackagePath>
+        </None>
+        <None Include="../Soundstage Logo 2x.png">
+            <Pack>True</Pack>
+            <PackagePath>\</PackagePath>
+        </None>
     </ItemGroup>
 
+    <ItemGroup>
+        <PackageReference Include="HQIPC" Version="1.1.0" PrivateAssets="all" />
+    </ItemGroup>
 </Project>

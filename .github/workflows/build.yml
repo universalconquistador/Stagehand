@@ -1,0 +1,62 @@
+name: Build
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      Solution_Name: Soundstage
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v5
+
+    - name: Install .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Download Dalamud
+      run: curl --output latest.zip -L "https://goatcorp.github.io/dalamud-distrib/latest.zip"
+
+    - name: Extract Dalamud
+      run: unzip latest.zip -d /home/runner/dalamud-distrib
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build with dotnet
+      run: dotnet build --no-restore --configuration Release
+      env:
+        DALAMUD_HOME: /home/runner/dalamud-distrib
+
+    - name: Store Soundstage artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Soundstage
+        path: ./Soundstage/bin/x64/Release/*
+        if-no-files-found: error
+        retention-days: 7
+
+    - name: Store Soundstage.Api artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Soundstage.Api
+        path: ./Soundstage.Api/bin/x64/Release/*
+        if-no-files-found: error
+        retention-days: 7
+
+    - name: Store Soundstage.Definitions artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Soundstage.Definitions
+        path: ./Soundstage.Definitions/bin/x64/Release/*
+        if-no-files-found: error
+        retention-days: 7

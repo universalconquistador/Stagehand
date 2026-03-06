@@ -40,7 +40,13 @@ The Soundstage IPC API is defined in the `Soundstage.Api.ISoundstageApi` interfa
 It lets plugins query the local soundstage definitions, create and destroy temporary soundstages, and show and hide both local and temporary soundstages.
 
 To get started, reference the `Soundstage.Api` NuGet package and call `SoundstageApi.CreateIpcClient()`.
-For more information, see the `ISoundstageApi` interface itself.
+For more information, see the the [README](Soundstage.Api/README.md).
+
+
+## Definitions
+
+To inspect, modify, or generate Soundstage definitions, use the `Soundstage.Definitions` package.
+For more information, see the [README](Soundstage.Definitions/README.md).
 
 
 ## Human Project

@@ -97,11 +97,39 @@ public class SoundstageDefinition
     public Dictionary<string, ObjectDefinition> Objects { get; set; } = new Dictionary<string, ObjectDefinition>();
 
     /// <summary>
+    /// Writes this Soundstage definition to the given stream in JSON format.
+    /// </summary>
+    public void WriteToJSONStream(Stream destination)
+    {
+        JsonSerializer.Serialize(destination, this, StandardSerializerOptions);
+    }
+
+    /// <summary>
+    /// Attempts to load a Soundstage definition from the given stream in JSON format.
+    /// </summary>
+    /// <param name="source">The stream to read the definition from.</param>
+    /// <param name="definition">The definition that was parsed, or null if parsing failed.</param>
+    /// <returns>Whether a Soundstage definition was successfully parsed from the given stream.</returns>
+    public static bool TryParseJSONStream(Stream source, [NotNullWhen(true)] out SoundstageDefinition? definition)
+    {
+        try
+        {
+            definition = JsonSerializer.Deserialize<SoundstageDefinition>(source, DefinitionStringSerializerOptions);
+            return definition != null;
+        }
+        catch (JsonException)
+        {
+            definition = null;
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Creates a definition string from this Soundstage definition suitable for use with the Soundstage IPC API.
     /// </summary>
     public string ToDefinitionString()
     {
-        return JsonSerializer.Serialize(this, StandardSerializerOptions);
+        return JsonSerializer.Serialize(this, DefinitionStringSerializerOptions);
     }
 
     /// <summary>
@@ -114,10 +142,10 @@ public class SoundstageDefinition
     {
         try
         {
-            definition = JsonSerializer.Deserialize<SoundstageDefinition>(definitionString);
+            definition = JsonSerializer.Deserialize<SoundstageDefinition>(definitionString, DefinitionStringSerializerOptions);
             return definition != null;
         }
-        catch (JsonException parseException)
+        catch (JsonException)
         {
             definition = null;
             return false;
