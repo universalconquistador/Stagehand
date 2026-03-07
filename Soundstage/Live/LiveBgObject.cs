@@ -51,7 +51,7 @@ internal sealed unsafe class LiveBgObject : LiveDrawObject
     public override void Dispose()
     {
         BgObjectPtr->CleanupRender();
-        BgObjectPtr->Dtor(DestroyMode.FreeMemory);
+        BgObjectPtr->Dtor(DestroyFlagsFree);
 
         base.Dispose();
     }

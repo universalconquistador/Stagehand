@@ -23,6 +23,11 @@ public interface ILiveObject : IDisposable
 
 internal abstract unsafe class LiveObject : ILiveObject
 {
+    /// <summary>
+    /// The destructor flags to pass when freeing automatically allocated memory.
+    /// </summary>
+    protected const int DestroyFlagsFree = 1;
+
     protected Object* ObjectPtr { get; set; }
 
     public virtual Vector3 Position { get => ObjectPtr->Position; set => ObjectPtr->Position = value; }

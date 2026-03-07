@@ -24,7 +24,7 @@ internal sealed unsafe class LiveWeapon : LiveDrawObject
     public override void Dispose()
     {
         WeaponPtr->CleanupRender();
-        WeaponPtr->Dtor(DestroyMode.FreeMemory);
+        WeaponPtr->Dtor(DestroyFlagsFree);
 
         base.Dispose();
     }

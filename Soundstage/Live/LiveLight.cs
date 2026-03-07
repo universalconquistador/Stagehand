@@ -26,10 +26,10 @@ internal sealed unsafe class LiveLight : LiveDrawObject
     public Vector3 Color { get => SceneLightPtr->RenderLight->Color; set => SceneLightPtr->RenderLight->Color = value; }
     public float Intensity { get => SceneLightPtr->RenderLight->Intensity; set => SceneLightPtr->RenderLight->Intensity = value; }
     public float Range { get => SceneLightPtr->RenderLight->Range; set => SceneLightPtr->RenderLight->Range = value; }
-    public FalloffType FalloffType { get => SceneLightPtr->RenderLight->FalloffType; set => SceneLightPtr->RenderLight->FalloffType = value; }
-    public float Falloff { get => SceneLightPtr->RenderLight->Falloff; set => SceneLightPtr->RenderLight->Falloff = value; }
+    public LightFalloffType FalloffType { get => SceneLightPtr->RenderLight->FalloffType; set => SceneLightPtr->RenderLight->FalloffType = value; }
+    public float FalloffFactor { get => SceneLightPtr->RenderLight->FalloffFactor; set => SceneLightPtr->RenderLight->FalloffFactor = value; }
     public float SpotLightAngleDegrees { get => SceneLightPtr->RenderLight->SpotLightAngleDegrees; set => SceneLightPtr->RenderLight->SpotLightAngleDegrees = value; }
-    public float FalloffAngle { get => SceneLightPtr->RenderLight->FalloffAngle; set => SceneLightPtr->RenderLight->FalloffAngle = value; }
+    public float AngularFalloffDegrees { get => SceneLightPtr->RenderLight->AngularFalloffDegrees; set => SceneLightPtr->RenderLight->AngularFalloffDegrees = value; }
     public float CharacterShadowRange { get => SceneLightPtr->RenderLight->CharacterShadowRange; set => SceneLightPtr->RenderLight->CharacterShadowRange = value; }
     public float ShadowPlaneNear { get => SceneLightPtr->RenderLight->ShadowPlaneNear; set => SceneLightPtr->RenderLight->ShadowPlaneNear = value; }
     public float ShadowPlaneFar { get => SceneLightPtr->RenderLight->ShadowPlaneFar; set => SceneLightPtr->RenderLight->ShadowPlaneFar = value; }
@@ -56,10 +56,10 @@ internal sealed unsafe class LiveLight : LiveDrawObject
         Intensity = 1.0f;
         SceneLightPtr->RenderLight->MaxRange = RenderLight.UnlimitedMaxRange;
 
-        FalloffType = FalloffType.Quadratic;
-        Falloff = 1.0f;
+        FalloffType = LightFalloffType.Quadratic;
+        FalloffFactor = 1.0f;
         SpotLightAngleDegrees = 45.0f;
-        FalloffAngle = 0.5f;
+        AngularFalloffDegrees = 0.5f;
         Range = 35.0f;
         SceneLightPtr->RenderLight->FlatLightSkewAngleDegrees = new Vector2(0.0f, 0.0f);
 
@@ -85,7 +85,7 @@ internal sealed unsafe class LiveLight : LiveDrawObject
         _framework.Update -= OnFrameworkUpdate;
 
         SceneLightPtr->CleanupRender();
-        SceneLightPtr->Dtor(DestroyMode.FreeMemory);
+        SceneLightPtr->Dtor(DestroyFlagsFree);
 
         base.Dispose();
     }
@@ -129,15 +129,15 @@ internal sealed unsafe class LiveLight : LiveDrawObject
             ShadowPlaneFar = lightDefinition.ShadowPlaneFar;
             FalloffType = lightDefinition.FalloffFunction switch
             {
-                LightFalloffFunction.Linear => FalloffType.Linear,
-                LightFalloffFunction.Quadratic => FalloffType.Quadratic,
-                LightFalloffFunction.Cubic => FalloffType.Cubic,
-                _ => FalloffType.Cubic,
+                LightFalloffFunction.Linear => LightFalloffType.Linear,
+                LightFalloffFunction.Quadratic => LightFalloffType.Quadratic,
+                LightFalloffFunction.Cubic => LightFalloffType.Cubic,
+                _ => LightFalloffType.Cubic,
             };
             FlatLightSkewAngleDegrees = lightDefinition.FlatLightSkewAngleDegrees;
-            Falloff = lightDefinition.FalloffFactor;
+            FalloffFactor = lightDefinition.FalloffFactor;
             SpotLightAngleDegrees = lightDefinition.SpotLightAngleDegrees;
-            FalloffAngle = lightDefinition.SpotLightFalloffDegrees;
+            AngularFalloffDegrees = lightDefinition.AngularFalloffDegrees;
             Range = lightDefinition.Range;
             CharacterShadowRange = lightDefinition.CharacterShadowRange;
 

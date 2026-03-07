@@ -142,7 +142,7 @@ public class LightDefinition : ObjectDefinition
     /// <summary>
     /// The angle over which the cone of light dims from full brightness to none, if its <see cref="Shape"/> is <see cref="LightShape.Spot"/> or <see cref="LightShape.Flat"/>.
     /// </summary>
-    public float SpotLightFalloffDegrees { get; set; }
+    public float AngularFalloffDegrees { get; set; }
 
     /// <summary>
     /// The maximum distance that the light can reach.

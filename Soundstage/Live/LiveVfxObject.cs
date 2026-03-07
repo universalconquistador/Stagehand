@@ -75,7 +75,7 @@ internal sealed unsafe class LiveVfxObject : LiveDrawObject
     public override void Dispose()
     {
         VfxObjectPtr->CleanupRender();
-        VfxObjectPtr->Dtor(DestroyMode.FreeMemory);
+        VfxObjectPtr->Dtor(DestroyFlagsFree);
 
         base.Dispose();
     }
