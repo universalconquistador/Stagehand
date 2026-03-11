@@ -26,7 +26,7 @@
         <IconUrl></IconUrl>
         <Changelog></Changelog>
 
-        <Use_Dalamud_FFXIVClientStructs>false</Use_Dalamud_FFXIVClientStructs>
+        <Use_Dalamud_FFXIVClientStructs Condition="'$(Configuration)'=='Debug'">false</Use_Dalamud_FFXIVClientStructs>
     </PropertyGroup>
 
     <ItemGroup>
@@ -34,8 +34,8 @@
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
         <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
 
-        <ProjectReference Include="..\..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj" Private="True" />
-        <ProjectReference Include="..\..\FFXIVClientStructs\InteropGenerator.Runtime\InteropGenerator.Runtime.csproj" Private="True" />
+        <ProjectReference Include="..\..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj" Condition="'$(Configuration)'=='Debug'" Private="True" />
+        <ProjectReference Include="..\..\FFXIVClientStructs\InteropGenerator.Runtime\InteropGenerator.Runtime.csproj" Condition="'$(Configuration)'=='Debug'" Private="True" />
         <ProjectReference Include="..\Soundstage.Api\Soundstage.Api.csproj" />
         <ProjectReference Include="..\Soundstage.Definitions\Soundstage.Definitions.csproj" />
     </ItemGroup>
