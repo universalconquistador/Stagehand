@@ -40,13 +40,17 @@ internal sealed unsafe class LiveWeapon : LiveDrawObject
                 || weaponDefinition.SecondaryDye != SecondaryDye)
             {
                 WeaponPtr->CleanupRender();
-                WeaponModelId newModel = new WeaponModelId()
+                WeaponCreateInfo newModel = new WeaponCreateInfo()
                 {
-                    Id = (ushort)weaponDefinition.ModelSetId,
-                    Type = (ushort)weaponDefinition.SecondaryId,
-                    Variant = (ushort)weaponDefinition.Variant,
-                    Stain0 = (byte)weaponDefinition.PrimaryDye,
-                    Stain1 = (byte)weaponDefinition.SecondaryDye,
+                    WeaponModelId =
+                    {
+                        Id = (ushort)weaponDefinition.ModelSetId,
+                        Type = (ushort)weaponDefinition.SecondaryId,
+                        Variant = (ushort)weaponDefinition.Variant,
+                        Stain0 = (byte)weaponDefinition.PrimaryDye,
+                        Stain1 = (byte)weaponDefinition.SecondaryDye,
+                    },
+                    AnimationVariant = (byte)weaponDefinition.AnimationVariant,
                 };
                 WeaponPtr->Initialize(&newModel);
 

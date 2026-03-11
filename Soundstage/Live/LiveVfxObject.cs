@@ -106,7 +106,6 @@ internal sealed unsafe class LiveVfxObject : LiveDrawObject
                 VfxObjectPtr->Update(0.0f);
             }
 
-
             return true;
         }
         else

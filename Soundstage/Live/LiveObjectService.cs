@@ -180,15 +180,19 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
     {
         Weapon* weapon;
 
-        WeaponModelId modelId = new WeaponModelId()
+        WeaponCreateInfo createInfo = new WeaponCreateInfo()
         {
-            Id = modelSetId,
-            Type = secondaryId,
-            Variant = variant,
-            Stain0 = stain0,
-            Stain1 = stain1,
+            WeaponModelId =
+            {
+                Id = modelSetId,
+                Type = secondaryId,
+                Variant = variant,
+                Stain0 = stain0,
+                Stain1 = stain1,
+            },
+            AnimationVariant = 0,
         };
-        weapon = Weapon.Create(&modelId);
+        weapon = Weapon.Create(&createInfo);
 
         if (weapon == null)
         {

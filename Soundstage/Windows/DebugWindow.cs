@@ -231,13 +231,17 @@ public unsafe class DebugWindow : Window, IHostedService, IDisposable
                                     if (weaponChanged)
                                     {
                                         weapon->CleanupRender();
-                                        WeaponModelId newModel = new WeaponModelId()
+                                        WeaponCreateInfo newModel = new WeaponCreateInfo()
                                         {
-                                            Id = weapon->ModelSetId,
-                                            Type = weapon->SecondaryId,
-                                            Variant = weapon->Variant,
-                                            Stain0 = weapon->Stain0,
-                                            Stain1 = weapon->Stain1,
+                                            WeaponModelId =
+                                            {
+                                                Id = weapon->ModelSetId,
+                                                Type = weapon->SecondaryId,
+                                                Variant = weapon->Variant,
+                                                Stain0 = weapon->Stain0,
+                                                Stain1 = weapon->Stain1,
+                                            },
+                                            AnimationVariant = weapon->AnimationVariant,
                                         };
                                         weapon->Initialize(&newModel);
 
