@@ -30,7 +30,7 @@ jobs:
       run: unzip latest.zip -d /home/runner/dalamud-distrib
 
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore Soundstage && dotnet restore Soundstage.Api && dotnet restore Soundstage.Definitions
 
     - name: Build with dotnet
       run: dotnet build --no-restore --configuration Release
