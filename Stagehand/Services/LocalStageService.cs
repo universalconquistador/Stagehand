@@ -17,17 +17,17 @@ namespace Stagehand.Services;
 /// <summary>
 /// Shows and hides Stagehands for the local definitions according to automatic rules and manual commands.
 /// </summary>
-internal class LocalStagehandService : IHostedService
+internal class LocalStageService : IHostedService
 {
     private readonly ILogger _logger;
     private readonly IFramework _framework;
     private readonly IClientState _clientState;
     private readonly ILocalDefinitionService _localDefinitionService;
-    private readonly ILiveStagehandService _liveStagehandService;
+    private readonly ILiveStageService _liveStagehandService;
 
     private readonly ConcurrentDictionary<string, bool> _manualVisibilitySettings = new();
 
-    public LocalStagehandService(ILogger<LocalStagehandService> logger, IFramework framework, IClientState clientState, ILocalDefinitionService localDefinitionService, ILiveStagehandService liveStagehandService, StagehandConfiguration configuration)
+    public LocalStageService(ILogger<LocalStageService> logger, IFramework framework, IClientState clientState, ILocalDefinitionService localDefinitionService, ILiveStageService liveStagehandService, StagehandConfiguration configuration)
     {
         _logger = logger;
         _framework = framework;
@@ -64,7 +64,7 @@ internal class LocalStagehandService : IHostedService
         {
             foreach (var removed in removedDefinitions)
             {
-                _liveStagehandService.TryDestroyLiveStagehand(LiveStagehandHelpers.MakeLocalStagehandKey(removed));
+                _liveStagehandService.TryDestroyLiveStagehand(LiveStageHelpers.MakeLocalStagehandKey(removed));
             }
 
             // Show new Stagehands that meet their show conditions
@@ -77,10 +77,10 @@ internal class LocalStagehandService : IHostedService
                     {
                         using (FileStream stream = new FileStream(added, FileMode.Open, FileAccess.Read))
                         {
-                            var definition = JsonSerializer.Deserialize<StagehandDefinition>(stream, StagehandDefinition.StandardSerializerOptions);
+                            var definition = JsonSerializer.Deserialize<StageDefinition>(stream, StageDefinition.StandardSerializerOptions);
                             if (definition != null)
                             {
-                                _liveStagehandService.CreateOrUpdateLiveStagehand(LiveStagehandHelpers.MakeLocalStagehandKey(added), definition);
+                                _liveStagehandService.CreateOrUpdateLiveStagehand(LiveStageHelpers.MakeLocalStagehandKey(added), definition);
                             }
                         }
                     }
@@ -96,13 +96,13 @@ internal class LocalStagehandService : IHostedService
             {
                 if (_localDefinitionService.LocalDefinitions.TryGetValue(modified, out var metadata)
                     && metadata.AutomaticShowConditions.Any(condition => IsConditionActive(condition, _clientState.TerritoryType))
-                    && _liveStagehandService.TryGetLiveStagehand(LiveStagehandHelpers.MakeLocalStagehandKey(modified), out var liveStagehand))
+                    && _liveStagehandService.TryGetLiveStagehand(LiveStageHelpers.MakeLocalStagehandKey(modified), out var liveStagehand))
                 {
                     try
                     {
                         using (FileStream stream = new FileStream(modified, FileMode.Open, FileAccess.Read))
                         {
-                            var definition = JsonSerializer.Deserialize<StagehandDefinition>(stream, StagehandDefinition.StandardSerializerOptions);
+                            var definition = JsonSerializer.Deserialize<StageDefinition>(stream, StageDefinition.StandardSerializerOptions);
                             if (definition != null)
                             {
                                 liveStagehand.Update(definition);
@@ -120,7 +120,7 @@ internal class LocalStagehandService : IHostedService
 
     private void RefreshVisibility(string path)
     {
-        var liveKey = LiveStagehandHelpers.MakeLocalStagehandKey(path);
+        var liveKey = LiveStageHelpers.MakeLocalStagehandKey(path);
         bool currentlyVisible = _liveStagehandService.TryGetLiveStagehand(liveKey, out var liveStagehand);
 
         bool shouldBeVisible = _manualVisibilitySettings.GetValueOrDefault(path, _localDefinitionService.LocalDefinitions.TryGetValue(path, out var metadata)
@@ -138,7 +138,7 @@ internal class LocalStagehandService : IHostedService
                 {
                     using (FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read))
                     {
-                        var definition = JsonSerializer.Deserialize<StagehandDefinition>(stream, StagehandDefinition.StandardSerializerOptions);
+                        var definition = JsonSerializer.Deserialize<StageDefinition>(stream, StageDefinition.StandardSerializerOptions);
                         if (definition != null)
                         {
                             _liveStagehandService.CreateOrUpdateLiveStagehand(liveKey, definition);
@@ -174,10 +174,10 @@ internal class LocalStagehandService : IHostedService
                     {
                         using (FileStream stream = new FileStream(localDefinition.Key, FileMode.Open, FileAccess.Read))
                         {
-                            var definition = JsonSerializer.Deserialize<StagehandDefinition>(stream, StagehandDefinition.StandardSerializerOptions);
+                            var definition = JsonSerializer.Deserialize<StageDefinition>(stream, StageDefinition.StandardSerializerOptions);
                             if (definition != null)
                             {
-                                _liveStagehandService.CreateOrUpdateLiveStagehand(LiveStagehandHelpers.MakeLocalStagehandKey(localDefinition.Key), definition);
+                                _liveStagehandService.CreateOrUpdateLiveStagehand(LiveStageHelpers.MakeLocalStagehandKey(localDefinition.Key), definition);
                             }
                         }
                     }

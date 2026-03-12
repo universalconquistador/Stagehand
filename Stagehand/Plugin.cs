@@ -93,13 +93,13 @@ public sealed class Plugin : IDalamudPlugin
             services.AddSingleton<IOverlayService>(_overlayService);
             services.AddSingleton<ILocalDefinitionService, LocalDefinitionService>();
             services.AddSingleton<ILiveObjectService, LiveObjectService>();
-            services.AddSingleton<ILiveStagehandService, LiveStagehandService>();
+            services.AddSingleton<ILiveStageService, LiveStageService>();
 
             services.AddHostedService<ConfigWindow>();
             services.AddHostedService<DebugWindow>();
             services.AddHostedService<LibraryWindow>();
-            services.AddSingleton<LocalStagehandService>();
-            services.AddHostedService(c => c.GetRequiredService<LocalStagehandService>());
+            services.AddSingleton<LocalStageService>();
+            services.AddHostedService(c => c.GetRequiredService<LocalStageService>());
         });
 
         _host = hostBuilder.Build();

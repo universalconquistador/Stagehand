@@ -5,7 +5,7 @@ using System.Text;
 namespace Stagehand.Definitions.Objects;
 
 /// <summary>
-/// The definition of a weapon in a Stagehand definition.
+/// The definition of a weapon in a Stage definition.
 /// </summary>
 public class WeaponDefinition : ObjectDefinition
 {

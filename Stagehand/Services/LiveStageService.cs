@@ -12,16 +12,16 @@ namespace Stagehand.Services;
 /// <summary>
 /// Creates and destroys live Stagehands.
 /// </summary>
-public interface ILiveStagehandService
+public interface ILiveStageService
 {
     /// <summary>
-    /// Uses the given Stagehand definition to update the live Stagehand with the given key,
+    /// Uses the given Stage definition to update the live Stagehand with the given key,
     /// or create one if it does not exist.
     /// </summary>
     /// <param name="key">The key for the live Stagehand to create or update.</param>
-    /// <param name="definition">The Stagehand definition for the live Stagehand.</param>
+    /// <param name="definition">The Stage definition for the live Stagehand.</param>
     /// <returns>The live Stagehand that was created or updated.</returns>
-    LiveStagehand CreateOrUpdateLiveStagehand(string key, StagehandDefinition definition);
+    LiveStage CreateOrUpdateLiveStagehand(string key, StageDefinition definition);
 
     /// <summary>
     /// Searches for a live Stagehand with the given key.
@@ -29,7 +29,7 @@ public interface ILiveStagehandService
     /// <param name="key">The key of the live Stagehand to search for.</param>
     /// <param name="Stagehand">The live Stagehand that was found, if any.</param>
     /// <returns>True if a matching live Stagehand was returned, or false otherwise.</returns>
-    bool TryGetLiveStagehand(string key, [NotNullWhen(true)] out LiveStagehand? Stagehand);
+    bool TryGetLiveStagehand(string key, [NotNullWhen(true)] out LiveStage? Stagehand);
 
     /// <summary>
     /// Destroys the live Stagehand with the given key, if one exists.
@@ -44,12 +44,12 @@ public interface ILiveStagehandService
     void DestroyAllLiveStagehands();
 }
 
-public static class LiveStagehandHelpers
+internal static class LiveStageHelpers
 {
     /// <summary>
     /// Returns a live Stagehand key that uniquely identifies the Stagehand with the definition located at the given full path.
     /// </summary>
-    /// <param name="fullFilename">The full path to the Stagehand definition.</param>
+    /// <param name="fullFilename">The full path to the Stage definition.</param>
     /// <returns>The key for the live Stagehand.</returns>
     public static string MakeLocalStagehandKey(string fullFilename)
     {
@@ -70,27 +70,27 @@ public static class LiveStagehandHelpers
     }
 }
 
-internal class LiveStagehandService : ILiveStagehandService, IDisposable
+internal class LiveStageService : ILiveStageService, IDisposable
 {
     private readonly ILiveObjectService _liveObjectService;
 
-    private readonly ConcurrentDictionary<string, LiveStagehand> _liveStagehands = new();
+    private readonly ConcurrentDictionary<string, LiveStage> _liveStagehands = new();
 
-    public LiveStagehandService(ILiveObjectService liveObjectService)
+    public LiveStageService(ILiveObjectService liveObjectService)
     {
         _liveObjectService = liveObjectService;
     }
 
-    public LiveStagehand CreateOrUpdateLiveStagehand(string key, StagehandDefinition definition)
+    public LiveStage CreateOrUpdateLiveStagehand(string key, StageDefinition definition)
     {
-        return _liveStagehands.AddOrUpdate(key, k => new LiveStagehand(definition, _liveObjectService), (k, existing) =>
+        return _liveStagehands.AddOrUpdate(key, k => new LiveStage(definition, _liveObjectService), (k, existing) =>
         {
             existing.Update(definition);
             return existing;
         });
     }
 
-    public bool TryGetLiveStagehand(string key, [NotNullWhen(true)] out LiveStagehand? Stagehand)
+    public bool TryGetLiveStagehand(string key, [NotNullWhen(true)] out LiveStage? Stagehand)
     {
         return _liveStagehands.TryGetValue(key, out Stagehand);
     }

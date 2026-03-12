@@ -6,7 +6,7 @@ using System.Text;
 namespace Stagehand.Definitions.Objects;
 
 /// <summary>
-/// The definition of a background object in a Stagehand definition.
+/// The definition of a background object in a Stage definition.
 /// </summary>
 public class BgObjectDefinition : ObjectDefinition
 {

@@ -7,7 +7,7 @@ using System.Text.Json.Serialization;
 namespace Stagehand.Definitions.Objects;
 
 /// <summary>
-/// The base class for the definition of an object in a Stagehand definition.
+/// The base class for the definition of an object in a Stage definition.
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "Type")]
 [JsonDerivedType(typeof(BgObjectDefinition), typeDiscriminator: "BgObject")]

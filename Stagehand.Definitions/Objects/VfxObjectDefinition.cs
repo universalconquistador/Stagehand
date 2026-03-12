@@ -6,7 +6,7 @@ using System.Text;
 namespace Stagehand.Definitions.Objects;
 
 /// <summary>
-/// The definition of a VFX object in a Stagehand definition.
+/// The definition of a VFX object in a Stage definition.
 /// </summary>
 public class VfxObjectDefinition : ObjectDefinition
 {

@@ -9,7 +9,7 @@ using System.Threading;
 
 namespace Stagehand.Live;
 
-public class LiveStagehand : IDisposable
+public class LiveStage : IDisposable
 {
     private readonly Dictionary<string, ILiveObject> _liveObjects = new();
 
@@ -17,13 +17,13 @@ public class LiveStagehand : IDisposable
 
     private readonly object _modificationLock = new();
 
-    public LiveStagehand(StagehandDefinition definition, ILiveObjectService liveObjectService)
+    public LiveStage(StageDefinition definition, ILiveObjectService liveObjectService)
     {
         _liveObjectService = liveObjectService;
         Update(definition);
     }
 
-    public void Update(StagehandDefinition newDefinition)
+    public void Update(StageDefinition newDefinition)
     {
         lock (_modificationLock)
         {

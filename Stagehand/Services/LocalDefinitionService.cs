@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 namespace Stagehand.Services;
 
 /// <summary>
-/// Specifies a location in which to automatically show a local Stagehand definition.
+/// Specifies a location in which to automatically show a local Stage definition.
 /// </summary>
 public record struct AutomaticShowCondition
 {
@@ -27,14 +27,14 @@ public record struct AutomaticShowCondition
 }
 
 /// <summary>
-/// Metadata about a local Stagehand definition.
+/// Metadata about a local Stage definition.
 /// </summary>
 public interface ILocalDefinitionMetadata
 {
     /// <summary>
     /// The metadata info stored in the definition.
     /// </summary>
-    StagehandInfo Info { get; }
+    StageInfo Info { get; }
 
     /// <summary>
     /// The last modified time of the local definition file.
@@ -50,7 +50,7 @@ public interface ILocalDefinitionMetadata
 public delegate void LocalDefinitionsChangedDelegate(IReadOnlyList<string> removedDefinitions, IReadOnlyList<string> addedDefinitions, IReadOnlyList<string> modifiedDefinitions);
 
 /// <summary>
-/// Maintains a list of the user's local Stagehand definitions.
+/// Maintains a list of the user's local Stage definitions.
 /// </summary>
 public interface ILocalDefinitionService
 {
@@ -60,19 +60,19 @@ public interface ILocalDefinitionService
     string LocalDefinitionDirectory { get; set; }
 
     /// <summary>
-    /// The full filenames and metadata for the local Stagehand definitions.
+    /// The full filenames and metadata for the local Stage definitions.
     /// </summary>
     IReadOnlyDictionary<string, ILocalDefinitionMetadata> LocalDefinitions { get; }
 
     /// <summary>
-    /// Sets the automatic show conditions for the local Stagehand definition at the given full path.
+    /// Sets the automatic show conditions for the local Stage definition at the given full path.
     /// </summary>
-    /// <param name="filename">The full path to the Stagehand definition.</param>
+    /// <param name="filename">The full path to the Stage definition.</param>
     /// <param name="newConditions">The new automatic show conditions to apply.</param>
     void SetAutomaticShowConditions(string filename, IEnumerable<AutomaticShowCondition> newConditions);
 
     /// <summary>
-    /// Raised when local Stagehand definitions have been added, removed, or changed.
+    /// Raised when local Stage definitions have been added, removed, or changed.
     /// </summary>
     event LocalDefinitionsChangedDelegate LocalDefinitionsChanged;
 
@@ -86,7 +86,7 @@ public class LocalDefinitionService : ILocalDefinitionService, IDisposable
 {
     private class LocalDefinitionMetadata : ILocalDefinitionMetadata
     {
-        public StagehandInfo Info { get; set; }
+        public StageInfo Info { get; set; }
         public DateTimeOffset LastModified { get; set; }
         public IReadOnlyList<AutomaticShowCondition> AutomaticShowConditions { get; set; } = Array.Empty<AutomaticShowCondition>();
     }
@@ -159,7 +159,7 @@ public class LocalDefinitionService : ILocalDefinitionService, IDisposable
         LocalDefinitionsChanged?.Invoke([ e.OldFullPath ], [ e.FullPath ], Array.Empty<string>());
     }
 
-    private void AddOrUpdateMetadata(string filename, StagehandDefinition definition)
+    private void AddOrUpdateMetadata(string filename, StageDefinition definition)
     {
         _localDefinitions.AddOrUpdate(filename, f => new LocalDefinitionMetadata()
         {
@@ -263,7 +263,7 @@ public class LocalDefinitionService : ILocalDefinitionService, IDisposable
         }
     }
 
-    private bool TryLoadDefinitionFile(string filename, [NotNullWhen(true)] out StagehandDefinition? definition)
+    private bool TryLoadDefinitionFile(string filename, [NotNullWhen(true)] out StageDefinition? definition)
     {
         Exception? lastException = null;
         for (int attempt = 0; attempt < 10; attempt++)
@@ -272,7 +272,7 @@ public class LocalDefinitionService : ILocalDefinitionService, IDisposable
             {
                 using (var stream = new FileStream(filename, FileMode.Open, FileAccess.Read))
                 {
-                    definition = JsonSerializer.Deserialize<StagehandDefinition>(stream, options: StagehandDefinition.StandardSerializerOptions);
+                    definition = JsonSerializer.Deserialize<StageDefinition>(stream, options: StageDefinition.StandardSerializerOptions);
                 }
                 return definition != null;
             }

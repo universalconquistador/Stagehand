@@ -14,14 +14,14 @@ public interface IStagehandApi
     event Action<IReadOnlyList<string>> VisibleStagehandsChanged;
 
     //
-    // LOCAL Stagehand DEFINITIONS
+    // LOCAL STAGE DEFINITIONS
     //
-    // Stagehand keeps track of the metadata about the player's local Stagehand definitions they have available.
+    // Stagehand keeps track of the metadata about the player's local Stage definitions they have available.
     //
 
 
     //
-    // VISIBLE StagehandS
+    // VISIBLE STAGES
     //
     // 
     //
@@ -55,9 +55,9 @@ public interface IStagehandApi
     /// Creates or updates the temporary Stagehand with the given ID, if the given definition string is valid.
     /// </summary>
     /// <param name="definitionString">
-    /// A string containing the serialized Stagehand definition.
+    /// A string containing the serialized Stage definition.
     /// <br />
-    /// This should be obtained by calling <c>StagehandDefinition.ToDefinitionString()</c>.
+    /// This should be obtained by calling <c>StageDefinition.ToDefinitionString()</c>.
     /// </param>
     /// <param name="StagehandId">
     /// An ID to uniquely identify the temporary Stagehand you want to create or update.
@@ -69,7 +69,7 @@ public interface IStagehandApi
     /// <param name="debugName">A display name to assign to the Stagehand to identify it when debugging.</param>
     /// <returns>
     /// True if the operation was a success, or false if it failed
-    /// (e.g. if the definition string could not be deserialized into a Stagehand definition.)
+    /// (e.g. if the definition string could not be deserialized into a Stage definition.)
     /// </returns>
     bool TryCreateOrUpdateTemporaryStagehand(string definitionString, string StagehandId, string debugName);
 

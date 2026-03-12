@@ -56,7 +56,7 @@ public enum LightFalloffFunction
 }
 
 /// <summary>
-/// The definition of a light in a Stagehand definition.
+/// The definition of a light in a Stage definition.
 /// </summary>
 public class LightDefinition : ObjectDefinition
 {

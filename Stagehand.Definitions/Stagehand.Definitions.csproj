@@ -9,8 +9,8 @@
         <!-- NuGet package properties -->
         <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
         <Authors>UniversalConquistador</Authors>
-        <Title>Stagehand Definition Format</Title>
-        <Description>Defines the file format of Stagehand definitions.</Description>
+        <Title>Stage Definition Format</Title>
+        <Description>Defines the file format of Stage definitions.</Description>
         <PackageProjectUrl>https://github.com/universalconquistador/Stagehand</PackageProjectUrl>
         <Copyright>Copyright (c) UniversalConquistador</Copyright>
         <PackageReadmeFile>README.md</PackageReadmeFile>

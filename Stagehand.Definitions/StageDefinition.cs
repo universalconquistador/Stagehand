@@ -10,37 +10,37 @@ using System.Text.Json.Serialization;
 namespace Stagehand.Definitions;
 
 /// <summary>
-/// Informational metadata about a Stagehand definition.
+/// Informational metadata about a Stage definition.
 /// </summary>
-public struct StagehandInfo
+public struct StageInfo
 {
     /// <summary>
-    /// The display name of the Stagehand definition.
+    /// The display name of the Stage definition.
     /// </summary>
     public string Name { get; set; } = "";
 
     /// <summary>
-    /// The name of the author(s) of the Stagehand definition.
+    /// The name of the author(s) of the Stage definition.
     /// </summary>
     public string AuthorName { get; set; } = "";
 
     /// <summary>
-    /// A user-facing string describing the version of the Stagehand definition.
+    /// A user-facing string describing the version of the Stage definition.
     /// </summary>
     public string VersionString { get; set; } = "";
 
     /// <summary>
-    /// A description of the Stagehand definition.
+    /// A description of the Stage definition.
     /// </summary>
     public string Description { get; set; } = "";
 
     /// <summary>
-    /// The territory type (see the <c>TerritoryType</c> Excel sheet) that the Stagehand definition
+    /// The territory type (see the <c>TerritoryType</c> Excel sheet) that the Stage definition
     /// is intended to be shown in.
     /// </summary>
     public int IntendedTerritoryType { get; set; }
 
-    public StagehandInfo()
+    public StageInfo()
     { }
 }
 
@@ -49,12 +49,12 @@ public struct StagehandInfo
 /// </summary>
 /// <remarks>
 /// These are loaded from and saved to <c>.json</c> files using the <see cref="StandardSerializerOptions"/>,
-/// and from and to IPC API compatible strings using <see cref="ToDefinitionString"/> and <see cref="TryParseDefinitionString(string, out StagehandDefinition?)"/>.
+/// and from and to IPC API compatible strings using <see cref="ToDefinitionString"/> and <see cref="TryParseDefinitionString(string, out StageDefinition?)"/>.
 /// </remarks>
-public class StagehandDefinition
+public class StageDefinition
 {
     /// <summary>
-    /// The serialization options to be used when serializing and deserializing Stagehand definitions.
+    /// The serialization options to be used when serializing and deserializing Stage definitions.
     /// </summary>
     public static readonly JsonSerializerOptions StandardSerializerOptions = new JsonSerializerOptions
     {
@@ -71,7 +71,7 @@ public class StagehandDefinition
     };
 
     /// <summary>
-    /// The serialization options to be used when serializing and deserializing Stagehand definitions
+    /// The serialization options to be used when serializing and deserializing Stage definitions
     /// for use with the IPC API.
     /// </summary>
     public static readonly JsonSerializerOptions DefinitionStringSerializerOptions = new JsonSerializerOptions
@@ -87,17 +87,17 @@ public class StagehandDefinition
     };
 
     /// <summary>
-    /// The metadata about this Stagehand definition.
+    /// The metadata about this Stage definition.
     /// </summary>
-    public StagehandInfo Info { get; set; } = new StagehandInfo();
+    public StageInfo Info { get; set; } = new StageInfo();
 
     /// <summary>
-    /// The objects in this Stagehand definition, identified by unique string identifiers.
+    /// The objects in this Stage definition, identified by unique string identifiers.
     /// </summary>
     public Dictionary<string, ObjectDefinition> Objects { get; set; } = new Dictionary<string, ObjectDefinition>();
 
     /// <summary>
-    /// Writes this Stagehand definition to the given stream in JSON format.
+    /// Writes this Stage definition to the given stream in JSON format.
     /// </summary>
     public void WriteToJSONStream(Stream destination)
     {
@@ -105,16 +105,16 @@ public class StagehandDefinition
     }
 
     /// <summary>
-    /// Attempts to load a Stagehand definition from the given stream in JSON format.
+    /// Attempts to load a Stage definition from the given stream in JSON format.
     /// </summary>
     /// <param name="source">The stream to read the definition from.</param>
     /// <param name="definition">The definition that was parsed, or null if parsing failed.</param>
-    /// <returns>Whether a Stagehand definition was successfully parsed from the given stream.</returns>
-    public static bool TryParseJSONStream(Stream source, [NotNullWhen(true)] out StagehandDefinition? definition)
+    /// <returns>Whether a Stage definition was successfully parsed from the given stream.</returns>
+    public static bool TryParseJSONStream(Stream source, [NotNullWhen(true)] out StageDefinition? definition)
     {
         try
         {
-            definition = JsonSerializer.Deserialize<StagehandDefinition>(source, DefinitionStringSerializerOptions);
+            definition = JsonSerializer.Deserialize<StageDefinition>(source, DefinitionStringSerializerOptions);
             return definition != null;
         }
         catch (JsonException)
@@ -125,7 +125,7 @@ public class StagehandDefinition
     }
 
     /// <summary>
-    /// Creates a definition string from this Stagehand definition suitable for use with the Stagehand IPC API.
+    /// Creates a definition string from this Stage definition suitable for use with the Stagehand IPC API.
     /// </summary>
     public string ToDefinitionString()
     {
@@ -133,16 +133,16 @@ public class StagehandDefinition
     }
 
     /// <summary>
-    /// Attempts to load the given Stagehand definition string from the IPC API format.
+    /// Attempts to load the given Stage definition string from the IPC API format.
     /// </summary>
     /// <param name="definitionString">The definition string in IPC API format, as created by <see cref="ToDefinitionString"/>.</param>
     /// <param name="definition">The definition that was parsed, or null if parsing failed.</param>
-    /// <returns>Whether a Stagehand definition was successfully parsed from the given string.</returns>
-    public static bool TryParseDefinitionString(string definitionString, [NotNullWhen(true)] out StagehandDefinition? definition)
+    /// <returns>Whether a Stage definition was successfully parsed from the given string.</returns>
+    public static bool TryParseDefinitionString(string definitionString, [NotNullWhen(true)] out StageDefinition? definition)
     {
         try
         {
-            definition = JsonSerializer.Deserialize<StagehandDefinition>(definitionString, DefinitionStringSerializerOptions);
+            definition = JsonSerializer.Deserialize<StageDefinition>(definitionString, DefinitionStringSerializerOptions);
             return definition != null;
         }
         catch (JsonException)

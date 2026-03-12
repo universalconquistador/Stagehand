@@ -39,8 +39,8 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
     private readonly IClientState _clientState;
 
     private readonly ILocalDefinitionService _localDefinitionService;
-    private readonly ILiveStagehandService _liveStagehandService;
-    private readonly LocalStagehandService _localStagehandService;
+    private readonly ILiveStageService _liveStagehandService;
+    private readonly LocalStageService _localStagehandService;
     private readonly WindowSystem _windowSystem;
     private readonly StagehandConfiguration _configuration;
 
@@ -48,11 +48,11 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
 
     private List<ushort> _allTerritories;
 
-    public LibraryWindow(ILogger<LibraryWindow> logger, IDalamudPluginInterface dalamudPluginInterface, ICommandManager commandManager, IDataManager dataManager, IClientState clientState, ILocalDefinitionService localDefinitionService, ILiveStagehandService liveStagehandService, LocalStagehandService localStagehandService, WindowSystem windowSystem, StagehandConfiguration configuration) : base($"Stagehand {dalamudPluginInterface.Manifest.AssemblyVersion}###StagehandLibrary")
+    public LibraryWindow(ILogger<LibraryWindow> logger, IDalamudPluginInterface dalamudPluginInterface, ICommandManager commandManager, IDataManager dataManager, IClientState clientState, ILocalDefinitionService localDefinitionService, ILiveStageService liveStagehandService, LocalStageService localStagehandService, WindowSystem windowSystem, StagehandConfiguration configuration) : base($"Stagehand {dalamudPluginInterface.Manifest.AssemblyVersion}###StagehandLibrary")
     {
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(300, 300),
+            MinimumSize = new Vector2(800, 600),
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue),
         };
 
@@ -95,7 +95,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
         {
             using (ImRaii.Table("librarywindow", 2, ImGuiTableFlags.Resizable | ImGuiTableFlags.NoBordersInBodyUntilResize))
             {
-                ImGui.TableSetupColumn("definitions", ImGuiTableColumnFlags.WidthFixed, 200);
+                ImGui.TableSetupColumn("definitions", ImGuiTableColumnFlags.WidthFixed, 300);
                 ImGui.TableSetupColumn("properties", ImGuiTableColumnFlags.WidthStretch, 1);
                 ImGui.TableNextColumn();
 
@@ -181,7 +181,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                                 if (isLeafVisible)
                                 {
                                     // The file's treenode
-                                    bool isVisible = _liveStagehandService.TryGetLiveStagehand(LiveStagehandHelpers.MakeLocalStagehandKey(localDefinition.Key), out _);
+                                    bool isVisible = _liveStagehandService.TryGetLiveStagehand(LiveStageHelpers.MakeLocalStagehandKey(localDefinition.Key), out _);
                                     using (ImRaii.PushFont(UiBuilder.IconFont))
                                     using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen, isVisible))
                                     using (var fileTreeNode = ImRaii.TreeNode($"{(isVisible ? FontAwesomeIcon.Eye : FontAwesomeIcon.FileImage).ToIconString()}###{localDefinition.Key}", commonFlags | ImGuiTreeNodeFlags.Leaf | (localDefinition.Key == _selectedLocalDefinitionFilename ? ImGuiTreeNodeFlags.Selected : ImGuiTreeNodeFlags.None)))
@@ -243,7 +243,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                                 name = Path.GetFileName(name);
                             }
 
-                            var newInfo = new StagehandInfo()
+                            var newInfo = new StageInfo()
                             {
                                 Name = name,
                                 AuthorName = "",
@@ -252,7 +252,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                                 IntendedTerritoryType = _clientState.TerritoryType,
                             };
 
-                            var newDefinition = new StagehandDefinition() { Info = newInfo };
+                            var newDefinition = new StageDefinition() { Info = newInfo };
                             string finalPath = Path.Combine(_localDefinitionService.LocalDefinitionDirectory, pathWithExtension);
                             try
                             {
@@ -268,7 +268,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                             }
                             catch (Exception ex)
                             {
-                                _logger.LogError(ex, "Failed to write new Stagehand definition file {file}!", finalPath);
+                                _logger.LogError(ex, "Failed to write new Stage definition file {file}!", finalPath);
                             }
                         }
                     }
@@ -332,7 +332,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                     ImGui.Separator();
                     ImGuiHelpers.ScaledDummy(3.0f);
 
-                    string liveKey = LiveStagehandHelpers.MakeLocalStagehandKey(_selectedLocalDefinitionFilename);
+                    string liveKey = LiveStageHelpers.MakeLocalStagehandKey(_selectedLocalDefinitionFilename);
                     bool isVisible = _liveStagehandService.TryGetLiveStagehand(liveKey, out _);
 
                     if (isVisible)
@@ -352,7 +352,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                             {
                                 using (FileStream stream = new FileStream(_selectedLocalDefinitionFilename, FileMode.Open, FileAccess.Read))
                                 {
-                                    var definition = JsonSerializer.Deserialize<StagehandDefinition>(stream, StagehandDefinition.StandardSerializerOptions);
+                                    var definition = JsonSerializer.Deserialize<StageDefinition>(stream, StageDefinition.StandardSerializerOptions);
                                     if (definition != null)
                                     {
                                         _liveStagehandService.CreateOrUpdateLiveStagehand(liveKey, definition);

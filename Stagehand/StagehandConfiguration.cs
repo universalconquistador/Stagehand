@@ -11,7 +11,7 @@ public class StagehandConfiguration : IPluginConfiguration
     public int Version { get; set; } = 0;
 
     /// <summary>
-    /// The full path, not ending in a slash, to the directory to store the player's local Stagehand definitions in.
+    /// The full path, not ending in a slash, to the directory to store the player's local Stage definitions in.
     /// </summary>
     public string DefinitionLibraryPath { get; set; } = "";
 
