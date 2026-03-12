@@ -13,7 +13,7 @@
         <MinimumDalamudVersion>14.0.0</MinimumDalamudVersion>
         <Punchline>All of creation, in the palm of your hand!</Punchline>
         <Description>Design layouts with extra scene objects in the game world. Perfect for decorating venues, immersive RP, or gposing backdrops! 
-Use /Stagehand to get started.</Description>
+Use /stagehand to get started.</Description>
         <ApplicableVersion>2026.03.07.0000.0000</ApplicableVersion>
         <RepoUrl>https://github.com/universalconquistador/Stagehand</RepoUrl>
         <Tags>objects;weapons;lights;lighting;models;background;gpose</Tags>

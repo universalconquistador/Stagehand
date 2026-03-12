@@ -33,7 +33,7 @@ namespace Stagehand.Windows;
 
 public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
 {
-    private const string DebugWindowCommand = "/Stagehanddebug";
+    private const string DebugWindowCommand = "/stagehanddebug";
 
     private enum BoundsMode
     {

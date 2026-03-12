@@ -30,7 +30,7 @@ namespace Stagehand.Windows;
 
 internal class LibraryWindow : Window, IHostedService, IDisposable
 {
-    private const string LibraryWindowCommand = "/Stagehand";
+    private const string LibraryWindowCommand = "/stagehand";
 
     private readonly ILogger _logger;
     private readonly IDalamudPluginInterface _dalamudPluginInterface;
