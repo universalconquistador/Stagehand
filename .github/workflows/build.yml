@@ -33,7 +33,7 @@ jobs:
       run: dotnet restore Soundstage && dotnet restore Soundstage.Api && dotnet restore Soundstage.Definitions
 
     - name: Build with dotnet
-      run: dotnet build Soundstage -r win-x64 --no-restore --configuration Release && dotnet build Soundstage.Api -r win-x64 --no-restore --configuration Release && dotnet build Soundstage.Definitions -r win-x64 --no-restore --configuration Release
+      run: dotnet build Soundstage /p:Platform="x64" --no-restore --configuration Release && dotnet build Soundstage.Api /p:Platform="x64" --no-restore --configuration Release && dotnet build Soundstage.Definitions /p:Platform="x64" --no-restore --configuration Release
       env:
         DALAMUD_HOME: /home/runner/dalamud-distrib
 
