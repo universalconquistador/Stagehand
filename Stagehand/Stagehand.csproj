@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/14.0.1">
+    <Import Project="../Common.targets" />
+
+    <PropertyGroup>
+        <PackageProjectUrl>$(RepoUrl)</PackageProjectUrl>
+        <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+        <IsPackable>false</IsPackable>
+
+        <!-- Dalamud Packager properties for the plugin manifest -->
+        <Author>UniversalConquistador</Author>
+        <Name>Stagehand</Name>
+        <MinimumDalamudVersion>14.0.0</MinimumDalamudVersion>
+        <Punchline>All of creation, in the palm of your hand!</Punchline>
+        <Description>Design layouts with extra scene objects in the game world. Perfect for decorating venues, immersive RP, or gposing backdrops! 
+Use /Stagehand to get started.</Description>
+        <ApplicableVersion>2026.03.07.0000.0000</ApplicableVersion>
+        <RepoUrl>https://github.com/universalconquistador/Stagehand</RepoUrl>
+        <Tags>objects;weapons;lights;lighting;models;background;gpose</Tags>
+        <CategoryTags></CategoryTags>
+        <DalamudApiLevel>14</DalamudApiLevel>
+        <LoadRequiredState>1</LoadRequiredState>
+        <LoadSync>true</LoadSync>
+        <CanUnloadAsync>true</CanUnloadAsync>
+        <LoadPriority>1</LoadPriority>
+        <ImageUrls></ImageUrls>
+        <IconUrl></IconUrl>
+        <Changelog></Changelog>
+
+        <Use_Dalamud_FFXIVClientStructs Condition="'$(Configuration)'=='Debug'">false</Use_Dalamud_FFXIVClientStructs>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <None Include="ThreadLocalHelper.dll">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
+
+        <ProjectReference Include="..\..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj" Condition="'$(Configuration)'=='Debug'" Private="True" />
+        <ProjectReference Include="..\..\FFXIVClientStructs\InteropGenerator.Runtime\InteropGenerator.Runtime.csproj" Condition="'$(Configuration)'=='Debug'" Private="True" />
+        <ProjectReference Include="..\Stagehand.Api\Stagehand.Api.csproj" />
+        <ProjectReference Include="..\Stagehand.Definitions\Stagehand.Definitions.csproj" />
+    </ItemGroup>
+</Project>

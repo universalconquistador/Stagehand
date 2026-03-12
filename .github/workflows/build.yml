@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      Solution_Name: Soundstage
+      Solution_Name: Stagehand
 
     steps:
     - name: Checkout
@@ -30,33 +30,33 @@ jobs:
       run: unzip latest.zip -d /home/runner/dalamud-distrib
 
     - name: Restore dependencies
-      run: dotnet restore Soundstage && dotnet restore Soundstage.Api && dotnet restore Soundstage.Definitions
+      run: dotnet restore Stagehand && dotnet restore Stagehand.Api && dotnet restore Stagehand.Definitions
 
     - name: Build with dotnet
-      run: dotnet build Soundstage /p:Platform="x64" --no-restore --configuration Release && dotnet build Soundstage.Api /p:Platform="x64" --no-restore --configuration Release && dotnet build Soundstage.Definitions /p:Platform="x64" --no-restore --configuration Release
+      run: dotnet build Stagehand /p:Platform="x64" --no-restore --configuration Release && dotnet build Stagehand.Api /p:Platform="x64" --no-restore --configuration Release && dotnet build Stagehand.Definitions /p:Platform="x64" --no-restore --configuration Release
       env:
         DALAMUD_HOME: /home/runner/dalamud-distrib
 
-    - name: Store Soundstage artifacts
+    - name: Store Stagehand artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: Soundstage
-        path: ./Soundstage/bin/x64/Release/*
+        name: Stagehand
+        path: ./Stagehand/bin/x64/Release/*
         if-no-files-found: error
         retention-days: 7
 
-    - name: Store Soundstage.Api artifacts
+    - name: Store Stagehand.Api artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: Soundstage.Api
-        path: ./Soundstage.Api/bin/x64/Release/*
+        name: Stagehand.Api
+        path: ./Stagehand.Api/bin/x64/Release/*
         if-no-files-found: error
         retention-days: 7
 
-    - name: Store Soundstage.Definitions artifacts
+    - name: Store Stagehand.Definitions artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: Soundstage.Definitions
-        path: ./Soundstage.Definitions/bin/x64/Release/*
+        name: Stagehand.Definitions
+        path: ./Stagehand.Definitions/bin/x64/Release/*
         if-no-files-found: error
         retention-days: 7
