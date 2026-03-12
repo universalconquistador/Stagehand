@@ -1,0 +1,78 @@
+name: Release Patch Version
+
+on:
+  workflow_dispatch
+permissions:
+  contents: write # For committing the new version number back to the repo
+  id-token: write # For NuGet Trusted Publishing
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      Solution_Name: Stagehand
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v5
+
+    - name: Install .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Install .NET Version CLI
+      run: dotnet tool install dotnet-version-cli
+
+    - name: Set Git commit author
+      run: git config user.name "Universal Conquistador (CI Job)" && git config user.email "universalconquistador@gmail.com"
+
+    - name: Bump patch version and commit
+      run: 'dotnet version -f Common.targets patch -m "CI: Bumps patch version for release $newVer."'
+
+    - name: Download Dalamud
+      run: curl --output latest.zip -L "https://goatcorp.github.io/dalamud-distrib/latest.zip"
+
+    - name: Extract Dalamud
+      run: unzip latest.zip -d /home/runner/dalamud-distrib
+
+    - name: Restore dependencies
+      run: dotnet restore Stagehand && dotnet restore Stagehand.Api && dotnet restore Stagehand.Definitions
+
+    - name: Build with dotnet
+      run: dotnet build Stagehand /p:Platform="x64" --no-restore --configuration Release && dotnet build Stagehand.Api /p:Platform="x64" --no-restore --configuration Release && dotnet build Stagehand.Definitions /p:Platform="x64" --no-restore --configuration Release
+      env:
+        DALAMUD_HOME: /home/runner/dalamud-distrib
+
+    - name: NuGet login (OIDC → temp API key)
+      uses: NuGet/login@v1
+      id: login
+      with:
+        user: UniversalConquistador
+
+    - name: Publish Stagehand.Api to NuGet
+      run: dotnet nuget push ./Stagehand.Api/bin/x64/Release/*.nupkg --api-key ${{steps.login.outputs.NUGET_API_KEY}} --source https://nuget.org
+
+    - name: Publish Stagehand.Definitions to NuGet
+      run: dotnet nuget push ./Stagehand.Definitions/bin/x64/Release/*.nupkg --api-key ${{steps.login.outputs.NUGET_API_KEY}} --source https://nuget.org
+
+    - name: Push versioning commit
+      run: git push && git push --tags
+
+    - name: Store Stagehand.Api artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Stagehand.Api
+        path: ./Stagehand.Api/bin/x64/Release/*
+        if-no-files-found: error
+        retention-days: 7
+
+    - name: Store Stagehand.Definitions artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Stagehand.Definitions
+        path: ./Stagehand.Definitions/bin/x64/Release/*
+        if-no-files-found: error
+        retention-days: 7
