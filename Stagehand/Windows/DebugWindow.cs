@@ -27,6 +27,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using static Stagehand.Live.LiveVfxObject;
 using Object = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object;
 
 namespace Stagehand.Windows;
@@ -72,8 +73,6 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
 #endif
 
     private bool _suppressInput = false;
-
-    private CursorInputData _postUpdateCursorData;
 
     public DebugWindow(IFramework framework, ICommandManager commandManager, IGameInteropProvider gameInteropProvider, IObjectTable objectTable, IGameGui gameGui, WindowSystem windowSystem, IOverlayService overlayService, ILiveObjectService liveObjectService)
         : base("Stagehand Debug", ImGuiWindowFlags.None)
@@ -207,6 +206,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
     }
 
     BoundsMode[] allBoundsModes = Enum.GetValues<BoundsMode>();
+    bool _scrollSelectionInfoFrame = false;
     public override void Draw()
     {
 #if false
@@ -218,14 +218,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
         ImGui.Checkbox("Clear Stencil", ref _clearStencil);
 #endif
 
-        var uiInputData = UIModule.Instance()->GetUIInputData();
-        var filteredCursor = uiInputData->UIFilteredCursorInputs;
-
-        ImGui.LabelText("UIFilteredCursorInputs.MouseButtonHeldFlags", filteredCursor.MouseButtonPressedFlags.ToString());
-
-        ImGui.LabelText("PostUpdate UIFilteredCursorInputs.MouseButtonHeldFlags", _postUpdateCursorData.MouseButtonPressedFlags.ToString());
-
-        ImGui.Checkbox("SuppressInput", ref _suppressInput);
+        //ImGui.Checkbox("SuppressInput", ref _suppressInput);
 
         int boundsModeIndex = allBoundsModes.IndexOf(_boundsMode);
         if (ImGui.Combo("Bounds Mode", ref boundsModeIndex, allBoundsModes, boundsMode => boundsMode.ToString()))
@@ -279,6 +272,10 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
                     if (ImGui.DragFloat3("Position", ref position, 0.05f))
                     {
                         _selectedObject->Position = position;
+                        if (_selectedObject->GetObjectType() == ObjectType.VfxObject || _selectedObject->GetObjectType() == ObjectType.BgObject || _selectedObject->GetObjectType() == ObjectType.Light)
+                        {
+                            ((DrawObject*)_selectedObject)->NotifyTransformChanged();
+                        }
                     }
 
                     Quaternion rotation = _selectedObject->Rotation;
@@ -287,6 +284,10 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
                     {
                         rotation = rotationQuaternion.AsQuaternion();
                         _selectedObject->Rotation = Quaternion.Normalize(rotation);
+                        if (_selectedObject->GetObjectType() == ObjectType.VfxObject || _selectedObject->GetObjectType() == ObjectType.BgObject || _selectedObject->GetObjectType() == ObjectType.Light)
+                        {
+                            ((DrawObject*)_selectedObject)->NotifyTransformChanged();
+                        }
                     }
 
                     switch (_selectedObject->GetObjectType())
@@ -299,6 +300,49 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
                         case ObjectType.VfxObject:
                         {
                             var vfx = (VfxObject*)_selectedObject;
+
+                            string vfxResourceGamePath;
+                            var vfxResource = (VfxResourceInstance__Internal*)vfx->VfxResourceInstance;
+                            if (vfxResource != null)
+                            {
+                                var resourceUnk = vfxResource->VfxResourceUnk;
+                                if (resourceUnk != null)
+                                {
+                                    var apricotResourceHandle = resourceUnk->ApricotResourceHandle;
+                                    if (apricotResourceHandle != null)
+                                    {
+                                        vfxResourceGamePath = apricotResourceHandle->FileName.ToString();
+                                    }
+                                    else
+                                    {
+                                        vfxResourceGamePath = string.Empty;
+                                    }
+                                }
+                                else
+                                {
+                                    vfxResourceGamePath = string.Empty;
+                                }
+                            }
+                            else
+                            {
+                                vfxResourceGamePath = string.Empty;
+                            }
+
+
+                            ImGui.LabelText("Vfx Path", vfxResourceGamePath);
+                            if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
+                            {
+                                ImGui.SetClipboardText(vfxResourceGamePath);
+                            }
+                            if (ImGui.IsItemHovered())
+                            {
+                                using (ImRaii.Tooltip())
+                                {
+                                    ImGui.Text(vfxResourceGamePath);
+                                    ImGui.Separator();
+                                    ImGui.TextDisabled("Click to copy");
+                                }
+                            }
 
                             var transparency = vfx->GetTransparency();
                             if (ImGui.SliderFloat("Transparency", ref transparency, vMin: 0.0f, vMax: 1.0f))
@@ -418,6 +462,21 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
                         case ObjectType.BgObject:
                             {
                                 var bgObject = (BgObject*)_selectedObject;
+
+                                ImGui.LabelText("Model Path", bgObject->ModelResourceHandle->FileName.ToString());
+                                if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
+                                {
+                                    ImGui.SetClipboardText(bgObject->ModelResourceHandle->FileName.ToString());
+                                }
+                                if (ImGui.IsItemHovered())
+                                {
+                                    using (ImRaii.Tooltip())
+                                    {
+                                        ImGui.Text(bgObject->ModelResourceHandle->FileName.ToString());
+                                        ImGui.Separator();
+                                        ImGui.TextDisabled("Click to copy");
+                                    }
+                                }
 
                                 var transparency = bgObject->GetTransparency();
                                 if (ImGui.SliderFloat("Transparency", ref transparency, vMin: 0.0f, vMax: 1.0f))
@@ -585,6 +644,12 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
                     DrawObjectTree(child, ref foundSelectedObject);
                 }
             }
+        }
+
+        if (_selectedObject == obj && _scrollSelectionInfoFrame)
+        {
+            ImGui.SetScrollHereY();
+            _scrollSelectionInfoFrame = false;
         }
     }
 
@@ -758,6 +823,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
                 {
                     _selectedObject = nearestObject;
                     _overlayService.IsPicking = false;
+                    _scrollSelectionInfoFrame = true;
                 }
             }
         }
