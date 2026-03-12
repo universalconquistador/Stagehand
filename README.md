@@ -24,9 +24,12 @@ So far there is no editor for Stagehand definitions, so you have to edit the `.j
 
 Stagehand is made up of several C# projects:
 
-**`Stagehand.Definitions`**: The object model for Stagehand `.json` files and serialized strings used in IPC. Available as a NuGet package.
+**`Stagehand.Definitions`**: The object model for Stagehand `.json` files and serialized strings used in IPC.  
+[![NuGet Version](https://img.shields.io/nuget/v/Stagehand.Api)](https://www.nuget.org/packages/Stagehand.Api/)
 
-**`Stagehand.Api`**: A library for other plugins to interact with the Stagehand plugin via Dalamud IPC. Available as a NuGet package.
+**`Stagehand.Api`**: A library for other plugins to interact with the Stagehand plugin via Dalamud IPC.  
+[![NuGet Version](https://img.shields.io/nuget/v/Stagehand.Definitions)](https://www.nuget.org/packages/Stagehand.Definitions/)
+
 
 **`Stagehand`**: The Stagehand FFXIV plugin itself, including (but not limited to):
  - The `Stagehand.Live` namespace, containing classes for creating objects ingame from Stagehand definitions
