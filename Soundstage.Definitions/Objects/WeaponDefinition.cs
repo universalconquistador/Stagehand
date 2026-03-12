@@ -34,6 +34,11 @@ public class WeaponDefinition : ObjectDefinition
     /// </summary>
     public int SecondaryDye { get; set; }
 
+    /// <summary>
+    /// Which animation variant to use for the weapon.
+    /// </summary>
+    public int AnimationVariant { get; set; }
+
     public override TResult Visit<TVisitor, TParam, TResult>(ref TParam param)
     {
         return TVisitor.VisitWeaponObjectDefinition(this, ref param);
