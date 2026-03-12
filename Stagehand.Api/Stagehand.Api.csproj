@@ -18,7 +18,9 @@
         <RepositoryUrl>https://github.com/universalconquistador/Stagehand.git</RepositoryUrl>
         <PublishRepositoryUrl>true</PublishRepositoryUrl>
         <PackageTags>FFXIV;Dalamud;Stagehand</PackageTags>
-        <IncludeSymbols>True</IncludeSymbols>
+        <GenerateDocumentationFile>True</GenerateDocumentationFile>
+        <EmbedAllSources>True</EmbedAllSources>
+        <DebugType>Embedded</DebugType>
         <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
         <Platforms>AnyCPU;x64</Platforms>
 
