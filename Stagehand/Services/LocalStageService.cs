@@ -2,6 +2,7 @@ using Dalamud.Plugin.Services;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Stagehand.Definitions;
+using Stagehand.Utils;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -15,37 +16,49 @@ using System.Threading.Tasks;
 namespace Stagehand.Services;
 
 /// <summary>
-/// Shows and hides Stagehands for the local definitions according to automatic rules and manual commands.
+/// Shows and hides live Stages for the local definitions according to automatic rules and manual commands.
 /// </summary>
 internal class LocalStageService : IHostedService
 {
     private readonly ILogger _logger;
     private readonly IFramework _framework;
     private readonly IClientState _clientState;
+    private readonly IPlayerState _playerState;
     private readonly ILocalDefinitionService _localDefinitionService;
-    private readonly ILiveStageService _liveStagehandService;
+    private readonly ILiveStageService _liveStageService;
 
     private readonly ConcurrentDictionary<string, bool> _manualVisibilitySettings = new();
+    private Location _lastLocation;
 
-    public LocalStageService(ILogger<LocalStageService> logger, IFramework framework, IClientState clientState, ILocalDefinitionService localDefinitionService, ILiveStageService liveStagehandService, StagehandConfiguration configuration)
+    public LocalStageService(ILogger<LocalStageService> logger, IFramework framework, IClientState clientState, IPlayerState playerState, ILocalDefinitionService localDefinitionService, ILiveStageService liveStageService, StagehandConfiguration configuration)
     {
         _logger = logger;
         _framework = framework;
         _clientState = clientState;
+        _playerState = playerState;
         _localDefinitionService = localDefinitionService;
-        _liveStagehandService = liveStagehandService;
+        _liveStageService = liveStageService;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
         _localDefinitionService.LocalDefinitionsChanged += OnLocalDefinitionsChanged;
         _localDefinitionService.AutomaticShowConditionsChanged += OnAutomaticShowConditionsChanged;
-        // TODO: Detect instance changes and room (privage chambers/apartment) changes
-        _clientState.TerritoryChanged += OnTerritoryChanged;
 
-        OnTerritoryChanged(_clientState.TerritoryType);
+        _framework.Update += this.Update;
 
         return Task.CompletedTask;
+    }
+
+    private void Update(IFramework framework)
+    {
+        Location.TryGetLocation(_clientState, _playerState, out var location);
+
+        if (location != _lastLocation)
+        {
+            _lastLocation = location;
+            RefreshLocation();
+        }
     }
 
     private void OnAutomaticShowConditionsChanged(string path)
@@ -62,16 +75,19 @@ internal class LocalStageService : IHostedService
     {
         _framework.RunOnFrameworkThread(() =>
         {
+            if (!Location.TryGetLocation(_clientState, _playerState, out var location))
+                return;
+
             foreach (var removed in removedDefinitions)
             {
-                _liveStagehandService.TryDestroyLiveStagehand(LiveStageHelpers.MakeLocalStagehandKey(removed));
+                _liveStageService.TryDestroyLiveStage(LiveStageHelpers.MakeLocalStageKey(removed));
             }
 
-            // Show new Stagehands that meet their show conditions
+            // Show new Stages that meet their show conditions
             foreach (var added in addedDefinitions)
             {
                 if (_localDefinitionService.LocalDefinitions.TryGetValue(added, out var metadata)
-                    && metadata.AutomaticShowConditions.Any(condition => IsConditionActive(condition, _clientState.TerritoryType)))
+                    && metadata.AutomaticShowConditions.Any(condition => condition.Evaluate(location)))
                 {
                     try
                     {
@@ -80,7 +96,7 @@ internal class LocalStageService : IHostedService
                             var definition = JsonSerializer.Deserialize<StageDefinition>(stream, StageDefinition.StandardSerializerOptions);
                             if (definition != null)
                             {
-                                _liveStagehandService.CreateOrUpdateLiveStagehand(LiveStageHelpers.MakeLocalStagehandKey(added), definition);
+                                _liveStageService.CreateOrUpdateLiveStage(LiveStageHelpers.MakeLocalStageKey(added), definition);
                             }
                         }
                     }
@@ -91,12 +107,12 @@ internal class LocalStageService : IHostedService
                 }
             }
 
-            // Only update the modified Stagehands that are already is visible
+            // Only update the modified Stages that are already is visible
             foreach (var modified in modifiedDefinitions)
             {
                 if (_localDefinitionService.LocalDefinitions.TryGetValue(modified, out var metadata)
-                    && metadata.AutomaticShowConditions.Any(condition => IsConditionActive(condition, _clientState.TerritoryType))
-                    && _liveStagehandService.TryGetLiveStagehand(LiveStageHelpers.MakeLocalStagehandKey(modified), out var liveStagehand))
+                    && metadata.AutomaticShowConditions.Any(condition => condition.Evaluate(location))
+                    && _liveStageService.TryGetLiveStage(LiveStageHelpers.MakeLocalStageKey(modified), out var liveStage))
                 {
                     try
                     {
@@ -105,7 +121,7 @@ internal class LocalStageService : IHostedService
                             var definition = JsonSerializer.Deserialize<StageDefinition>(stream, StageDefinition.StandardSerializerOptions);
                             if (definition != null)
                             {
-                                liveStagehand.Update(definition);
+                                liveStage.Update(definition);
                             }
                         }
                     }
@@ -120,15 +136,18 @@ internal class LocalStageService : IHostedService
 
     private void RefreshVisibility(string path)
     {
-        var liveKey = LiveStageHelpers.MakeLocalStagehandKey(path);
-        bool currentlyVisible = _liveStagehandService.TryGetLiveStagehand(liveKey, out var liveStagehand);
+        var liveKey = LiveStageHelpers.MakeLocalStageKey(path);
+        bool currentlyVisible = _liveStageService.TryGetLiveStage(liveKey, out var liveStage);
+
+        if (!Location.TryGetLocation(_clientState, _playerState, out var location))
+            return;
 
         bool shouldBeVisible = _manualVisibilitySettings.GetValueOrDefault(path, _localDefinitionService.LocalDefinitions.TryGetValue(path, out var metadata)
-            && metadata.AutomaticShowConditions.Any(condition => IsConditionActive(condition, _clientState.TerritoryType)));
+            && metadata.AutomaticShowConditions.Any(condition => condition.Evaluate(location)));
 
         if (currentlyVisible && !shouldBeVisible)
         {
-            _framework.RunOnFrameworkThread(() => _liveStagehandService.TryDestroyLiveStagehand(liveKey));
+            _framework.RunOnFrameworkThread(() => _liveStageService.TryDestroyLiveStage(liveKey));
         }
         else if (shouldBeVisible && !currentlyVisible)
         {
@@ -141,7 +160,7 @@ internal class LocalStageService : IHostedService
                         var definition = JsonSerializer.Deserialize<StageDefinition>(stream, StageDefinition.StandardSerializerOptions);
                         if (definition != null)
                         {
-                            _liveStagehandService.CreateOrUpdateLiveStagehand(liveKey, definition);
+                            _liveStageService.CreateOrUpdateLiveStage(liveKey, definition);
                         }
                     }
                 }
@@ -153,10 +172,10 @@ internal class LocalStageService : IHostedService
         }
     }
 
-    private void OnTerritoryChanged(ushort obj)
+    private void RefreshLocation()
     {
-        _logger.LogDebug("Territory change! Destroying all Stagehands...");
-        _liveStagehandService.DestroyAllLiveStagehands();
+        _logger.LogDebug("Location change! Destroying all Stages...");
+        _liveStageService.DestroyAllLiveStages();
 
         _manualVisibilitySettings.Clear();
 
@@ -164,10 +183,12 @@ internal class LocalStageService : IHostedService
         // Consider instead waiting for the screen to start fading in via RaptureAtkUnitManager.IsUiFading or AgentInterface.GameEvent.LoadingEnded.
         _framework.RunOnTick(() =>
         {
+            if (!Location.TryGetLocation(_clientState, _playerState, out var location))
+                return;
             foreach (var localDefinition in _localDefinitionService.LocalDefinitions)
             {
                 if (localDefinition.Value.AutomaticShowConditions.Any(condition =>
-                    IsConditionActive(condition, obj)))
+                    condition.Evaluate(location)))
                 {
                     _logger.LogDebug("Trying to auto show {file}!", localDefinition.Key);
                     try
@@ -177,7 +198,7 @@ internal class LocalStageService : IHostedService
                             var definition = JsonSerializer.Deserialize<StageDefinition>(stream, StageDefinition.StandardSerializerOptions);
                             if (definition != null)
                             {
-                                _liveStagehandService.CreateOrUpdateLiveStagehand(LiveStageHelpers.MakeLocalStagehandKey(localDefinition.Key), definition);
+                                _liveStageService.CreateOrUpdateLiveStage(LiveStageHelpers.MakeLocalStageKey(localDefinition.Key), definition);
                             }
                         }
                     }
@@ -192,14 +213,9 @@ internal class LocalStageService : IHostedService
 
     }
 
-    private static bool IsConditionActive(AutomaticShowCondition condition, ushort territoryId)
-    {
-        return condition.TerritoryId == territoryId;
-    }
-
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        _clientState.TerritoryChanged -= OnTerritoryChanged;
+        _framework.Update -= Update;
         _localDefinitionService.AutomaticShowConditionsChanged -= OnAutomaticShowConditionsChanged;
         _localDefinitionService.LocalDefinitionsChanged -= OnLocalDefinitionsChanged;
 

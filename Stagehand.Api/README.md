@@ -30,6 +30,6 @@ There are four easy steps to using the Stagehand API:
 
 ## API Details
 
-The Stagehand API includes methods for querying the local Stage definitions, creating and destroying temporary Stagehands, and showing and hiding both local and temporary Stagehands.
+The Stagehand API includes methods for querying the local Stage definitions, creating and destroying temporary Stages, and showing and hiding both local and temporary Stages.
 
 For more specific details, see [IStagehandApi.cs](IStagehandApi.cs).

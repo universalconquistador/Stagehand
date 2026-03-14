@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Stagehand.Definitions;
+using Stagehand.Utils;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -18,12 +19,35 @@ namespace Stagehand.Services;
 /// </summary>
 public record struct AutomaticShowCondition
 {
-    public ushort TerritoryId;
-    public ushort WorldId;
-    public ushort DivisionId;
-    public ushort WardId;
-    public ushort HouseId;
-    public ushort RoomId;
+    public ushort TerritoryId { get; set; }
+    public ushort WorldId { get; set; }
+    public ushort DivisionId { get; set; }
+    public ushort WardId { get; set; }
+    public ushort HouseId { get; set; }
+    public ushort RoomId { get; set; }
+
+    public bool Evaluate(Location location)
+    {
+        if (location.TerritoryId != TerritoryId)
+            return false;
+
+        if (WorldId != ushort.MaxValue && WorldId != location.WorldId)
+            return false;
+
+        if (DivisionId != ushort.MaxValue && DivisionId != location.DivisionId)
+            return false;
+
+        if (WardId != ushort.MaxValue && WardId != location.WardId)
+            return false;
+
+        if (HouseId != ushort.MaxValue && HouseId != location.HouseId)
+            return false;
+
+        if (RoomId != ushort.MaxValue && RoomId != location.RoomId)
+            return false;
+
+        return true;
+    }
 }
 
 /// <summary>
@@ -55,7 +79,7 @@ public delegate void LocalDefinitionsChangedDelegate(IReadOnlyList<string> remov
 public interface ILocalDefinitionService
 {
     /// <summary>
-    /// The directory where the local Stagehands are stored, without a trailing slash.
+    /// The directory where the local Stages are stored, without a trailing slash.
     /// </summary>
     string LocalDefinitionDirectory { get; set; }
 

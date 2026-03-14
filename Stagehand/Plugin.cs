@@ -57,7 +57,7 @@ public sealed class Plugin : IDalamudPlugin
         Configuration = PluginInterface.GetPluginConfig() as StagehandConfiguration ?? new StagehandConfiguration();
         if (string.IsNullOrEmpty(Configuration.DefinitionLibraryPath))
         {
-            Configuration.DefinitionLibraryPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Stagehands");
+            Configuration.DefinitionLibraryPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Stages");
             Configuration.Save();
         }
 

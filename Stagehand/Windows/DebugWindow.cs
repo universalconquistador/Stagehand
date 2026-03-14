@@ -17,6 +17,7 @@ using FFXIVClientStructs.FFXIV.Component.GUI;
 using Microsoft.Extensions.Hosting;
 using Stagehand.Live;
 using Stagehand.Services;
+using Stagehand.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -48,6 +49,8 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
     private readonly IGameInteropProvider _gameInteropProvider;
     private readonly IObjectTable _objectTable;
     private readonly IGameGui _gameGui;
+    private readonly IClientState _clientState;
+    private readonly IPlayerState _playerState;
 
     private readonly WindowSystem _windowSystem;
     private readonly IOverlayService _overlayService;
@@ -74,7 +77,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
 
     private bool _suppressInput = false;
 
-    public DebugWindow(IFramework framework, ICommandManager commandManager, IGameInteropProvider gameInteropProvider, IObjectTable objectTable, IGameGui gameGui, WindowSystem windowSystem, IOverlayService overlayService, ILiveObjectService liveObjectService)
+    public DebugWindow(IFramework framework, ICommandManager commandManager, IGameInteropProvider gameInteropProvider, IObjectTable objectTable, IGameGui gameGui, IClientState clientState, IPlayerState playerState, WindowSystem windowSystem, IOverlayService overlayService, ILiveObjectService liveObjectService)
         : base("Stagehand Debug", ImGuiWindowFlags.None)
     {
         SizeConstraints = new WindowSizeConstraints
@@ -88,6 +91,8 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
         _gameInteropProvider = gameInteropProvider;
         _objectTable = objectTable;
         _gameGui = gameGui;
+        _clientState = clientState;
+        _playerState = playerState;
 
         _windowSystem = windowSystem;
         _overlayService = overlayService;
@@ -219,6 +224,15 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
 #endif
 
         //ImGui.Checkbox("SuppressInput", ref _suppressInput);
+
+        if (Location.TryGetLocation(_clientState, _playerState, out var location))
+        {
+            ImGui.LabelText("Location", $"World: {location.WorldId}, Territory: {location.TerritoryId}, Ward: {location.WardId}, Division: {location.DivisionId}, House: {location.HouseId}, Room: {location.RoomId}");
+        }
+        else
+        {
+            ImGui.LabelText("Location", "(none)");
+        }
 
         int boundsModeIndex = allBoundsModes.IndexOf(_boundsMode);
         if (ImGui.Combo("Bounds Mode", ref boundsModeIndex, allBoundsModes, boundsMode => boundsMode.ToString()))

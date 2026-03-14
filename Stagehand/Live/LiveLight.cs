@@ -77,7 +77,11 @@ internal sealed unsafe class LiveLight : LiveDrawObject
 
     public void Update()
     {
-        SceneLightPtr->UpdateMaterials();
+        var ptr = SceneLightPtr;
+        if (ptr != null)
+        {
+            ptr->UpdateMaterials();
+        }
     }
 
     public override void Dispose()

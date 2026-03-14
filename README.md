@@ -1,7 +1,7 @@
 &nbsp;
 ![Stagehand Logo](Stagehand%20Logo%202x.png)
 
-Stagehand is an FFXIV plugin that lets the player place extra visual objects into the game world and manage them in sets called Stagehands.
+Stagehand is an FFXIV plugin that lets the player place extra visual objects into the game world and manage them in sets called Stages.
 
 
 ## Installing
@@ -40,7 +40,7 @@ Stagehand is made up of several C# projects:
 ### IPC (NOT YET IMPLEMENTED)
 
 The Stagehand IPC API is defined in the `Stagehand.Api.IStagehandApi` interface.
-It lets plugins query the local Stage definitions, create and destroy temporary Stagehands, and show and hide both local and temporary Stagehands.
+It lets plugins query the local Stage definitions, create and destroy temporary Stages, and show and hide both local and temporary Stages.
 
 To get started, reference the `Stagehand.Api` NuGet package and call `StagehandApi.CreateIpcClient()`.
 For more information, see the the [README](Stagehand.Api/README.md).
