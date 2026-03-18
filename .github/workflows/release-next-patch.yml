@@ -61,6 +61,20 @@ jobs:
     - name: Push versioning commit
       run: git push && git push --tags
 
+    - name: Unzip plugin zip
+      run: unzip ./Stagehand/bin/x64/Release/Stagehand/latest.zip -d /home/runner/Stagehand-latest
+    - name: Retrieve version
+      run: |
+        echo "TAG_NAME=$(cat Common.targets | grep -Po '(?<=Version>).*(?=</Version>)')" >> $GITHUB_OUTPUT
+      id: version
+      
+    - name: Make GitHub release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.version.outputs.TAG_NAME }}
+        working_directory: /home/runner/Stagehand-latest
+        files: '*.*'
+
     - name: Store Stagehand.Api artifacts
       uses: actions/upload-artifact@v4
       with:
