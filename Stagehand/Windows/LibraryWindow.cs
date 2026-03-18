@@ -15,6 +15,7 @@ using Lumina.Excel.Sheets;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Stagehand.Definitions;
+using Stagehand.Editor;
 using Stagehand.Services;
 using Stagehand.Utils;
 using System;
@@ -57,6 +58,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
 
     private readonly ILocalDefinitionService _localDefinitionService;
     private readonly ILiveStageService _liveStageService;
+    private readonly IEditorService _editorService;
     private readonly LocalStageService _localStageService;
     private readonly WindowSystem _windowSystem;
     private readonly StagehandConfiguration _configuration;
@@ -67,7 +69,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
     private List<SelectableWorld> _allWorlds;
     private int[] _allHouses = Enumerable.Range(0, 31).ToArray();
 
-    public LibraryWindow(ILogger<LibraryWindow> logger, IDalamudPluginInterface dalamudPluginInterface, ICommandManager commandManager, IDataManager dataManager, IClientState clientState, IPlayerState playerState, ILocalDefinitionService localDefinitionService, ILiveStageService liveStageService, LocalStageService localStageService, WindowSystem windowSystem, StagehandConfiguration configuration) : base($"Stagehand {dalamudPluginInterface.Manifest.AssemblyVersion}###StagehandLibrary")
+    public LibraryWindow(ILogger<LibraryWindow> logger, IDalamudPluginInterface dalamudPluginInterface, ICommandManager commandManager, IDataManager dataManager, IClientState clientState, IPlayerState playerState, ILocalDefinitionService localDefinitionService, ILiveStageService liveStageService, IEditorService editorService, LocalStageService localStageService, WindowSystem windowSystem, StagehandConfiguration configuration) : base($"Stagehand {dalamudPluginInterface.Manifest.AssemblyVersion}###StagehandLibrary")
     {
         SizeConstraints = new WindowSizeConstraints
         {
@@ -84,6 +86,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
 
         _localDefinitionService = localDefinitionService;
         _liveStageService = liveStageService;
+        _editorService = editorService;
         _localStageService = localStageService;
         _windowSystem = windowSystem;
         _configuration = configuration;
@@ -154,7 +157,6 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
 
     private byte[] _newDefinitionFilenameBuffer = new byte[260];
     private string[] _divisions = [ "Main Division", "Subdivision" ];
-    //private string[] _houses = [ "Apartment Building", "House 1", "House 2", "House 3", "House 4", "House 5", "House 6", "House 7", "House 8", "House 9", "House 10", "House 11", "House 12"]
     Func<int, string> houseIdToString = static id => id == 0 ? "Apartment Building" : $"House {id}";
     Func<int, string> houseIdToStringSubdivision = static id => id == 0 ? "Apartment Building (Subdivision)" : $"House {id + 30}";
 
@@ -188,7 +190,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                 ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - ImGuiComponents.GetIconButtonWithTextWidth(FontAwesomeIcon.Cog, ""));
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.Cog))
                 {
-                    //_dalamudPluginInterface.Config
+                    // TODO: Show config window!
                 }
 
                 ImGui.TableNextColumn();
@@ -259,9 +261,11 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                                 {
                                     // The file's treenode
                                     bool isVisible = _liveStageService.TryGetLiveStage(LiveStageHelpers.MakeLocalStageKey(localDefinition.Key), out _);
+                                    bool isEditing = _editorService.OpenEditorFilename == localDefinition.Key;
                                     using (ImRaii.PushFont(UiBuilder.IconFont))
                                     using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen, isVisible))
-                                    using (var fileTreeNode = ImRaii.TreeNode($"{(isVisible ? FontAwesomeIcon.Eye : FontAwesomeIcon.FileImage).ToIconString()}###{localDefinition.Key}", commonFlags | ImGuiTreeNodeFlags.Leaf | (localDefinition.Key == _selectedLocalDefinitionFilename ? ImGuiTreeNodeFlags.Selected : ImGuiTreeNodeFlags.None)))
+                                    using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.ParsedOrange, isEditing))
+                                    using (var fileTreeNode = ImRaii.TreeNode($"{(isEditing ? FontAwesomeIcon.Hammer : (isVisible ? FontAwesomeIcon.Eye : FontAwesomeIcon.FileImage)).ToIconString()}###{localDefinition.Key}", commonFlags | ImGuiTreeNodeFlags.Leaf | (localDefinition.Key == _selectedLocalDefinitionFilename ? ImGuiTreeNodeFlags.Selected : ImGuiTreeNodeFlags.None)))
                                     {
                                         if (ImGui.IsItemClicked())
                                         {
@@ -308,11 +312,37 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                     _newDefinitionFilenameBuffer.AsSpan().Clear();
                     ImGui.OpenPopup("CreateNewDefinition", ImGuiPopupFlags.None);
                 }
+                ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
+                using (ImRaii.Disabled(!ImGui.IsKeyDown(ImGuiKey.LeftCtrl) || string.IsNullOrEmpty(_selectedLocalDefinitionFilename)))
+                {
+                    if (ImGui.Button("Delete", new Vector2(ImGui.GetContentRegionMax().X / 4.0f, bottomBarHeight)))
+                    {
+                        try
+                        {
+                            File.Delete(_selectedLocalDefinitionFilename);
+                            _selectedLocalDefinitionFilename = string.Empty;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to delete file {path}!", _selectedLocalDefinitionFilename);
+                        }
+                    }
+                }
+                if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                {
+                    using (ImRaii.Tooltip())
+                    {
+                        ImGui.TextUnformatted("Delete the selected stage.");
+                        ImGui.Separator();
+                        ImGui.TextColored(ImGuiColors.DPSRed, "Hold CTRL to enable.");
+                    }
+                }
 
                 using (var popup = ImRaii.Popup("CreateNewDefinition"))
                 {
                     if (popup.Success)
                     {
+                        ImGui.SetKeyboardFocusHere();
                         if (ImGui.InputTextWithHint("Name", "Name", _newDefinitionFilenameBuffer, ImGuiInputTextFlags.EnterReturnsTrue))
                         {
                             ImGui.CloseCurrentPopup();
@@ -517,230 +547,228 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
 
                     if (ImGui.CollapsingHeader("Add Auto Load Location"))
                     {
-                        // Territory
-                        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetFrameHeight() + ImGui.GetStyle().ItemSpacing.X);
-                        if (Utils.ImGuiExtensions.FilteredCombo("Location", ref _autoLoadNewTerritoryIndex, ref _autoLoadNewTerritoryFilter, _allTerritories, static territory => territory.DisplayName, "Location"))
+                        using (ImRaii.ItemWidth(-ImGui.GetContentRegionAvail().X * 0.333f))
                         {
+                            // Territory
+                            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetFrameHeight() + ImGui.GetStyle().ItemSpacing.X);
+                            Utils.ImGuiExtensions.FilteredCombo("Location", ref _autoLoadNewTerritoryIndex, ref _autoLoadNewTerritoryFilter, _allTerritories, static territory => territory.DisplayName, "Location");
 
-                        }
+                            var pasteIcon = FontAwesomeIcon.Paste;
+                            var pasteWidth = ImGuiComponents.GetIconButtonWithTextWidth(pasteIcon, "");
 
-                        var pasteIcon = FontAwesomeIcon.Paste;
-                        var pasteWidth = ImGuiComponents.GetIconButtonWithTextWidth(pasteIcon, "");
-
-
-                        var useCurrentIcon = FontAwesomeIcon.MapPin;
-                        var useCurrentWidth = ImGuiComponents.GetIconButtonWithTextWidth(useCurrentIcon, "");
-                        ImGui.SameLine();
-                        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - useCurrentWidth - ImGui.GetStyle().ItemSpacing.X - pasteWidth);
-                        if (ImGuiComponents.IconButton(pasteIcon))
-                        {
-                            try
+                            var useCurrentIcon = FontAwesomeIcon.LocationCrosshairs;
+                            var useCurrentWidth = ImGuiComponents.GetIconButtonWithTextWidth(useCurrentIcon, "");
+                            ImGui.SameLine();
+                            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - useCurrentWidth - ImGui.GetStyle().ItemSpacing.X - pasteWidth);
+                            if (ImGuiComponents.IconButton(pasteIcon))
                             {
-                                var pastedCondition = JsonSerializer.Deserialize<AutomaticShowCondition>(ImGui.GetClipboardText());
-
-                                for (int i = 0; i < _allWorlds.Count; i++)
+                                try
                                 {
-                                    if (_allWorlds[i].Id == pastedCondition.WorldId)
+                                    var pastedCondition = JsonSerializer.Deserialize<AutomaticShowCondition>(ImGui.GetClipboardText());
+
+                                    for (int i = 0; i < _allWorlds.Count; i++)
                                     {
-                                        _autoLoadNewWorldIndex = i;
-                                        _autoLoadNewUseWorld = true;
+                                        if (_allWorlds[i].Id == pastedCondition.WorldId)
+                                        {
+                                            _autoLoadNewWorldIndex = i;
+                                            _autoLoadNewUseWorld = true;
+                                        }
                                     }
-                                }
-                                if (pastedCondition.WorldId == ushort.MaxValue)
-                                {
-                                    _autoLoadNewUseWorld = false;
-                                }
-
-                                for (int i = 0; i < _allTerritories.Count; i++)
-                                {
-                                    if (_allTerritories[i].Id == pastedCondition.TerritoryId)
+                                    if (pastedCondition.WorldId == ushort.MaxValue)
                                     {
-                                        _autoLoadNewTerritoryIndex = i;
+                                        _autoLoadNewUseWorld = false;
                                     }
-                                }
 
-                                if (pastedCondition.WardId != ushort.MaxValue)
+                                    for (int i = 0; i < _allTerritories.Count; i++)
+                                    {
+                                        if (_allTerritories[i].Id == pastedCondition.TerritoryId)
+                                        {
+                                            _autoLoadNewTerritoryIndex = i;
+                                        }
+                                    }
+
+                                    if (pastedCondition.WardId != ushort.MaxValue)
+                                    {
+                                        _autoLoadNewWardId = pastedCondition.WardId;
+                                        _autoLoadNewUseWard = true;
+                                    }
+                                    else
+                                    {
+                                        _autoLoadNewUseWard = false;
+                                    }
+
+                                    if (pastedCondition.DivisionId != ushort.MaxValue)
+                                    {
+                                        _autoLoadNewDivisionIndex = pastedCondition.DivisionId - 1;
+                                    }
+
+                                    if (pastedCondition.HouseId != ushort.MaxValue)
+                                    {
+                                        _autoLoadNewHouseId = pastedCondition.HouseId;
+                                        _autoLoadNewUseHouse = true;
+                                    }
+                                    else
+                                    {
+                                        _autoLoadNewUseHouse = false;
+                                    }
+
+                                    if (pastedCondition.RoomId != ushort.MaxValue)
+                                    {
+                                        _autoLoadNewRoomId = pastedCondition.RoomId;
+                                    }
+
+                                }
+                                catch (JsonException ex)
                                 {
-                                    _autoLoadNewWardId = pastedCondition.WardId;
-                                    _autoLoadNewUseWard = true;
+                                    _logger.LogWarning(ex, "Failed to parse JSON!");
                                 }
-                                else
-                                {
-                                    _autoLoadNewUseWard = false;
-                                }
-
-                                if (pastedCondition.DivisionId != ushort.MaxValue)
-                                {
-                                    _autoLoadNewDivisionIndex = pastedCondition.DivisionId - 1;
-                                }
-
-                                if (pastedCondition.HouseId != ushort.MaxValue)
-                                {
-                                    _autoLoadNewHouseId = pastedCondition.HouseId;
-                                    _autoLoadNewUseHouse = true;
-                                }
-                                else
-                                {
-                                    _autoLoadNewUseHouse = false;
-                                }
-
-                                if (pastedCondition.RoomId != ushort.MaxValue)
-                                {
-                                    _autoLoadNewRoomId = pastedCondition.RoomId;
-                                }
-
                             }
-                            catch (JsonException ex)
-                            {
-                                _logger.LogWarning(ex, "Failed to parse JSON!");
-                            }
-                        }
-                        if (ImGui.IsItemHovered())
-                        {
-                            using (ImRaii.Tooltip())
-                            {
-                                ImGui.Text("Paste auto load condition");
-                            }
-                        }
-                        ImGui.SameLine();
-                        if (ImGuiComponents.IconButton(useCurrentIcon))
-                        {
-                            UseCurrentLocation();
-                        }
-                        if (ImGui.IsItemHovered())
-                        {
-                            using (ImRaii.Tooltip())
-                            {
-                                ImGui.Text("Use current location");
-                            }
-                        }
-
-                        // World
-                        ImGui.Checkbox("###LocationUseWorld", ref _autoLoadNewUseWorld);
-                        if (ImGui.IsItemHovered())
-                        {
-                            using (ImRaii.Tooltip())
-                            {
-                                ImGui.Text("Only auto load on a specific World");
-                            }
-                        }
-                        ImGui.SameLine();
-                        if (_autoLoadNewUseWorld)
-                        {
-                            Utils.ImGuiExtensions.FilteredCombo("World", ref _autoLoadNewWorldIndex, ref _autoLoadNewWorldFilter, _allWorlds, static world => world.DisplayName, "World");
-                        }
-                        else
-                        {
-                            using (ImRaii.Disabled())
-                            {
-                                int currentItem = 0;
-                                ImGui.Combo("World", ref currentItem, "(All Worlds)\0"u8);
-                            }
-                        }
-
-                        if (_autoLoadNewTerritoryIndex >= 0 && _allTerritories[_autoLoadNewTerritoryIndex].IsInHousingWard)
-                        {
-                            // Ward & Division
-                            using (ImRaii.Disabled(!_autoLoadNewUseWorld))
-                            {
-                                ImGui.Checkbox("###LocationUseWard", ref _autoLoadNewUseWard);
-                            }
-                            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                            if (ImGui.IsItemHovered())
                             {
                                 using (ImRaii.Tooltip())
                                 {
-                                    ImGui.Text("Only auto load in a specific housing ward");
-                                    if (!_autoLoadNewUseWorld)
-                                    {
-                                        ImGui.TextColored(ImGuiColors.DalamudRed, "Specify a World above before selecting a ward.");
-                                    }
+                                    ImGui.Text("Paste auto load condition");
                                 }
                             }
-                            bool wardEnabled = _autoLoadNewUseWorld && _autoLoadNewUseWard;
-                            using (ImRaii.Disabled(!wardEnabled))
+                            ImGui.SameLine();
+                            if (ImGuiComponents.IconButton(useCurrentIcon))
                             {
-                                ImGui.SameLine();
-                                ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X / 3.0f + ImGui.GetStyle().ItemSpacing.X / 2.0f);
-                                if (wardEnabled)
+                                UseCurrentLocation();
+                            }
+                            if (ImGui.IsItemHovered())
+                            {
+                                using (ImRaii.Tooltip())
                                 {
-                                    ImGui.InputInt("###Ward", ref _autoLoadNewWardId);
-                                }
-                                else
-                                {
-                                    string dummy = "(All Wards)";
-                                    ImGui.InputText("###WardDisabled", ref dummy);
-                                }
-                                ImGui.SameLine();
-                                ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X / 2.0f + ImGui.GetStyle().ItemSpacing.X / 2.0f);
-                                if (wardEnabled)
-                                {
-                                    ImGui.Combo("Ward & Division", ref _autoLoadNewDivisionIndex, _divisions);
-                                }
-                                else
-                                {
-                                    int currentItem = 0;
-                                    ImGui.Combo("Ward & Division", ref currentItem, "(All Divisions)\0"u8);
+                                    ImGui.Text("Use current location");
                                 }
                             }
 
-                            if (_allTerritories[_autoLoadNewTerritoryIndex].IsInHousingRoom)
+                            // World
+                            ImGui.Checkbox("###LocationUseWorld", ref _autoLoadNewUseWorld);
+                            if (ImGui.IsItemHovered())
                             {
-                                // House & Room
-                                using (ImRaii.Disabled(!wardEnabled))
+                                using (ImRaii.Tooltip())
                                 {
-                                    ImGui.Checkbox("###LocationUseHouse", ref _autoLoadNewUseHouse);
+                                    ImGui.Text("Only auto load on a specific World");
+                                }
+                            }
+                            ImGui.SameLine();
+                            if (_autoLoadNewUseWorld)
+                            {
+                                Utils.ImGuiExtensions.FilteredCombo("World", ref _autoLoadNewWorldIndex, ref _autoLoadNewWorldFilter, _allWorlds, static world => world.DisplayName, "World");
+                            }
+                            else
+                            {
+                                using (ImRaii.Disabled())
+                                {
+                                    int currentItem = 0;
+                                    ImGui.Combo("World", ref currentItem, "(All Worlds)\0"u8);
+                                }
+                            }
+
+                            if (_autoLoadNewTerritoryIndex >= 0 && _allTerritories[_autoLoadNewTerritoryIndex].IsInHousingWard)
+                            {
+                                // Ward & Division
+                                using (ImRaii.Disabled(!_autoLoadNewUseWorld))
+                                {
+                                    ImGui.Checkbox("###LocationUseWard", ref _autoLoadNewUseWard);
                                 }
                                 if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
                                 {
                                     using (ImRaii.Tooltip())
                                     {
-                                        ImGui.Text("Only auto load in a specific house");
-                                        if (!wardEnabled)
+                                        ImGui.Text("Only auto load in a specific housing ward");
+                                        if (!_autoLoadNewUseWorld)
                                         {
-                                            ImGui.TextColored(ImGuiColors.DalamudRed, "Specify a World and a ward above before selecting a house.");
+                                            ImGui.TextColored(ImGuiColors.DalamudRed, "Specify a World above before selecting a ward.");
                                         }
                                     }
                                 }
-                                bool houseEnabled = wardEnabled && _autoLoadNewUseHouse;
-                                using (ImRaii.Disabled(!houseEnabled))
+                                bool wardEnabled = _autoLoadNewUseWorld && _autoLoadNewUseWard;
+                                using (ImRaii.Disabled(!wardEnabled))
                                 {
                                     ImGui.SameLine();
                                     ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X / 3.0f + ImGui.GetStyle().ItemSpacing.X / 2.0f);
-                                    if (houseEnabled)
+                                    if (wardEnabled)
                                     {
-                                        ImGui.Combo("###House", ref _autoLoadNewHouseId, _allHouses, _autoLoadNewDivisionIndex == 1 ? houseIdToStringSubdivision : houseIdToString);
+                                        ImGui.InputInt("###Ward", ref _autoLoadNewWardId);
+                                    }
+                                    else
+                                    {
+                                        string dummy = "(All Wards)";
+                                        ImGui.InputText("###WardDisabled", ref dummy);
+                                    }
+                                    ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
+                                    if (wardEnabled)
+                                    {
+                                        ImGui.Combo("Ward & Division", ref _autoLoadNewDivisionIndex, _divisions);
                                     }
                                     else
                                     {
                                         int currentItem = 0;
-                                        ImGui.Combo("###HouseDisabled", ref currentItem, "(All Houses & Apartments)\0"u8);
+                                        ImGui.Combo("Ward & Division", ref currentItem, "(All Divisions)\0"u8);
                                     }
-                                    ImGui.SameLine();
-                                    ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X / 2.0f + ImGui.GetStyle().ItemSpacing.X / 2.0f);
-                                    if (houseEnabled)
+                                }
+
+                                if (_allTerritories[_autoLoadNewTerritoryIndex].IsInHousingRoom)
+                                {
+                                    // House & Room
+                                    using (ImRaii.Disabled(!wardEnabled))
                                     {
-                                        ImGui.InputInt("House & Room", ref _autoLoadNewRoomId);
+                                        ImGui.Checkbox("###LocationUseHouse", ref _autoLoadNewUseHouse);
                                     }
-                                    else
+                                    if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
                                     {
-                                        string dummy = "(All Rooms)";
-                                        ImGui.InputText("House & Room##Disabled", ref dummy);
+                                        using (ImRaii.Tooltip())
+                                        {
+                                            ImGui.Text("Only auto load in a specific house");
+                                            if (!wardEnabled)
+                                            {
+                                                ImGui.TextColored(ImGuiColors.DalamudRed, "Specify a World and a ward above before selecting a house.");
+                                            }
+                                        }
+                                    }
+                                    bool houseEnabled = wardEnabled && _autoLoadNewUseHouse;
+                                    using (ImRaii.Disabled(!houseEnabled))
+                                    {
+                                        ImGui.SameLine();
+                                        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X / 3.0f + ImGui.GetStyle().ItemSpacing.X / 2.0f);
+                                        if (houseEnabled)
+                                        {
+                                            ImGui.Combo("###House", ref _autoLoadNewHouseId, _allHouses, _autoLoadNewDivisionIndex == 1 ? houseIdToStringSubdivision : houseIdToString);
+                                        }
+                                        else
+                                        {
+                                            int currentItem = 0;
+                                            ImGui.Combo("###HouseDisabled", ref currentItem, "(All Houses & Apartments)\0"u8);
+                                        }
+                                        ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
+                                        if (houseEnabled)
+                                        {
+                                            ImGui.InputInt("House & Room", ref _autoLoadNewRoomId);
+                                        }
+                                        else
+                                        {
+                                            string dummy = "(All Rooms)";
+                                            ImGui.InputText("House & Room##Disabled", ref dummy);
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Plus, "Add"))
-                        {
-                            _localDefinitionService.SetAutomaticShowConditions(_selectedLocalDefinitionFilename, selectedMetadata.AutomaticShowConditions.Append(new AutomaticShowCondition()
+                            if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Plus, "Add"))
                             {
-                                TerritoryId = _allTerritories[_autoLoadNewTerritoryIndex].Id,
-                                WorldId = _autoLoadNewUseWorld ? _allWorlds[_autoLoadNewWorldIndex].Id : ushort.MaxValue,
-                                WardId = (_autoLoadNewUseWorld && _autoLoadNewUseWard) ? (ushort)_autoLoadNewWardId : ushort.MaxValue,
-                                DivisionId = (_autoLoadNewUseWorld && _autoLoadNewUseWard) ? (ushort)(_autoLoadNewDivisionIndex + 1) : ushort.MaxValue,
-                                HouseId = (_autoLoadNewUseWorld && _autoLoadNewUseWard && _autoLoadNewUseHouse) ? (ushort)_autoLoadNewHouseId : ushort.MaxValue,
-                                RoomId = (_autoLoadNewUseWorld && _autoLoadNewUseWard && _autoLoadNewUseHouse) ? (ushort)_autoLoadNewRoomId : ushort.MaxValue,
-                            }));
+                                _localDefinitionService.SetAutomaticShowConditions(_selectedLocalDefinitionFilename, selectedMetadata.AutomaticShowConditions.Append(new AutomaticShowCondition()
+                                {
+                                    TerritoryId = _allTerritories[_autoLoadNewTerritoryIndex].Id,
+                                    WorldId = _autoLoadNewUseWorld ? _allWorlds[_autoLoadNewWorldIndex].Id : ushort.MaxValue,
+                                    WardId = (_autoLoadNewUseWorld && _autoLoadNewUseWard) ? (ushort)_autoLoadNewWardId : ushort.MaxValue,
+                                    DivisionId = (_autoLoadNewUseWorld && _autoLoadNewUseWard) ? (ushort)(_autoLoadNewDivisionIndex + 1) : ushort.MaxValue,
+                                    HouseId = (_autoLoadNewUseWorld && _autoLoadNewUseWard && _autoLoadNewUseHouse) ? (ushort)_autoLoadNewHouseId : ushort.MaxValue,
+                                    RoomId = (_autoLoadNewUseWorld && _autoLoadNewUseWard && _autoLoadNewUseHouse) ? (ushort)_autoLoadNewRoomId : ushort.MaxValue,
+                                }));
+                            }
+
                         }
                     }
 
@@ -779,6 +807,22 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                             {
                                 _logger.LogError(ex, "Exception loading {path} to instantiate!", _selectedLocalDefinitionFilename);
                             }
+                        }
+                    }
+
+                    ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
+                    if (_editorService.OpenEditorFilename == null)
+                    {
+                        if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Hammer, "Open Editor"))
+                        {
+                            _editorService.TryOpenEditor(_selectedLocalDefinitionFilename);
+                        }
+                    }
+                    else
+                    {
+                        using (ImRaii.Disabled())
+                        {
+                            ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Hammer, "Editor Already Open");
                         }
                     }
                 }

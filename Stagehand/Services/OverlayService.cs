@@ -1,7 +1,9 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Bindings.ImGuizmo;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using Stagehand.Windows;
 using System;
 using System.Collections.Generic;
@@ -51,6 +53,18 @@ public interface IOverlayDrawContext
     /// <param name="thickness">The thickness to draw the box lines with, in pixels.</param>
     /// <param name="color">The color to draw the box.</param>
     void DrawBox(Matrix4x4 transform, Vector3 halfExtents, float thickness, Vector4 color);
+
+    /// <summary>
+    /// Draws an interactive gizmo for manipulating the given transform.
+    /// </summary>
+    /// <param name="id">A unique identifier for this gizmo.</param>
+    /// <param name="translation">The translation of the transform.</param>
+    /// <param name="rotation">The rotation of the transform.</param>
+    /// <param name="scale">The scale of the transform.</param>
+    /// <param name="operation">The kind of gizmo to draw.</param>
+    /// <param name="mode">Whether the gizmo is oriented in local or world space.</param>
+    /// <returns>Whether the given transform components were modified.</returns>
+    bool DrawGizmo(ImU8String id, ref Vector3 translation, ref Quaternion rotation, ref Vector3 scale, ImGuizmoOperation operation, ImGuizmoMode mode);
 }
 
 /// <summary>
@@ -79,6 +93,8 @@ internal class OverlayService : IOverlayService
         private readonly IGameGui _gameGui;
 
         public ImDrawListPtr DrawListPtr { get; set; }
+        public Matrix4x4 ViewMatrix;
+        public Matrix4x4 ProjectionMatrix;
 
         public OverlayDrawContext(IGameGui gameGui)
         {
@@ -185,8 +201,37 @@ internal class OverlayService : IOverlayService
                 DrawListPtr.AddLine(startPointScreenPos, endPointScreenPos, ImGui.GetColorU32(color), thickness);
             }
         }
+
+        public unsafe bool DrawGizmo(ImU8String id, ref Vector3 translation, ref Quaternion rotation, ref Vector3 scale, ImGuizmoOperation operation, ImGuizmoMode mode)
+        {
+            bool result = false;
+
+            ImGuizmo.SetID((int)ImGui.GetID(id));
+            ImGuizmo.Enable(true);
+
+            Matrix4x4 translationMatrix = Matrix4x4.CreateTranslation(translation);
+            Matrix4x4 rotationMatrix = Matrix4x4.CreateFromQuaternion(rotation);
+            Matrix4x4 scaleMatrix = Matrix4x4.CreateScale(scale);
+            Matrix4x4 matrix = new Matrix4x4();
+
+            matrix = scaleMatrix * rotationMatrix * translationMatrix;
+
+            Vector3 snap = Vector3.Zero;
+
+            result = ImGuizmo.Manipulate(ref ViewMatrix.M11, ref ProjectionMatrix.M11, operation, mode, ref matrix.M11);
+            if (result)
+            {
+                Vector3 rotationXYZ = Vector3.Zero;
+                Matrix4x4.Decompose(matrix, out scale, out rotation, out translation);
+            }
+
+            ImGuizmo.SetID(-1);
+
+            return result;
+        }
     }
 
+    private readonly IGameGui _gameGui;
     // Drawing is not reentrant and only happens on one thread, so reuse the same draw context each time
     private readonly OverlayDrawContext _recycledDrawContext;
 
@@ -196,10 +241,11 @@ internal class OverlayService : IOverlayService
 
     public OverlayService(IGameGui gameGui)
     {
+        _gameGui = gameGui;
         _recycledDrawContext = new OverlayDrawContext(gameGui);
     }
 
-    public void Draw()
+    public unsafe void Draw()
     {
         using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, Vector2.Zero))
         {
@@ -213,7 +259,29 @@ internal class OverlayService : IOverlayService
             var displaySize = ImGui.GetIO().DisplaySize;
             ImGui.SetWindowSize(displaySize);
 
+            // Set up the ImGuizmo matrices
+            var renderCamera = CameraManager.Instance()->CurrentCamera->RenderCamera;
+
+            var projection = renderCamera->ProjectionMatrix;
+            var view = renderCamera->ViewMatrix;
+
+            // Yoinked with love from Burning Down the House
+            var far = renderCamera->FarPlane;
+            var near = renderCamera->NearPlane;
+            var clip = far / (far - near);
+
+            projection.M43 = -(clip * near);
+            projection.M33 = -((far + near) / (far - near));
+            view.M44 = 1.0f;
+
+            _recycledDrawContext.ViewMatrix = view;
+            _recycledDrawContext.ProjectionMatrix = projection;
+
             var drawList = ImGui.GetBackgroundDrawList();
+            ImGuizmo.SetDrawlist(drawList);
+            ImGuizmo.SetOrthographic(renderCamera->IsOrtho);
+            ImGuizmo.SetRect(ImGui.GetWindowViewport().Pos.X, ImGui.GetWindowViewport().Pos.Y, ImGui.GetWindowViewport().Size.X, ImGui.GetWindowViewport().Size.Y);
+            ImGuizmo.BeginFrame();
             _recycledDrawContext.DrawListPtr = drawList;
             DrawOverlays?.Invoke(_recycledDrawContext);
 

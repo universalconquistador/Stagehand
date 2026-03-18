@@ -80,10 +80,12 @@ public interface ILiveObjectService
 internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposable
 {
     private readonly IFramework _framework;
+    private readonly IDataManager _dataManager;
 
-    public LiveObjectService(IFramework framework)
+    public LiveObjectService(IFramework framework, IDataManager dataManager)
     {
         _framework = framework;
+        _dataManager = dataManager;
     }
 
     public ILiveObject? CreateLight(RenderLightShape shape)
@@ -109,6 +111,11 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
     public ILiveObject? CreateVfx(string vfxResourceGamePath, Vector3 position, Quaternion rotation, Vector3 scale, Vector4 color)
     {
         VfxObject* vfxObject;
+
+        if (!_dataManager.GameData.FileExists(vfxResourceGamePath))
+        {
+            return null;
+        }
 
         Span<byte> pathBytes = stackalloc byte[Encoding.UTF8.GetByteCount(vfxResourceGamePath) + 1];
         Encoding.UTF8.GetBytes(vfxResourceGamePath, pathBytes);
@@ -142,6 +149,11 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
     public ILiveObject? CreateBgObject(string modelGamePath, Vector3 position, Quaternion rotation, Vector3 scale)
     {
         BgObject* bgObject;
+
+        if (!_dataManager.GameData.FileExists(modelGamePath))
+        {
+            return null;
+        }
 
         Span<byte> pathBytes = stackalloc byte[Encoding.UTF8.GetByteCount(modelGamePath) + 1];
         Encoding.UTF8.GetBytes(modelGamePath, pathBytes);
@@ -246,7 +258,7 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
             return bgObject;
         }
 
-        public static ILiveObject? VisitLightObjectDefinition(LightDefinition definition, ref LiveObjectFactoryParams param)
+        public static ILiveObject? VisitLightDefinition(LightDefinition definition, ref LiveObjectFactoryParams param)
         {
             var light = param.LiveObjectService.CreateLight(definition.Shape switch { LightShape.Ambient => RenderLightShape.WorldLight, LightShape.Point => RenderLightShape.PointLight, LightShape.Spot => RenderLightShape.SpotLight, LightShape.Flat => RenderLightShape.FlatLight, _ => RenderLightShape.PointLight });
             light?.TryUpdate(definition);
@@ -260,7 +272,7 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
             return vfxObject;
         }
 
-        public static ILiveObject? VisitWeaponObjectDefinition(WeaponDefinition definition, ref LiveObjectFactoryParams param)
+        public static ILiveObject? VisitWeaponDefinition(WeaponDefinition definition, ref LiveObjectFactoryParams param)
         {
             var weaponObject = param.LiveObjectService.CreateWeapon((ushort)definition.ModelSetId, (ushort)definition.SecondaryId, (ushort)definition.Variant, (byte)definition.PrimaryDye, (byte)definition.SecondaryDye, definition.Position, definition.RotationQuaternion, definition.Scale);
             //weaponObject?.TryUpdate(definition);

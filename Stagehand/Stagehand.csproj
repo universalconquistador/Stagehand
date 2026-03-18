@@ -21,7 +21,7 @@ Use /stagehand to get started.</Description>
         <DalamudApiLevel>14</DalamudApiLevel>
         <LoadRequiredState>1</LoadRequiredState>
         <LoadSync>true</LoadSync>
-        <CanUnloadAsync>true</CanUnloadAsync>
+        <CanUnloadAsync>false</CanUnloadAsync>
         <LoadPriority>1</LoadPriority>
         <ImageUrls></ImageUrls>
         <IconUrl></IconUrl>

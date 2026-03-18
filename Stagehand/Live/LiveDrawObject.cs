@@ -18,4 +18,22 @@ internal abstract unsafe class LiveDrawObject : LiveObject
     public LiveDrawObject(DrawObject* drawObjectPtr)
         : base((Object*)drawObjectPtr)
     { }
+
+    public override bool TryGetOrientedBounds(out FFXIVClientStructs.FFXIV.Common.Math.OrientedBounds orientedBounds)
+    {
+        var obj = DrawObjectPtr;
+        if (obj != null)
+        {
+            fixed (FFXIVClientStructs.FFXIV.Common.Math.OrientedBounds* outOrientedBounds = &orientedBounds)
+            {
+                obj->ComputeOrientedBounds(outOrientedBounds);
+                return true;
+            }
+        }
+        else
+        {
+            orientedBounds = default;
+            return false;
+        }
+    }
 }

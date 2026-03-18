@@ -63,37 +63,37 @@ public class LightDefinition : ObjectDefinition
     /// <summary>
     /// Whether the light casts specular highlights on objects.
     /// </summary>
-    public bool EnableSpecularHighlights { get; set; }
+    public bool EnableSpecularHighlights { get; set; } = true;
 
     /// <summary>
     /// Whether dynamic objects cast shadows from this light.
     /// </summary>
-    public bool EnableDynamicShadows { get; set; }
+    public bool EnableDynamicShadows { get; set; } = true;
 
     /// <summary>
     /// Whether characters cast shadows from this light.
     /// </summary>
-    public bool EnableCharacterShadows { get; set; }
+    public bool EnableCharacterShadows { get; set; } = true;
 
     /// <summary>
     /// Whether static objects cast shadows from this light.
     /// </summary>
-    public bool EnableObjectShadows { get; set; }
+    public bool EnableObjectShadows { get; set; } = true;
 
     /// <summary>
     /// The shape of the illumination from this light.
     /// </summary>
-    public LightShape Shape { get; set; }
+    public LightShape Shape { get; set; } = LightShape.Point;
 
     /// <summary>
     /// The color of the light.
     /// </summary>
-    public Vector3 Color { get; set; }
+    public Vector3 Color { get; set; } = Vector3.One;
 
     /// <summary>
     /// The intensity of the light.
     /// </summary>
-    public float Intensity { get; set; }
+    public float Intensity { get; set; } = 4.0f;
 
     // TODO: Could include AxisAlignedBounds but for now let's assume they are unlimited
 
@@ -103,7 +103,7 @@ public class LightDefinition : ObjectDefinition
     /// <remarks>
     /// The closer this is to zero, the exponentially less depth precision the shadows will have, so set it as far away as you reasonably can.
     /// </remarks>
-    public float ShadowPlaneNear { get; set; }
+    public float ShadowPlaneNear { get; set; } = 0.05f;
 
     /// <summary>
     /// The distance to the end of the shadow frustum, or the farthest distance that will cast a shadow.
@@ -111,7 +111,7 @@ public class LightDefinition : ObjectDefinition
     /// <remarks>
     /// The farther this is from <see cref="ShadowPlaneNear"/>, the less precision the shadows will have, so set it as near as you reasonably can.
     /// </remarks>
-    public float ShadowPlaneFar { get; set; }
+    public float ShadowPlaneFar { get; set; } = 100.0f;
 
     /// <summary>
     /// How the light's intensity decreases with the distance to the surface being lit.
@@ -119,7 +119,7 @@ public class LightDefinition : ObjectDefinition
     /// <remarks>
     /// This combines with <see cref="FalloffFactor"/> and is clamped by <see cref="Range"/> to determine the final falloff.
     /// </remarks>
-    public LightFalloffFunction FalloffFunction { get; set; }
+    public LightFalloffFunction FalloffFunction { get; set; } = LightFalloffFunction.Quadratic;
 
     /// <summary>
     /// The X and Y angles that the light paralleliped is skewed by, if its <see cref="Shape"/> is <see cref="LightShape.Flat"/>.
@@ -132,17 +132,17 @@ public class LightDefinition : ObjectDefinition
     /// <remarks>
     /// This combines with <see cref="FalloffFunction"/> and is clamped by <see cref="Range"/> to determine the final falloff.
     /// </remarks>
-    public float FalloffFactor { get; set; }
+    public float FalloffFactor { get; set; } = 1.0f;
 
     /// <summary>
     /// The angle of the cone of full brightness from a light, if its <see cref="Shape"/> is <see cref="LightShape.Spot"/>.
     /// </summary>
-    public float SpotLightAngleDegrees { get; set; }
+    public float SpotLightAngleDegrees { get; set; } = 30.0f;
 
     /// <summary>
     /// The angle over which the cone of light dims from full brightness to none, if its <see cref="Shape"/> is <see cref="LightShape.Spot"/> or <see cref="LightShape.Flat"/>.
     /// </summary>
-    public float AngularFalloffDegrees { get; set; }
+    public float AngularFalloffDegrees { get; set; } = 5.0f;
 
     /// <summary>
     /// The maximum distance that the light can reach.
@@ -150,15 +150,15 @@ public class LightDefinition : ObjectDefinition
     /// <remarks>
     /// This clamps the combination of <see cref="FalloffFunction"/> and <see cref="FalloffFactor"/> to determine the final falloff.
     /// </remarks>
-    public float Range { get; set; }
+    public float Range { get; set; } = 100.0f;
 
     /// <summary>
     /// The distance that characters must be within to cast shadows.
     /// </summary>
-    public float CharacterShadowRange { get; set; }
+    public float CharacterShadowRange { get; set; } = 100.0f;
 
     public override TResult Visit<TVisitor, TParam, TResult>(ref TParam param)
     {
-        return TVisitor.VisitLightObjectDefinition(this, ref param);
+        return TVisitor.VisitLightDefinition(this, ref param);
     }
 }

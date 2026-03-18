@@ -9,6 +9,9 @@ using Dalamud.Plugin.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Stagehand.Editor;
+using Stagehand.Editor.Services;
+using Stagehand.Editor.Tools;
 using Stagehand.Live;
 using Stagehand.Services;
 using Stagehand.Utils;
@@ -94,12 +97,22 @@ public sealed class Plugin : IDalamudPlugin
             services.AddSingleton<ILocalDefinitionService, LocalDefinitionService>();
             services.AddSingleton<ILiveObjectService, LiveObjectService>();
             services.AddSingleton<ILiveStageService, LiveStageService>();
+            services.AddSingleton<IEditorService, EditorService>();
 
             services.AddHostedService<ConfigWindow>();
             services.AddHostedService<DebugWindow>();
             services.AddHostedService<LibraryWindow>();
             services.AddSingleton<LocalStageService>();
             services.AddHostedService(c => c.GetRequiredService<LocalStageService>());
+
+            // Editor services are scoped to the editor session
+            services.AddScoped<IEditorTool, SelectTool>();
+            services.AddScoped<IEditorTool, MoveTool>();
+            services.AddScoped<IEditorTool, RotateTool>();
+            services.AddScoped<IEditorTool, ScaleTool>();
+            services.AddScoped<IToolManager, ToolManager>();
+            services.AddScoped<IOutliner, Outliner>();
+            services.AddScoped<ISelectionManager, SelectionManager>();
         });
 
         _host = hostBuilder.Build();

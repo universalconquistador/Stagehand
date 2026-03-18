@@ -113,4 +113,24 @@ internal sealed unsafe class LiveVfxObject : LiveDrawObject
             return false;
         }
     }
+
+    public override bool TryGetOrientedBounds(out FFXIVClientStructs.FFXIV.Common.Math.OrientedBounds orientedBounds)
+    {
+        var vfxResource = (VfxResourceInstance__Internal*)VfxObjectPtr->VfxResourceInstance;
+        if (vfxResource != null)
+        {
+            var resourceUnk = vfxResource->VfxResourceUnk;
+            if (resourceUnk != null)
+            {
+                var apricotResourceHandle = resourceUnk->ApricotResourceHandle;
+                if (apricotResourceHandle != null && apricotResourceHandle->LoadState >= 7)
+                {
+                    return base.TryGetOrientedBounds(out orientedBounds);
+                }
+            }
+        }
+
+        orientedBounds = default;
+        return false;
+    }
 }

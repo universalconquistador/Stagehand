@@ -15,7 +15,7 @@ Use the `/stagehand` command to bring up the main UI.
 The left side of the main window lists the Stages in your Stages folder (by default in `C:\Users\<username>\Documents\Stages\`).
 The right side of the main window shows info about the selected Stagehand and lets you edit it or assign it to automatically load for specific locations.
 
-So far there is no editor for Stage definitions, so you have to edit the `.json` files by hand to match up with the `StageDefinition` class. Work on an editor is underway.
+Get or create some Stages and set their automatic show conditions to fill your journey through Eorzea and beyond!
 
 
 ## Developers
@@ -24,7 +24,7 @@ So far there is no editor for Stage definitions, so you have to edit the `.json`
 
 Stagehand is made up of several C# projects:
 
-**`Stagehand.Definitions`**: The object model for Stage `.json` files and serialized strings used in IPC.  
+**`Stagehand.Definitions`**: The object model for Stage `.json` files and the serialized strings used in IPC.  
 [![NuGet Version](https://img.shields.io/nuget/v/Stagehand.Api)](https://www.nuget.org/packages/Stagehand.Api/)
 
 **`Stagehand.Api`**: A library for other plugins to interact with the Stagehand plugin via Dalamud IPC.  
@@ -43,7 +43,7 @@ The Stagehand IPC API is defined in the `Stagehand.Api.IStagehandApi` interface.
 It lets plugins query the local Stage definitions, create and destroy temporary Stages, and show and hide both local and temporary Stages.
 
 To get started, reference the `Stagehand.Api` NuGet package and call `StagehandApi.CreateIpcClient()`.
-For more information, see the the [README](Stagehand.Api/README.md).
+For more information, see the [README](Stagehand.Api/README.md).
 
 
 ## Definitions

@@ -19,6 +19,13 @@ public interface ILiveObject : IDisposable
     /// <param name="definition">The object definition, whose concrete type must match this live object.</param>
     /// <returns>True if the update was successful, or false if this live object cannot be updated with the given object definition.</returns>
     bool TryUpdate(ObjectDefinition definition);
+
+    /// <summary>
+    /// Attempts to get the oriented bounds of this live object.
+    /// </summary>
+    /// <param name="orientedBounds"></param>
+    /// <returns>True if the call succeeded, or false if it failed (e.g. a resource is not yet loaded).</returns>
+    bool TryGetOrientedBounds(out FFXIVClientStructs.FFXIV.Common.Math.OrientedBounds orientedBounds);
 }
 
 internal abstract unsafe class LiveObject : ILiveObject
@@ -47,4 +54,6 @@ internal abstract unsafe class LiveObject : ILiveObject
     }
 
     public abstract bool TryUpdate(ObjectDefinition definition);
+
+    public abstract bool TryGetOrientedBounds(out FFXIVClientStructs.FFXIV.Common.Math.OrientedBounds orientedBounds);
 }

@@ -2,6 +2,7 @@ using Dalamud.Plugin.Services;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Stagehand.Definitions;
+using Stagehand.Editor;
 using Stagehand.Utils;
 using System;
 using System.Collections.Concurrent;
@@ -26,11 +27,12 @@ internal class LocalStageService : IHostedService
     private readonly IPlayerState _playerState;
     private readonly ILocalDefinitionService _localDefinitionService;
     private readonly ILiveStageService _liveStageService;
+    private readonly IEditorService _editorService;
 
     private readonly ConcurrentDictionary<string, bool> _manualVisibilitySettings = new();
     private Location _lastLocation;
 
-    public LocalStageService(ILogger<LocalStageService> logger, IFramework framework, IClientState clientState, IPlayerState playerState, ILocalDefinitionService localDefinitionService, ILiveStageService liveStageService, StagehandConfiguration configuration)
+    public LocalStageService(ILogger<LocalStageService> logger, IFramework framework, IClientState clientState, IPlayerState playerState, ILocalDefinitionService localDefinitionService, ILiveStageService liveStageService, IEditorService editorService, StagehandConfiguration configuration)
     {
         _logger = logger;
         _framework = framework;
@@ -38,6 +40,7 @@ internal class LocalStageService : IHostedService
         _playerState = playerState;
         _localDefinitionService = localDefinitionService;
         _liveStageService = liveStageService;
+        _editorService = editorService;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -45,9 +48,22 @@ internal class LocalStageService : IHostedService
         _localDefinitionService.LocalDefinitionsChanged += OnLocalDefinitionsChanged;
         _localDefinitionService.AutomaticShowConditionsChanged += OnAutomaticShowConditionsChanged;
 
-        _framework.Update += this.Update;
+        _editorService.EditorOpened += OnEditorOpened;
+        _editorService.EditorClosed += OnEditorClosed;
+
+        _framework.Update += Update;
 
         return Task.CompletedTask;
+    }
+
+    private void OnEditorOpened(string definitionPath)
+    {
+        RefreshVisibility(definitionPath);
+    }
+
+    private void OnEditorClosed(string definitionPath)
+    {
+        RefreshVisibility(definitionPath);
     }
 
     private void Update(IFramework framework)
@@ -107,11 +123,10 @@ internal class LocalStageService : IHostedService
                 }
             }
 
-            // Only update the modified Stages that are already is visible
+            // Only update the modified Stages that are already visible
             foreach (var modified in modifiedDefinitions)
             {
                 if (_localDefinitionService.LocalDefinitions.TryGetValue(modified, out var metadata)
-                    && metadata.AutomaticShowConditions.Any(condition => condition.Evaluate(location))
                     && _liveStageService.TryGetLiveStage(LiveStageHelpers.MakeLocalStageKey(modified), out var liveStage))
                 {
                     try
@@ -142,7 +157,8 @@ internal class LocalStageService : IHostedService
         if (!Location.TryGetLocation(_clientState, _playerState, out var location))
             return;
 
-        bool shouldBeVisible = _manualVisibilitySettings.GetValueOrDefault(path, _localDefinitionService.LocalDefinitions.TryGetValue(path, out var metadata)
+        bool shouldBeVisible = path != _editorService.OpenEditorFilename
+            && _manualVisibilitySettings.GetValueOrDefault(path, _localDefinitionService.LocalDefinitions.TryGetValue(path, out var metadata)
             && metadata.AutomaticShowConditions.Any(condition => condition.Evaluate(location)));
 
         if (currentlyVisible && !shouldBeVisible)
@@ -216,6 +232,8 @@ internal class LocalStageService : IHostedService
     public Task StopAsync(CancellationToken cancellationToken)
     {
         _framework.Update -= Update;
+        _editorService.EditorClosed -= OnEditorClosed;
+        _editorService.EditorOpened -= OnEditorOpened;
         _localDefinitionService.AutomaticShowConditionsChanged -= OnAutomaticShowConditionsChanged;
         _localDefinitionService.LocalDefinitionsChanged -= OnLocalDefinitionsChanged;
 

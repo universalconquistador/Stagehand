@@ -41,6 +41,6 @@ public class WeaponDefinition : ObjectDefinition
 
     public override TResult Visit<TVisitor, TParam, TResult>(ref TParam param)
     {
-        return TVisitor.VisitWeaponObjectDefinition(this, ref param);
+        return TVisitor.VisitWeaponDefinition(this, ref param);
     }
 }

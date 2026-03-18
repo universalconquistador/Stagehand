@@ -17,7 +17,7 @@ namespace Stagehand.Definitions.Objects;
 public interface IObjectVisitor<TParam, TResult>
 {
     static abstract TResult VisitBgObjectDefinition(BgObjectDefinition definition, ref TParam param);
-    static abstract TResult VisitLightObjectDefinition(LightDefinition definition, ref TParam param);
+    static abstract TResult VisitLightDefinition(LightDefinition definition, ref TParam param);
     static abstract TResult VisitVfxObjectDefinition(VfxObjectDefinition definition, ref TParam param);
-    static abstract TResult VisitWeaponObjectDefinition(WeaponDefinition definition, ref TParam param);
+    static abstract TResult VisitWeaponDefinition(WeaponDefinition definition, ref TParam param);
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace Stagehand.Definitions.Objects;
 
@@ -39,7 +40,25 @@ public abstract class ObjectDefinition
     /// <summary>
     /// Computes the rotation of this object in world space as a quaternion.
     /// </summary>
-    public Quaternion RotationQuaternion => Quaternion.CreateFromYawPitchRoll(DegreesToRadians(RotationPitchYawRollDegrees.Y), DegreesToRadians(RotationPitchYawRollDegrees.X), DegreesToRadians(RotationPitchYawRollDegrees.Z));
+    [JsonIgnore]
+    public Quaternion RotationQuaternion
+    {
+        get => Quaternion.CreateFromYawPitchRoll(DegreesToRadians(RotationPitchYawRollDegrees.Y), DegreesToRadians(RotationPitchYawRollDegrees.X), DegreesToRadians(RotationPitchYawRollDegrees.Z));
+        set
+        {
+            // The formula I'm using for quat -> PYR is z-up, so swizzle the dimensions around
+            float x = value.Z;
+            float y = value.X;
+            float z = value.Y;
+            float w = value.W;
+
+            var roll = MathF.Atan2((2 * w * x) + (2 * y * z), 1 - (2 * x * x) - (2 * y * y));
+            var pitch = MathF.Asin((2 * w * y) - (2 * z * x));
+            var yaw = MathF.Atan2((2 * w * z) + (2 * x * y), 1 - (2 * y * y) - (2 * z * z));
+
+            RotationPitchYawRollDegrees = new Vector3(RadiansToDegrees(pitch), RadiansToDegrees(yaw), RadiansToDegrees(roll));
+        }
+    }
 
     // TODO: Penumbra support
     //public Guid PenumbraCollection { get; set; } = Guid.Empty;
@@ -50,5 +69,10 @@ public abstract class ObjectDefinition
     private static float DegreesToRadians(float degrees)
     {
         return degrees * MathF.PI / 180.0f;
+    }
+
+    private static float RadiansToDegrees(float radians)
+    {
+        return radians * 180.0f / MathF.PI;
     }
 }
