@@ -6,7 +6,7 @@ Stagehand is an FFXIV plugin that lets the player place extra visual objects int
 
 ## Installing
 
-(TODO: Add repo URL)
+Add the custom repo `https://github.com/universalconquistador/Stagehand/releases/latest/download/repo.json` in your Dalamud settings and then install the Stagehand plugin.
 
 ## Usage
 
