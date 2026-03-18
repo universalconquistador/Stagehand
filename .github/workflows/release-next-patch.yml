@@ -62,7 +62,7 @@ jobs:
       run: git push && git push --tags
 
     - name: Prepare Dalamud repo JSON
-      run: dotnet run MakeDalamudRepoTool.cs -- Stagehand/bin/x64/Release/Stagehand/latest/Stagehand.json repo.json
+      run: dotnet run MakeDalamudRepoTool.cs -- Stagehand/bin/x64/Release/Stagehand/Stagehand.json repo.json
 
     - name: Retrieve version
       run: |
