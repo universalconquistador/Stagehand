@@ -157,6 +157,40 @@ public class LightDefinition : ObjectDefinition
     /// </summary>
     public float CharacterShadowRange { get; set; } = 100.0f;
 
+    /// <inheritdoc/>
+    public override ObjectDefinition Clone()
+    {
+        var result = new LightDefinition();
+        CopyTo(result);
+        return result;
+    }
+
+    /// <inheritdoc/>
+    public override void CopyTo(ObjectDefinition other)
+    {
+        base.CopyTo(other);
+
+        if (other is LightDefinition otherLight)
+        {
+            otherLight.EnableSpecularHighlights = EnableSpecularHighlights;
+            otherLight.EnableDynamicShadows = EnableDynamicShadows;
+            otherLight.EnableCharacterShadows = EnableCharacterShadows;
+            otherLight.EnableObjectShadows = EnableObjectShadows;
+            otherLight.Shape = Shape;
+            otherLight.Color = Color;
+            otherLight.Intensity = Intensity;
+            otherLight.ShadowPlaneNear = ShadowPlaneNear;
+            otherLight.ShadowPlaneFar = ShadowPlaneFar;
+            otherLight.FalloffFunction = FalloffFunction;
+            otherLight.FlatLightSkewAngleDegrees = FlatLightSkewAngleDegrees;
+            otherLight.FalloffFactor = FalloffFactor;
+            otherLight.SpotLightAngleDegrees = SpotLightAngleDegrees;
+            otherLight.AngularFalloffDegrees = AngularFalloffDegrees;
+            otherLight.Range = Range;
+            otherLight.CharacterShadowRange = CharacterShadowRange;
+        }
+    }
+
     public override TResult Visit<TVisitor, TParam, TResult>(ref TParam param)
     {
         return TVisitor.VisitLightDefinition(this, ref param);

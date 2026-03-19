@@ -23,6 +23,26 @@ public class VfxObjectDefinition : ObjectDefinition
     /// </remarks>
     public Vector4 Color { get; set; } = Vector4.One;
 
+    /// <inheritdoc/>
+    public override ObjectDefinition Clone()
+    {
+        var result = new VfxObjectDefinition();
+        CopyTo(result);
+        return result;
+    }
+
+    /// <inheritdoc/>
+    public override void CopyTo(ObjectDefinition other)
+    {
+        base.CopyTo(other);
+
+        if (other is VfxObjectDefinition otherVfxObject)
+        {
+            otherVfxObject.VfxGamePath = VfxGamePath;
+            otherVfxObject.Color = Color;
+        }
+    }
+
     public override TResult Visit<TVisitor, TParam, TResult>(ref TParam param)
     {
         return TVisitor.VisitVfxObjectDefinition(this, ref param);

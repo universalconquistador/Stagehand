@@ -157,6 +157,12 @@ internal abstract class IObjectDefinitionEditor<TDefinition> : DefinitionEditorB
 
     protected virtual IEnumerable<OutlinerContextMenuItem> GenerateContextMenuItems()
     {
+        yield return new OutlinerContextMenuItem("Duplicate", "Creates a copy of this object.", _ =>
+        {
+            var clonedDefinition = Definition.Clone();
+            var newEditor = Stage.AddObject(clonedDefinition);
+            SelectionManager.SelectedEditor = newEditor;
+        });
         yield return new OutlinerContextMenuItem("Delete", $"Removes this {TypeInfo.DisplayName} from the stage.", _ =>
         {
             Stage.RemoveObject(this);

@@ -63,6 +63,24 @@ public abstract class ObjectDefinition
     // TODO: Penumbra support
     //public Guid PenumbraCollection { get; set; } = Guid.Empty;
 
+    /// <summary>
+    /// Creates an identical copy of this object definition.
+    /// </summary>
+    public abstract ObjectDefinition Clone();
+
+    /// <summary>
+    /// Copies the properties of this object to the given destination object.
+    /// </summary>
+    /// <param name="other">The object to copy this object's properties to.</param>
+    public virtual void CopyTo(ObjectDefinition other)
+    {
+        other.DisplayName = DisplayName;
+        other.Position = Position;
+        other.RotationPitchYawRollDegrees = RotationPitchYawRollDegrees;
+        other.Scale = Scale;
+        //other.PenumbraCollection = PenumbraCollection;
+    }
+
     public abstract TResult Visit<TVisitor, TParam, TResult>(ref TParam param)
         where TVisitor : IObjectVisitor<TParam, TResult>;
 

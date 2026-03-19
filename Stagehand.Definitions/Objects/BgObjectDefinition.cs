@@ -25,6 +25,27 @@ public class BgObjectDefinition : ObjectDefinition
     /// </summary>
     public Vector4 DyeColor { get; set; } = Vector4.One;
 
+    /// <inheritdoc/>
+    public override ObjectDefinition Clone()
+    {
+        var result = new BgObjectDefinition();
+        CopyTo(result);
+        return result;
+    }
+
+    /// <inheritdoc/>
+    public override void CopyTo(ObjectDefinition other)
+    {
+        base.CopyTo(other);
+
+        if (other is BgObjectDefinition otherBgObject)
+        {
+            otherBgObject.ModelGamePath = ModelGamePath;
+            otherBgObject.Opacity = Opacity;
+            otherBgObject.DyeColor = DyeColor;
+        }
+    }
+
     public override TResult Visit<TVisitor, TParam, TResult>(ref TParam param)
     {
         return TVisitor.VisitBgObjectDefinition(this, ref param);

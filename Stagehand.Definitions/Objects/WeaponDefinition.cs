@@ -39,6 +39,30 @@ public class WeaponDefinition : ObjectDefinition
     /// </summary>
     public int AnimationVariant { get; set; }
 
+    /// <inheritdoc/>
+    public override ObjectDefinition Clone()
+    {
+        var result = new WeaponDefinition();
+        CopyTo(result);
+        return result;
+    }
+
+    /// <inheritdoc/>
+    public override void CopyTo(ObjectDefinition other)
+    {
+        base.CopyTo(other);
+
+        if (other is WeaponDefinition otherWeapon)
+        {
+            otherWeapon.ModelSetId = ModelSetId;
+            otherWeapon.SecondaryId = SecondaryId;
+            otherWeapon.Variant = Variant;
+            otherWeapon.PrimaryDye = PrimaryDye;
+            otherWeapon.SecondaryDye = SecondaryDye;
+            otherWeapon.AnimationVariant = AnimationVariant;
+        }
+    }
+
     public override TResult Visit<TVisitor, TParam, TResult>(ref TParam param)
     {
         return TVisitor.VisitWeaponDefinition(this, ref param);
