@@ -779,33 +779,36 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                     string liveKey = LiveStageHelpers.MakeLocalStageKey(_selectedLocalDefinitionFilename);
                     bool isVisible = _liveStageService.TryGetLiveStage(liveKey, out _);
 
-                    if (isVisible)
+                    using (ImRaii.Disabled(_editorService.OpenEditorFilename == _selectedLocalDefinitionFilename))
                     {
-                        if (ImGui.Button("Hide"))
+                        if (isVisible)
                         {
-                            _liveStageService.TryDestroyLiveStage(liveKey);
-                            _localStageService.SetManualVisibility(_selectedLocalDefinitionFilename, false);
-                        }
-                    }
-                    else
-                    {
-                        if (ImGui.Button("Show"))
-                        {
-                            _localStageService.SetManualVisibility(_selectedLocalDefinitionFilename, true);
-                            try
+                            if (ImGui.Button("Hide"))
                             {
-                                using (FileStream stream = new FileStream(_selectedLocalDefinitionFilename, FileMode.Open, FileAccess.Read))
+                                _liveStageService.TryDestroyLiveStage(liveKey);
+                                _localStageService.SetManualVisibility(_selectedLocalDefinitionFilename, false);
+                            }
+                        }
+                        else
+                        {
+                            if (ImGui.Button("Show"))
+                            {
+                                _localStageService.SetManualVisibility(_selectedLocalDefinitionFilename, true);
+                                try
                                 {
-                                    var definition = JsonSerializer.Deserialize<StageDefinition>(stream, StageDefinition.StandardSerializerOptions);
-                                    if (definition != null)
+                                    using (FileStream stream = new FileStream(_selectedLocalDefinitionFilename, FileMode.Open, FileAccess.Read))
                                     {
-                                        _liveStageService.CreateOrUpdateLiveStage(liveKey, definition);
+                                        var definition = JsonSerializer.Deserialize<StageDefinition>(stream, StageDefinition.StandardSerializerOptions);
+                                        if (definition != null)
+                                        {
+                                            _liveStageService.CreateOrUpdateLiveStage(liveKey, definition);
+                                        }
                                     }
                                 }
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.LogError(ex, "Exception loading {path} to instantiate!", _selectedLocalDefinitionFilename);
+                                catch (Exception ex)
+                                {
+                                    _logger.LogError(ex, "Exception loading {path} to instantiate!", _selectedLocalDefinitionFilename);
+                                }
                             }
                         }
                     }
