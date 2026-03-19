@@ -93,6 +93,7 @@ public sealed class Plugin : IDalamudPlugin
             services.AddSingleton(GameGui);
             services.AddSingleton(WindowSystem);
 
+            services.AddSingleton<IModelBvhCacheService, ModelBvhCacheService>();
             services.AddSingleton<IOverlayService>(_overlayService);
             services.AddSingleton<ILocalDefinitionService, LocalDefinitionService>();
             services.AddSingleton<ILiveObjectService, LiveObjectService>();

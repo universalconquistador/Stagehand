@@ -55,6 +55,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
     private readonly WindowSystem _windowSystem;
     private readonly IOverlayService _overlayService;
     private readonly ILiveObjectService _liveObjectService;
+    private readonly IModelBvhCacheService _modelBvhCacheService;
 
     private List<ILiveObject> createdObjects = new List<ILiveObject>();
 
@@ -77,7 +78,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
 
     private bool _suppressInput = false;
 
-    public DebugWindow(IFramework framework, ICommandManager commandManager, IGameInteropProvider gameInteropProvider, IObjectTable objectTable, IGameGui gameGui, IClientState clientState, IPlayerState playerState, WindowSystem windowSystem, IOverlayService overlayService, ILiveObjectService liveObjectService)
+    public DebugWindow(IFramework framework, ICommandManager commandManager, IGameInteropProvider gameInteropProvider, IObjectTable objectTable, IGameGui gameGui, IClientState clientState, IPlayerState playerState, WindowSystem windowSystem, IOverlayService overlayService, ILiveObjectService liveObjectService, IModelBvhCacheService modelBvhCacheService)
         : base("Stagehand Debug", ImGuiWindowFlags.None)
     {
         SizeConstraints = new WindowSizeConstraints
@@ -97,6 +98,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
         _windowSystem = windowSystem;
         _overlayService = overlayService;
         _liveObjectService = liveObjectService;
+        _modelBvhCacheService = modelBvhCacheService;
 
         _atkModuleHandleUpdateHook = gameInteropProvider.HookFromAddress<AtkModule.Delegates.HandleInput>(AtkModule.MemberFunctionPointers.HandleInput, AtkModuleHandleInput);
         _atkModuleHandleUpdateHook.Enable();
@@ -684,30 +686,52 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
             bool mouseHit = false;
             bool preciseHit = false;
 
-            // NOTE: Accessing the bounds of a BgObject that has not yet loaded causes an access violation. Seems like strange design but whatever.
-            if (type != ObjectType.BgObject || ((BgObject*)drawObj)->ModelResourceHandle->LoadState >= 7)
+            if (type == ObjectType.BgObject)
             {
-                FFXIVClientStructs.FFXIV.Common.Math.SphereBounds outSphereBounds;
-                mouseHit = drawObj->ComputeSphereBounds(&outSphereBounds)->IntersectsRay(mouseRay, out var hitPoint);
-                FFXIVClientStructs.FFXIV.Common.Math.Vector3 outHitPoint = default;
-                Ray mouseRayBackwards = mouseRay; // If we are 'inside' a mesh, we don't really want to count that as a click.
-                mouseRayBackwards.Direction *= -1;
-                preciseHit = mouseHit && !drawObj->HitTestBoundsNoOutput(&mouseRayBackwards) && drawObj->HitTestBounds(&mouseRay, &outHitPoint);
-                var distanceSq = (outHitPoint - mouseRay.Origin).SqrMagnitude;
-                if (preciseHit && distanceSq < nearestDistanceSq)
+                var bgObject = (BgObject*)drawObj;
+                // NOTE: Accessing the bounds of a BgObject that has not yet loaded causes an access violation. Seems like strange design but whatever.
+                if (bgObject->ModelResourceHandle->LoadState >= 7 && !bgObject->ModelResourceHandle->FileName.ToString().Contains("lightshaft", StringComparison.Ordinal))
                 {
-                    nearestDistanceSq = distanceSq;
-                    nearestObject = obj;
-                }
+                    FFXIVClientStructs.FFXIV.Common.Math.SphereBounds outSphereBounds;
+                    mouseHit = drawObj->ComputeSphereBounds(&outSphereBounds)->IntersectsRay(mouseRay, out var hitPoint);
+                    
+                    if (mouseHit /*&& (hitPoint - mouseRay.Origin).SqrMagnitude < nearestDistanceSq*/)
+                    {
+                        Matrix4x4 translationMatrix = Matrix4x4.CreateTranslation(obj->Position);
+                        Matrix4x4 rotationMatrix = Matrix4x4.CreateFromQuaternion(obj->Rotation);
+                        Matrix4x4 scaleMatrix = Matrix4x4.CreateScale(obj->Scale);
 
+                        Matrix4x4 matrix = scaleMatrix * rotationMatrix * translationMatrix;
+                        if (Matrix4x4.Invert(matrix, out var inverseMatrix))
+                        {
+                            var localSpaceStart = Vector3.Transform(mouseRay.Origin, inverseMatrix);
+                            var localSpaceDirection = Vector3.TransformNormal(mouseRay.Direction, inverseMatrix);
+
+                            if (_modelBvhCacheService.TryIntersectModel(bgObject->ModelResourceHandle->FileName.ToString(), localSpaceStart, localSpaceDirection, out var intersectionPoint, out var intersectionNormal))
+                            {
+                                preciseHit = true;
+                                var worldSpaceIntersection = Vector3.Transform(intersectionPoint, matrix);
+                                var worldSpaceNormal = Vector3.TransformNormal(intersectionNormal, matrix);
+
+                                var distanceSquared = (worldSpaceIntersection - (Vector3)mouseRay.Origin).LengthSquared();
+                                if (distanceSquared < nearestDistanceSq)
+                                {
+                                    nearestDistanceSq = distanceSquared;
+                                    nearestObject = obj;
+                                }
+                            }
+                        }
+                    }
+                }
             }
+            
+
 
             if (obj == _selectedObject || (_overlayService.IsPicking && mouseHit))
             {
                 overlay.DrawLine(obj->Position, (Vector3)obj->Position + xDir, 1.0f, new Vector4(1.0f, 0.2f, 0.2f, 1.0f));
                 overlay.DrawLine(obj->Position, (Vector3)obj->Position + yDir, 1.0f, new Vector4(0.2f, 1.0f, 0.2f, 1.0f));
                 overlay.DrawLine(obj->Position, (Vector3)obj->Position + zDir, 1.0f, new Vector4(0.2f, 0.2f, 1.0f, 1.0f));
-
 
                 Vector4 boundsColor = obj == _selectedObject ? Vector4.One : (preciseHit ? new Vector4(0.3f, 1.0f, 0.5f, 1.0f) : (mouseHit ? new Vector4(0.5f, 0.5f, 0.1f, 1.0f) : Vector4.One));
 
