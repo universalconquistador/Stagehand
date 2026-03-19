@@ -43,3 +43,8 @@ Later down the road:
 
 
  Thank you for helping me with my plugin! Please leave any feedback, bugs, suggestions, thoughts, cool builds, etc! (Keeping in mind the known issues & not yet implemented features above)
+
+## 0.3.1
+
+ - Adds a 'Duplicate' command to the right click menu of objects in the Stage editor.
+ - Prevents users from accidentally showing a Stage while editing it.
