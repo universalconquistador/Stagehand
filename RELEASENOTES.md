@@ -48,3 +48,7 @@ Later down the road:
 
  - Adds a 'Duplicate' command to the right click menu of objects in the Stage editor.
  - Prevents users from accidentally showing a Stage while editing it.
+
+## 0.3.2
+
+ - Lots of behind the scenes code that makes selecting objects with the debug tool much nicer! When using the 'Start Picking' button, the old coarse box-based selection has been replaced with pixel-perfect selection. It also now ignores VFX and lights and characters, as well as any model with 'lightshaft' in the name (because light shaft meshes were very commonly getting in the way when trying to select objects indoors). Furthermore, this sets me up to be able to add click selection in the editor very soon!
