@@ -1,4 +1,6 @@
 using Dalamud.Interface;
+using Dalamud.Plugin.Services;
+using Microsoft.Extensions.Logging;
 using Stagehand.Editor.DefinitionEditors.Objects;
 using Stagehand.Editor.Services;
 using Stagehand.Services;
@@ -8,13 +10,13 @@ using System.Text;
 
 namespace Stagehand.Editor.Tools;
 
-internal class RotateTool : EditorToolBase
+internal class RotateTool : SelectToolBase
 {
     private readonly IOverlayService _overlayService;
     private readonly ISelectionManager _selectionManager;
 
-    public RotateTool(IOverlayService overlayService, ISelectionManager selectionManager)
-        : base("Rotate Tool", "Adjust the rotation of objects.", FontAwesomeIcon.ArrowsSpin, sortPriority: 11.0f)
+    public RotateTool(IViewportInputService viewportInputService, IGameGui gameGui, IEditorHitTestService hitTestService, ISelectionManager selectionManager, ILogger<RotateTool> logger, IOverlayService overlayService)
+        : base("Rotate Tool", "Adjust the rotation of objects.", FontAwesomeIcon.ArrowsSpin, sortPriority: 11.0f, viewportInputService, gameGui, hitTestService, selectionManager, logger)
     {
         _overlayService = overlayService;
         _selectionManager = selectionManager;

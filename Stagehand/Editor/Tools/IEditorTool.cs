@@ -1,4 +1,6 @@
 using Dalamud.Interface;
+using FFXIVClientStructs.FFXIV.Client.UI;
+using Stagehand.Services;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -50,8 +52,10 @@ public interface IEditorTool
     void Deactivate();
 }
 
-internal abstract class EditorToolBase : IEditorTool, IDisposable
+internal abstract class EditorToolBase : IEditorTool, IViewportInputHandler, IDisposable
 {
+    private readonly IViewportInputService _viewportInputService;
+
     public string DisplayName { get; }
     public string Description { get; }
     public FontAwesomeIcon Icon { get; }
@@ -59,8 +63,10 @@ internal abstract class EditorToolBase : IEditorTool, IDisposable
 
     public bool IsActive { get; private set; } = false;
 
-    public EditorToolBase(string displayName, string description, FontAwesomeIcon icon, float sortPriority)
+    public EditorToolBase(string displayName, string description, FontAwesomeIcon icon, float sortPriority, IViewportInputService viewportInputService)
     {
+        _viewportInputService = viewportInputService;
+
         DisplayName = displayName;
         Description = description;
         Icon = icon;
@@ -69,12 +75,14 @@ internal abstract class EditorToolBase : IEditorTool, IDisposable
 
     public virtual void Deactivate()
     {
+        _viewportInputService.RemoveInputHandler(this);
         IsActive = false;
     }
 
     public virtual bool TryActivate()
     {
         IsActive = true;
+        _viewportInputService.AddInputHandler(this, 0.0f);
         return true;
     }
 
@@ -84,5 +92,10 @@ internal abstract class EditorToolBase : IEditorTool, IDisposable
         {
             Deactivate();
         }
+    }
+
+    public virtual bool HandleMouseInput(ref readonly UIInputData inputData)
+    {
+        return false;
     }
 }

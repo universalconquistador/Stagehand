@@ -30,6 +30,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IClientState ClientState { get; private set; } = null!;
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
+    [PluginService] internal static ITargetManager TargetManager { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
     [PluginService] internal static IFramework Framework { get; private set; } = null!;
     [PluginService] internal static IGameInteropProvider GameInteropProvider { get; private set; } = null!;
@@ -86,6 +87,7 @@ public sealed class Plugin : IDalamudPlugin
             services.AddSingleton(Configuration);
             services.AddSingleton(PlayerState);
             services.AddSingleton(DataManager);
+            services.AddSingleton(TargetManager);
             services.AddSingleton(Framework);
             services.AddSingleton(GameInteropProvider);
             services.AddSingleton(ObjectTable);
@@ -94,6 +96,7 @@ public sealed class Plugin : IDalamudPlugin
             services.AddSingleton(WindowSystem);
 
             services.AddSingleton<IModelBvhCacheService, ModelBvhCacheService>();
+            services.AddSingleton<IViewportInputService, ViewportInputService>();
             services.AddSingleton<IOverlayService>(_overlayService);
             services.AddSingleton<ILocalDefinitionService, LocalDefinitionService>();
             services.AddSingleton<ILiveObjectService, LiveObjectService>();
@@ -107,6 +110,7 @@ public sealed class Plugin : IDalamudPlugin
             services.AddHostedService(c => c.GetRequiredService<LocalStageService>());
 
             // Editor services are scoped to the editor session
+            services.AddScoped<IEditorHitTestService, EditorHitTestService>();
             services.AddScoped<IEditorTool, SelectTool>();
             services.AddScoped<IEditorTool, MoveTool>();
             services.AddScoped<IEditorTool, RotateTool>();

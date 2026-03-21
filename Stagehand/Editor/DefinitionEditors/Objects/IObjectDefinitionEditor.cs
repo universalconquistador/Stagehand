@@ -77,25 +77,45 @@ internal abstract class IObjectDefinitionEditor<TDefinition> : DefinitionEditorB
     public Vector3 Position
     {
         get => Definition.Position;
-        set => SetPropertyValue(value => Definition.Position = value, value);
+        set => SetPropertyValue(SetPositionInternal, value);
     }
 
     public Vector3 RotationPitchYawRollDegrees
     {
         get => Definition.RotationPitchYawRollDegrees;
-        set => SetPropertyValue(value => Definition.RotationPitchYawRollDegrees = value, value);
+        set => SetPropertyValue(SetRotationPitchYawRollDegreesInternal, value);
     }
 
     public Quaternion RotationQuaternion
     {
         get => Definition.RotationQuaternion;
-        set => SetPropertyValue(value => Definition.RotationQuaternion = value, value);
+        set => SetPropertyValue(SetRotationQuaternionInternal, value);
     }
 
     public Vector3 Scale
     {
         get => Definition.Scale;
-        set => SetPropertyValue(value => Definition.Scale = value, value);
+        set => SetPropertyValue(SetScaleInternal, value);
+    }
+
+    protected virtual void SetPositionInternal(Vector3 position)
+    {
+        Definition.Position = position;
+    }
+
+    protected virtual void SetRotationPitchYawRollDegreesInternal(Vector3 rotationPYRDegrees)
+    {
+        Definition.RotationPitchYawRollDegrees = rotationPYRDegrees;
+    }
+
+    protected virtual void SetRotationQuaternionInternal(Quaternion rotationQuaternion)
+    {
+        Definition.RotationQuaternion = rotationQuaternion;
+    }
+
+    protected virtual void SetScaleInternal(Vector3 scale)
+    {
+        Definition.Scale = scale;
     }
 
     protected IObjectDefinitionEditor(IServiceProvider serviceProvider, TDefinition definition, string key, StageDefinitionEditor stage) : base(serviceProvider)

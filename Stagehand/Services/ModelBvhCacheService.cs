@@ -32,6 +32,16 @@ public interface IModelBvhCacheService
     /// is still being loaded or was not hit by the ray.
     /// </returns>
     bool TryIntersectModel(string modelResourcePath, Vector3 rayStart, Vector3 rayDirection, out Vector3 intersectionPoint, out Vector3 intersectionNormal);
+
+    /// <summary>
+    /// Gets the axis-aligned bounds of the vertices in the .mdl resource with the given path if it has been
+    /// loaded by <see cref="TryIntersectModel(string, Vector3, Vector3, out Vector3, out Vector3)"/>.
+    /// </summary>
+    /// <param name="modelResourcePath">The game path of the .mdl resource.</param>
+    /// <param name="boundsMin">The minimum corner of the model's bounding box, relative to the model..</param>
+    /// <param name="boundsMax">The maximum corner of the model's bounding box, relative to the model.</param>
+    /// <returns>True if the model had been loaded and the bounds were found, or false if the model has not been loaded.</returns>
+    bool TryGetBounds(string modelResourcePath, out Vector3 boundsMin, out Vector3 boundsMax);
 }
 
 internal class ModelBvhCacheService : IModelBvhCacheService, IDisposable
@@ -43,6 +53,10 @@ internal class ModelBvhCacheService : IModelBvhCacheService, IDisposable
         private ManualResetEventSlim _disposeGate = new ManualResetEventSlim(true);
 
         private StaticBvh? _bvh;
+        
+        public bool HasBounds { get; private set; }
+        public Vector3 BoundsMin { get; private set; }
+        public Vector3 BoundsMax { get; private set; }
 
         private Task _loadTask;
         private CancellationTokenSource _cts = new CancellationTokenSource();
@@ -58,6 +72,10 @@ internal class ModelBvhCacheService : IModelBvhCacheService, IDisposable
             {
                 var model = await dataManager.GetFileAsync<MdlFile>(filename, _cts.Token);
                 _bvh = new StaticBvh(model);
+                _bvh.GetBounds(out var boundsMin, out var boundsMax);
+                BoundsMin = boundsMin;
+                BoundsMax = boundsMax;
+                HasBounds = true;
             }
             catch (OperationCanceledException)
             {
@@ -168,6 +186,22 @@ internal class ModelBvhCacheService : IModelBvhCacheService, IDisposable
     {
         var cachedBvh = _bvhCache.GetOrAdd(modelResourcePath, path => new CachedStaticBvh(path, _dataManager, _logger));
         return cachedBvh.IntersectsRay(rayStart, rayDirection, out intersectionPoint, out intersectionNormal);
+    }
+
+    public bool TryGetBounds(string modelResourcePath, out Vector3 boundsMin, out Vector3 boundsMax)
+    {
+        if (_bvhCache.TryGetValue(modelResourcePath, out var cachedBvh) && cachedBvh.HasBounds)
+        {
+            boundsMin = cachedBvh.BoundsMin;
+            boundsMax = cachedBvh.BoundsMax;
+            return true;
+        }
+        else
+        {
+            boundsMin = Vector3.Zero;
+            boundsMax = Vector3.Zero;
+            return false;
+        }
     }
 
     public void Dispose()

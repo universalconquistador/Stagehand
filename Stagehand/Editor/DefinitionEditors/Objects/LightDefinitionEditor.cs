@@ -3,7 +3,9 @@ using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
+using Microsoft.Extensions.DependencyInjection;
 using Stagehand.Definitions.Objects;
+using Stagehand.Editor.Services;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -13,9 +15,14 @@ namespace Stagehand.Editor.DefinitionEditors.Objects;
 
 internal class LightDefinitionEditor : IObjectDefinitionEditor<LightDefinition>
 {
+    private const float HitTestRadius = 0.10f;
+
     public static readonly DefinitionTypeInfo StaticTypeInfo = new DefinitionTypeInfo("Light", "A light source.", FontAwesomeIcon.Lightbulb);
 
     public override DefinitionTypeInfo TypeInfo => StaticTypeInfo;
+
+    private readonly IEditorHitTestService _hitTestService;
+    private readonly EditorHitTestSphere _hitTestSphere;
 
     // Light
 
@@ -121,6 +128,28 @@ internal class LightDefinitionEditor : IObjectDefinitionEditor<LightDefinition>
 
     public LightDefinitionEditor(IServiceProvider serviceProvider, LightDefinition definition, string key, StageDefinitionEditor stage) : base(serviceProvider, definition, key, stage)
     {
+        _hitTestService = serviceProvider.GetRequiredService<IEditorHitTestService>();
+        _hitTestSphere = new EditorHitTestSphere(this, new FFXIVClientStructs.FFXIV.Common.Math.SphereBounds() { CenterPoint = definition.Position, Radius = HitTestRadius });
+    }
+
+    public override void AddedToStage()
+    {
+        base.AddedToStage();
+
+        _hitTestService.AddShape(_hitTestSphere);
+    }
+
+    protected override void SetPositionInternal(Vector3 position)
+    {
+        base.SetPositionInternal(position);
+        _hitTestSphere.Sphere = _hitTestSphere.Sphere with { CenterPoint = position };
+    }
+
+    public override void RemovedFromStage()
+    {
+        _hitTestService.RemoveShape(_hitTestSphere);
+
+        base.RemovedFromStage();
     }
 
     public override void DrawProperties()

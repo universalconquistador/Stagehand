@@ -62,7 +62,6 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
     private Object* _selectedObject = null;
     private BoundsMode _boundsMode = BoundsMode.Oriented;
 
-    private Hook<AtkModule.Delegates.HandleInput> _atkModuleHandleUpdateHook;
 #if false
     private Hook<FFXIVClientStructs.FFXIV.Client.Graphics.Render.TerrainRenderer.Delegates.QueueRenderJob> _terrainRendererQueueRenderJobHook;
     private Hook<FFXIVClientStructs.FFXIV.Client.Graphics.Render.ModelRenderer.Delegates.QueueRenderJob> _modelRendererQueueRenderJobHook;
@@ -99,9 +98,6 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
         _overlayService = overlayService;
         _liveObjectService = liveObjectService;
         _modelBvhCacheService = modelBvhCacheService;
-
-        _atkModuleHandleUpdateHook = gameInteropProvider.HookFromAddress<AtkModule.Delegates.HandleInput>(AtkModule.MemberFunctionPointers.HandleInput, AtkModuleHandleInput);
-        _atkModuleHandleUpdateHook.Enable();
 
 #if false
 
@@ -174,32 +170,13 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
     }
 #endif
 
-    private byte AtkModuleHandleInput(AtkModule* thisPtr, UIInputData* inputData, bool isPadMouseModeEnabled)
-    {
-        byte result = _atkModuleHandleUpdateHook.Original(thisPtr, inputData, isPadMouseModeEnabled);
-
-        if (_suppressInput)
-        {
-            // this is a replica of what Original AtkModule.HandleInput does when the mouse is over a collision node
-            inputData->FilterUICursorInputs(MouseButtonFlags.LBUTTON | MouseButtonFlags.RBUTTON);
-            inputData->FilterDragInputs();
-            if (isPadMouseModeEnabled)
-            {
-                inputData->FilterGamepadInputs();
-            }
-            result = 1;
-        }
-
-        return result;
-    }
-
     public void Dispose()
     {
 #if false
         _modelRendererQueueRenderJobHook?.Dispose();
         _terrainRendererQueueRenderJobHook?.Dispose();
 #endif
-        _atkModuleHandleUpdateHook?.Dispose();
+
         foreach (var item in createdObjects)
         {
             item.Dispose();

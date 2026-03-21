@@ -139,6 +139,12 @@ public class StaticBvh : IDisposable
     private SizedMemoryOwner<uint> _triangleRunMemory; // Each run of node triangles, indexing into triangle memory.
     private SizedMemoryOwner<BvhNode> _nodeMemory; // Each BVH node, indexing into itself and triangle run memory.
 
+    public void GetBounds(out Vector3 boundsMin, out Vector3 boundsMax)
+    {
+        boundsMin = _nodeMemory.Span[0].BoundsMin;
+        boundsMax = _nodeMemory.Span[0].BoundsMax;
+    }
+
     public StaticBvh(ReadOnlySpan<byte> vertexBuffer, uint vertexStride, uint positionOffset, ReadOnlySpan<byte> indexBuffer, uint indexSize)
         : this(LoadVertices(vertexBuffer, vertexStride, positionOffset), LoadTriangles(indexBuffer, indexSize))
     { }
