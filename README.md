@@ -13,7 +13,7 @@ Add the custom repo `https://github.com/universalconquistador/Stagehand/releases
 Use the `/stagehand` command to bring up the main UI.
 
 The left side of the main window lists the Stages in your Stages folder (by default in `C:\Users\<username>\Documents\Stages\`).
-The right side of the main window shows info about the selected Stagehand and lets you edit it or assign it to automatically load for specific locations.
+The right side of the main window shows info about the selected Stage and lets you edit it or assign it to automatically load for specific locations.
 
 Get or create some Stages and set their automatic show conditions to fill your journey through Eorzea and beyond!
 
