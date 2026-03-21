@@ -52,3 +52,7 @@ Later down the road:
 ## 0.3.2
 
  - Lots of behind the scenes code that makes selecting objects with the debug tool much nicer! When using the 'Start Picking' button, the old coarse box-based selection has been replaced with pixel-perfect selection. It also now ignores VFX and lights and characters, as well as any model with 'lightshaft' in the name (because light shaft meshes were very commonly getting in the way when trying to select objects indoors). Furthermore, this sets me up to be able to add click selection in the editor very soon!
+
+## 0.3.3
+
+ - Mouse selection is here! The Select, Move, Rotate, and Scale tools now let you select objects in your Scene by clicking on them! The code involved to convince the game to do this is somewhat tricky and right now there is a known quirk where a game object (e.g. a character) cannot be selected with the mouse if they are in front (intended) or behind (not intended) a Scene object. I will continue to refine this in the future, but if you experience any other quirks or UX feelsbads please do let me know.
