@@ -125,6 +125,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // Tell the UI system that we want our windows to be drawn through the window system
         PluginInterface.UiBuilder.Draw += Draw;
+        PluginInterface.UiBuilder.DisableGposeUiHide = true;
     }
 
     public void Draw()
