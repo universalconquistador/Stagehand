@@ -33,7 +33,7 @@ internal sealed unsafe class LiveLight : LiveDrawObject
     public float CharacterShadowRange { get => SceneLightPtr->RenderLight->CharacterShadowRange; set => SceneLightPtr->RenderLight->CharacterShadowRange = value; }
     public float ShadowPlaneNear { get => SceneLightPtr->RenderLight->ShadowPlaneNear; set => SceneLightPtr->RenderLight->ShadowPlaneNear = value; }
     public float ShadowPlaneFar { get => SceneLightPtr->RenderLight->ShadowPlaneFar; set => SceneLightPtr->RenderLight->ShadowPlaneFar = value; }
-    public Vector2 FlatLightSkewAngleDegrees { get => SceneLightPtr->RenderLight->FlatLightSkewAngleDegrees; set => SceneLightPtr->RenderLight->FlatLightSkewAngleDegrees = value; }
+    public Vector2 FlatLightSkewAngleDegrees { get => SceneLightPtr->RenderLight->FlatLightSkewAngleDegrees * 180.0f / MathF.PI; set => SceneLightPtr->RenderLight->FlatLightSkewAngleDegrees = value * MathF.PI / 180.0f; }
 
     public LiveLight(IFramework framework, SceneLight* sceneLight)
         : base((DrawObject*)sceneLight)

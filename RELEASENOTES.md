@@ -28,9 +28,9 @@ Known issues:
 Not yet implemented: (in no particular order)
  - Better stage library tools (delete, rename, make folder, etc), although if you put your stages into folders via the file explorer, those will be reflected in the plugin
  - Interactive placement tools
- - Click-to-select
+ - ~~Click-to-select~~
  - Undo + redo
- - 3D light widgets to show spot light cone angle, etc
+ - ~~3D light widgets to show spot light cone angle, etc~~
  - Better resource browsing for model & VFX resources
  - Object folders for organization
  - IPC API to facilitate e.g. sync services
@@ -55,4 +55,8 @@ Later down the road:
 
 ## 0.3.3
 
- - Mouse selection is here! The Select, Move, Rotate, and Scale tools now let you select objects in your Scene by clicking on them! The code involved to convince the game to do this is somewhat tricky and right now there is a known quirk where a game object (e.g. a character) cannot be selected with the mouse if they are in front (intended) or behind (not intended) a Scene object. I will continue to refine this in the future, but if you experience any other quirks or UX feelsbads please do let me know.
+ - Mouse selection is here! The Select, Move, Rotate, and Scale tools now let you select objects in your Stage by clicking on them! The code involved to convince the game to do this is somewhat tricky and right now there is a known quirk where a game object (e.g. a character) cannot be selected with the mouse if they are in front (intended) or behind (not intended) a Stage object. I will continue to refine this in the future, but if you experience any other quirks or UX feelsbads please do let me know.
+
+## 0.3.4
+
+ - Added light widgets for all four shapes of lights and tweaked selection color and thickness. The flat light skew angle visualization is not *quite* correct but it's going to have to suffice for now.

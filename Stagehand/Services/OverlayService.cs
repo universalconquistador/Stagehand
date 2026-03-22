@@ -55,6 +55,17 @@ public interface IOverlayDrawContext
     void DrawBox(Matrix4x4 transform, Vector3 halfExtents, float thickness, Vector4 color);
 
     /// <summary>
+    /// Draws a cone in the local +Z direction with the given angle and height, transformed
+    /// by the given transformation matrix.
+    /// </summary>
+    /// <param name="transform">The transform of the cone.</param>
+    /// <param name="angleRadians">The angle from the +Z axis to the cone's surface, in radians.</param>
+    /// <param name="height">The height of the cone, before transformation.</param>
+    /// <param name="thickness">The thickness to draw the cone lines with, in pixels.</param>
+    /// <param name="color">The color to draw the cone.</param>
+    void DrawCone(Matrix4x4 transform, float angleRadians, float height, float thickness, Vector4 color);
+
+    /// <summary>
     /// Draws an interactive gizmo for manipulating the given transform.
     /// </summary>
     /// <param name="id">A unique identifier for this gizmo.</param>
@@ -99,6 +110,47 @@ internal class OverlayService : IOverlayService
         public OverlayDrawContext(IGameGui gameGui)
         {
             _gameGui = gameGui;
+        }
+
+        public void DrawCircle(Vector3 centerPoint, Vector3 axisOne, Vector3 axisTwo, float radius, float thickness, Vector4 color)
+        {
+            int segmentCount = 64;
+
+            for (int i = 0; i <= segmentCount; i++)
+            {
+                int endIndex = i + 1;
+                float angleRads = ((float)i / segmentCount) * MathF.PI * 2.0f;
+
+                var startPoint = centerPoint + (MathF.Cos(angleRads) * axisOne + MathF.Sin(angleRads) * axisTwo) * radius;
+
+                var isVisible = _gameGui.WorldToScreen(startPoint, out Vector2 startPointScreenPos, out _);
+
+                if (isVisible)
+                {
+                    DrawListPtr.PathLineTo(startPointScreenPos);
+                }
+            }
+
+            DrawListPtr.PathStroke(ImGui.GetColorU32(color), thickness);
+            DrawListPtr.PathClear();
+        }
+
+        public void DrawLine(Vector3 startPoint, Vector3 endPoint, float thickness, Vector4 color)
+        {
+            bool startInView = _gameGui.WorldToScreen(startPoint, out var startPointScreenPos, out _);
+            bool endInView = _gameGui.WorldToScreen(endPoint, out var endPointScreenPos, out _);
+
+            if (startInView && endInView)
+            {
+                DrawListPtr.AddLine(startPointScreenPos, endPointScreenPos, ImGui.GetColorU32(color), thickness);
+            }
+        }
+
+        public void DrawCross(Matrix4x4 transform, float thickness, Vector4 color)
+        {
+            DrawLine(transform.Translation - transform.X.AsVector3(), transform.Translation + transform.X.AsVector3(), thickness, color);
+            DrawLine(transform.Translation - transform.Y.AsVector3(), transform.Translation + transform.Y.AsVector3(), thickness, color);
+            DrawLine(transform.Translation - transform.Z.AsVector3(), transform.Translation + transform.Z.AsVector3(), thickness, color);
         }
 
         public void DrawBox(Matrix4x4 transform, Vector3 halfExtents, float thickness, Vector4 color)
@@ -161,44 +213,42 @@ internal class OverlayService : IOverlayService
             }
         }
 
-        public void DrawCircle(Vector3 centerPoint, Vector3 axisOne, Vector3 axisTwo, float radius, float thickness, Vector4 color)
+        public void DrawCone(Matrix4x4 transform, float angleRadians, float height, float thickness, Vector4 color)
         {
-            int segmentCount = 32;
-
-            for (int i = 0; i <= segmentCount; i++)
+            const int slices = 4;
+            Vector3 localX = transform.X.AsVector3();
+            Vector3 localY = transform.Y.AsVector3();
+            var localOrigin = transform.Translation;
+            var localHeightDirection = transform.Z.AsVector3() * height;
+            for (int slice = 0; slice < slices; slice++)
             {
-                int endIndex = i + 1;
-                float angleRads = ((float)i / segmentCount) * MathF.PI * 2.0f;
-
-                var startPoint = centerPoint + (MathF.Cos(angleRads) * axisOne + MathF.Sin(angleRads) * axisTwo) * radius;
-
-                var isVisible = _gameGui.WorldToScreen(startPoint, out Vector2 startPointScreenPos, out _);
-
-                if (isVisible)
-                {
-                    DrawListPtr.PathLineTo(startPointScreenPos);
-                }
+                float sliceRatio = ((float)(slice + 1) / slices); // even, linear slices
+                sliceRatio = MathF.Pow(200.0f, sliceRatio - 1.0f); // exponential slices that are grouped up closer to the tip of the cone
+                var localRadius = height * sliceRatio * MathF.Tan(angleRadians);
+                var sliceCenter = localOrigin + localHeightDirection * sliceRatio;
+                DrawCircle(sliceCenter, localX, localY, localRadius, thickness, color);
             }
 
-            DrawListPtr.PathStroke(ImGui.GetColorU32(color), thickness);
-            DrawListPtr.PathClear();
-        }
-
-        public void DrawCross(Matrix4x4 transform, float thickness, Vector4 color)
-        {
-            DrawLine(transform.Translation - transform.X.AsVector3(), transform.Translation + transform.X.AsVector3(), thickness, color);
-            DrawLine(transform.Translation - transform.Y.AsVector3(), transform.Translation + transform.Y.AsVector3(), thickness, color);
-            DrawLine(transform.Translation - transform.Z.AsVector3(), transform.Translation + transform.Z.AsVector3(), thickness, color);
-        }
-
-        public void DrawLine(Vector3 startPoint, Vector3 endPoint, float thickness, Vector4 color)
-        {
-            bool startInView = _gameGui.WorldToScreen(startPoint, out var startPointScreenPos, out _);
-            bool endInView = _gameGui.WorldToScreen(endPoint, out var endPointScreenPos, out _);
-
-            if (startInView && endInView)
+            const int spokes = 4;
+            var outerRadius = height * MathF.Tan(angleRadians);
+            for (int spoke = 0; spoke < spokes; spoke++)
             {
-                DrawListPtr.AddLine(startPointScreenPos, endPointScreenPos, ImGui.GetColorU32(color), thickness);
+                float angleRads = ((float)spoke / spokes) * MathF.PI * 2.0f;
+
+                // Draw the spoke in segments according to the slices so that the end going behind the camera doesn't hide the entire spoke
+                Vector3 lastEnd = localOrigin;
+                for (int slice = 0; slice < slices; slice++)
+                {
+                    float sliceRatio = ((float)(slice + 1) / slices); // even, linear slices
+                    sliceRatio = MathF.Pow(200.0f, sliceRatio - 1.0f); // exponential slices that are grouped up closer to the tip of the cone
+                    var localRadius = height * sliceRatio * MathF.Tan(angleRadians);
+                    var sliceCenter = localOrigin + localHeightDirection * sliceRatio;
+
+                    var endPoint = sliceCenter + (MathF.Cos(angleRads) * localX + MathF.Sin(angleRads) * localY) * localRadius;
+                    DrawLine(lastEnd, endPoint, thickness, color);
+                    lastEnd = endPoint;
+                }
+
             }
         }
 

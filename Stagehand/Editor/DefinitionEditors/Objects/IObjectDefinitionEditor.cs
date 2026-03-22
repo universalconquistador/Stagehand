@@ -98,6 +98,10 @@ internal abstract class IObjectDefinitionEditor<TDefinition> : DefinitionEditorB
         set => SetPropertyValue(SetScaleInternal, value);
     }
 
+    public Matrix4x4 TransformNoScale => Matrix4x4.CreateFromQuaternion(RotationQuaternion) * Matrix4x4.CreateTranslation(Position);
+
+    public Matrix4x4 Transform => Matrix4x4.CreateScale(Scale) * TransformNoScale;
+
     protected virtual void SetPositionInternal(Vector3 position)
     {
         Definition.Position = position;
@@ -194,7 +198,6 @@ internal abstract class IObjectDefinitionEditor<TDefinition> : DefinitionEditorB
         base.Selected();
 
         OutlinerNode.IsSelected = true;
-        OverlayService.DrawOverlays += OnDrawSelectedOverlays;
     }
 
     protected override void SetPropertyValue<TValue>(Action<TValue> setter, TValue value, [CallerMemberName] string? propertyName = null)
@@ -203,32 +206,38 @@ internal abstract class IObjectDefinitionEditor<TDefinition> : DefinitionEditorB
         RefreshPreviewObject();
     }
 
-    private void OnDrawSelectedOverlays(IOverlayDrawContext obj)
+    protected virtual void DrawOverlays(IOverlayDrawContext obj)
     {
-        var pyrRadians = RotationPitchYawRollDegrees * MathF.PI / 180.0f;
-        var transform = Matrix4x4.CreateScale(Scale * 0.1f) * Matrix4x4.CreateFromYawPitchRoll(pyrRadians.Y, pyrRadians.X, pyrRadians.Z) * Matrix4x4.CreateTranslation(Position);
-        obj.DrawCross(transform, 1.0f, new Vector4(0.9f, 0.9f, 0.9f, 0.5f));
-    
-        if (PreviewLiveObject != null)
+        if (IsSelected)
         {
-            if (PreviewLiveObject.TryGetOrientedBounds(out var bounds))
+            var color = ComputeOverlayColor();
+            
+            if (PreviewLiveObject != null)
             {
-                obj.DrawBox(bounds.Transform, bounds.HalfExtents, 1.0f, new Vector4(0.9f, 0.9f, 0.9f, 0.5f));
+                if (PreviewLiveObject.TryGetOrientedBounds(out var bounds))
+                {
+                    obj.DrawBox(bounds.Transform, bounds.HalfExtents, 2.0f, color);
+                }
             }
         }
+    }
+
+    protected virtual Vector4 ComputeOverlayColor()
+    {
+        return IsSelected ? new Vector4(0.4f, 1.0f, 0.7f, 1.0f) : new Vector4(1.0f, 1.0f, 1.0f, 0.45f);
     }
 
     public override void Deselected()
     {
         base.Deselected();
 
-        OverlayService.DrawOverlays -= OnDrawSelectedOverlays;
         OutlinerNode.IsSelected = false;
     }
 
     public virtual void AddedToStage()
     {
         PreviewLiveObject = LiveObjectService.CreateObject(Definition);
+        OverlayService.DrawOverlays += DrawOverlays;
     }
 
     public virtual void RefreshPreviewObject()
@@ -238,6 +247,7 @@ internal abstract class IObjectDefinitionEditor<TDefinition> : DefinitionEditorB
 
     public virtual void RemovedFromStage()
     {
+        OverlayService.DrawOverlays -= DrawOverlays;
         if (SelectionManager.SelectedEditor == this)
         {
             SelectionManager.SelectedEditor = null;

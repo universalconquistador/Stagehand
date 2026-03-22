@@ -6,6 +6,7 @@ using Dalamud.Interface.Utility.Raii;
 using Microsoft.Extensions.DependencyInjection;
 using Stagehand.Definitions.Objects;
 using Stagehand.Editor.Services;
+using Stagehand.Services;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -15,7 +16,7 @@ namespace Stagehand.Editor.DefinitionEditors.Objects;
 
 internal class LightDefinitionEditor : IObjectDefinitionEditor<LightDefinition>
 {
-    private const float HitTestRadius = 0.10f;
+    private const float HitTestRadius = 0.25f;
 
     public static readonly DefinitionTypeInfo StaticTypeInfo = new DefinitionTypeInfo("Light", "A light source.", FontAwesomeIcon.Lightbulb);
 
@@ -152,6 +153,107 @@ internal class LightDefinitionEditor : IObjectDefinitionEditor<LightDefinition>
         base.RemovedFromStage();
     }
 
+    protected override void DrawOverlays(IOverlayDrawContext obj)
+    {
+        var color = ComputeOverlayColor();
+        if (Shape == LightShape.Ambient)
+        {
+            var transform = TransformNoScale;
+            var localX = transform.X.AsVector3() * HitTestRadius;
+            var localY = transform.Y.AsVector3() * HitTestRadius;
+            var localZ = transform.Z.AsVector3() * HitTestRadius;
+
+            Span<Vector3> points = stackalloc Vector3[]
+            {
+                new(0.3f, 0.5f, 0.0f),
+                new(0.6f, -0.2f, 0.0f),
+                new(-0.4f, 0.1f, 0.0f),
+            };
+
+            for (int i = 0; i < points.Length; i++)
+            {
+                obj.DrawLine(transform.Translation + points[i].X * localX + points[i].Y * localY - localZ, transform.Translation + points[i].X * localX + points[i].Y * localY + localZ, IsSelected ? 2.0f : 1.0f, color);
+            }
+        }
+        else if (Shape == LightShape.Point)
+        {
+            // Selection icon
+            var transform = TransformNoScale;
+            var localX = transform.X.AsVector3();
+            var localY = transform.Y.AsVector3();
+            var localZ = transform.Z.AsVector3();
+
+            obj.DrawCircle(Position, localX, localY, HitTestRadius * 0.55f, IsSelected ? 2.0f : 1.0f, color);
+            obj.DrawCircle(Position, localY, localZ, HitTestRadius * 0.55f, IsSelected ? 2.0f : 1.0f, color);
+            obj.DrawCircle(Position, localZ, localX, HitTestRadius * 0.55f, IsSelected ? 2.0f : 1.0f, color);
+
+            if (IsSelected)
+            {
+                // Range sphere
+                obj.DrawCircle(Position, localX, localY, Range, 2.0f, color);
+                obj.DrawCircle(Position, localY, localZ, Range, 2.0f, color);
+                obj.DrawCircle(Position, localZ, localX, Range, 2.0f, color);
+            }
+        }
+        else if (Shape == LightShape.Spot)
+        {
+            if (IsSelected)
+            {
+                // Primary cone
+                obj.DrawCone(TransformNoScale, 0.5f * SpotLightAngleDegrees * MathF.PI / 180.0f, Range, 2.0f, color);
+
+                // Falloff cone
+                obj.DrawCone(TransformNoScale, 0.5f * (SpotLightAngleDegrees + AngularFalloffDegrees) * MathF.PI / 180.0f, Range, 1.0f, color with { W = color.W * 0.4f });
+            }
+            else
+            {
+                // Selection icon
+                obj.DrawCone(TransformNoScale, 0.5f * SpotLightAngleDegrees * MathF.PI / 180.0f, HitTestRadius * 0.85f, 1.0f, color);
+            }
+        }
+        else if (Shape == LightShape.Flat)
+        {
+            // Selection plane
+#if false   // Use rotation for skew
+            var transform = Matrix4x4.CreateRotationX(FlatLightSkewAngleDegrees.X * MathF.PI / 180.0f) * Matrix4x4.CreateRotationY(FlatLightSkewAngleDegrees.Y * MathF.PI / 180.0f) * Transform;
+#else
+            var transform = Transform;
+#endif
+            var localHalfX = transform.X.AsVector3() * 0.5f;
+            var localHalfY = transform.Y.AsVector3() * 0.5f;
+            var localZ = transform.Z.AsVector3();
+
+            obj.DrawLine(Position + localHalfX + localHalfY, Position + localHalfX - localHalfY, IsSelected ? 2.0f : 1.0f, color);
+            obj.DrawLine(Position + localHalfX - localHalfY, Position - localHalfX - localHalfY, IsSelected ? 2.0f : 1.0f, color);
+            obj.DrawLine(Position - localHalfX - localHalfY, Position - localHalfX + localHalfY, IsSelected ? 2.0f : 1.0f, color);
+            obj.DrawLine(Position - localHalfX + localHalfY, Position + localHalfX + localHalfY, IsSelected ? 2.0f : 1.0f, color);
+
+            var skewVectorX = Vector3.Normalize(transform.X.AsVector3()) * Range * MathF.Tan(FlatLightSkewAngleDegrees.Y * MathF.PI / 180.0f);
+            var skewVectorY = -Vector3.Normalize(transform.Y.AsVector3()) * Range * MathF.Tan(FlatLightSkewAngleDegrees.X * MathF.PI / 180.0f);
+
+            obj.DrawLine(Position, Position + Vector3.Normalize(localZ) * HitTestRadius, IsSelected ? 2.0f : 1.0f, color);
+
+            if (IsSelected)
+            {
+#if false       // Use rotation for skew
+                Vector3 farSide = Position + localZ * Range;
+#else
+                Vector3 farSide = Position + localZ * Range + skewVectorX + skewVectorY;
+#endif
+
+                obj.DrawLine(farSide + localHalfX + localHalfY, farSide + localHalfX - localHalfY, 2.0f, color);
+                obj.DrawLine(farSide + localHalfX - localHalfY, farSide - localHalfX - localHalfY, 2.0f, color);
+                obj.DrawLine(farSide - localHalfX - localHalfY, farSide - localHalfX + localHalfY, 2.0f, color);
+                obj.DrawLine(farSide - localHalfX + localHalfY, farSide + localHalfX + localHalfY, 2.0f, color);
+
+                obj.DrawLine(Position + localHalfX + localHalfY, farSide + localHalfX + localHalfY, 2.0f, color);
+                obj.DrawLine(Position + localHalfX - localHalfY, farSide + localHalfX - localHalfY, 2.0f, color);
+                obj.DrawLine(Position - localHalfX - localHalfY, farSide - localHalfX - localHalfY, 2.0f, color);
+                obj.DrawLine(Position - localHalfX + localHalfY, farSide - localHalfX + localHalfY, 2.0f, color);
+            }
+        }
+    }
+
     public override void DrawProperties()
     {
         base.DrawProperties();
@@ -215,7 +317,7 @@ internal class LightDefinitionEditor : IObjectDefinitionEditor<LightDefinition>
         if (Shape == LightShape.Spot)
         {
             var spotLightAngleDegrees = SpotLightAngleDegrees;
-            if (ImGui.SliderFloat("Cone Angle", ref spotLightAngleDegrees, vMin: 0.0f, vMax: 90.0f))
+            if (ImGui.SliderFloat("Cone Angle", ref spotLightAngleDegrees, vMin: 0.0f, vMax: 179f))
             {
                 SpotLightAngleDegrees = spotLightAngleDegrees;
             }
