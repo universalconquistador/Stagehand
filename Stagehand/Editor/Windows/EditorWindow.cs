@@ -26,11 +26,13 @@ internal class EditorWindow : Window, IDisposable
     private readonly IToolManager _toolManager;
     private readonly IOutliner _outliner;
     private readonly ISelectionManager _selectionManager;
+    private readonly ITransactionManager _transactionManager;
     private readonly IObjectTable _objectTable;
 
     public event Action? Closed;
 
     private string _outlinerFilter = string.Empty;
+    private bool _hasUnsavedChanges = false;
 
     private readonly string _definitionFilename;
     private readonly StageDefinition _definition;
@@ -43,6 +45,7 @@ internal class EditorWindow : Window, IDisposable
         _toolManager = _serviceScope.ServiceProvider.GetRequiredService<IToolManager>();
         _outliner = _serviceScope.ServiceProvider.GetRequiredService<IOutliner>();
         _selectionManager = _serviceScope.ServiceProvider.GetRequiredService<ISelectionManager>();
+        _transactionManager = _serviceScope.ServiceProvider.GetRequiredService<ITransactionManager>();
         _objectTable = _serviceScope.ServiceProvider.GetRequiredService<IObjectTable>();
 
         _definitionFilename = definitionFilename;
@@ -59,6 +62,8 @@ internal class EditorWindow : Window, IDisposable
             {
                 _definition.WriteToJSONStream(stream);
             }
+
+            _hasUnsavedChanges = false;
         }
         catch (Exception ex)
         {
@@ -76,6 +81,50 @@ internal class EditorWindow : Window, IDisposable
         if (ImGuiComponents.IconButton("###Save", FontAwesomeIcon.Save, new Vector2(buttonSize, buttonSize)))
         {
             SaveDefinition();
+        }
+        ImGui.SameLine();
+        using (ImRaii.Disabled(_transactionManager.UndoTransactionTitle == null))
+        {
+            if (ImGuiComponents.IconButton("###Undo", FontAwesomeIcon.Undo, new Vector2(buttonSize, buttonSize)))
+            {
+                _transactionManager.Undo();
+            }
+        }
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+        {
+            using (ImRaii.Tooltip())
+            {
+                if (_transactionManager.UndoTransactionTitle != null)
+                {
+                    ImGui.TextUnformatted($"Undo {_transactionManager.UndoTransactionTitle}");
+                }
+                else
+                {
+                    ImGui.TextUnformatted("Nothing to undo");
+                }
+            }
+        }
+        ImGui.SameLine();
+        using (ImRaii.Disabled(_transactionManager.RedoTransactionTitle == null))
+        {
+            if (ImGuiComponents.IconButton("###Redo", FontAwesomeIcon.Redo, new Vector2(buttonSize, buttonSize)))
+            {
+                _transactionManager.Redo();
+            }
+        }
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+        {
+            using (ImRaii.Tooltip())
+            {
+                if (_transactionManager.RedoTransactionTitle != null)
+                {
+                    ImGui.TextUnformatted($"Redo {_transactionManager.RedoTransactionTitle}");
+                }
+                else
+                {
+                    ImGui.TextUnformatted("Nothing to redo");
+                }
+            }
         }
 
         ImGui.Separator();
@@ -234,8 +283,7 @@ internal class EditorWindow : Window, IDisposable
             var newObject = newObjectFactory.Invoke();
             newObject.DisplayName = $"New {typeInfo.DisplayName}";
             newObject.Position = (_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.UnitY;
-            var newEditor = _definitionEditor.AddObject(newObject);
-            _selectionManager.SelectedEditor = newEditor;
+            _definitionEditor.AddObject(newObject);
         }
     }
 

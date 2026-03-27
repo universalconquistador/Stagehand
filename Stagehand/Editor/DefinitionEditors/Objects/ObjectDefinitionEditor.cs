@@ -59,7 +59,7 @@ public interface IObjectDefinitionEditor : IDefinitionEditor
     void RemovedFromStage();
 }
 
-internal abstract class IObjectDefinitionEditor<TDefinition> : DefinitionEditorBase, IObjectDefinitionEditor
+internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBase, IObjectDefinitionEditor
     where TDefinition : ObjectDefinition
 {
     protected ISelectionManager SelectionManager { get; }
@@ -77,25 +77,25 @@ internal abstract class IObjectDefinitionEditor<TDefinition> : DefinitionEditorB
     public Vector3 Position
     {
         get => Definition.Position;
-        set => SetPropertyValue(SetPositionInternal, value);
+        set => SetPropertyValue(SetPositionInternal, value, Definition.Position);
     }
 
     public Vector3 RotationPitchYawRollDegrees
     {
         get => Definition.RotationPitchYawRollDegrees;
-        set => SetPropertyValue(SetRotationPitchYawRollDegreesInternal, value);
+        set => SetPropertyValue(SetRotationPitchYawRollDegreesInternal, value, Definition.RotationPitchYawRollDegrees);
     }
 
     public Quaternion RotationQuaternion
     {
         get => Definition.RotationQuaternion;
-        set => SetPropertyValue(SetRotationQuaternionInternal, value);
+        set => SetPropertyValue(SetRotationQuaternionInternal, value, Definition.RotationQuaternion);
     }
 
     public Vector3 Scale
     {
         get => Definition.Scale;
-        set => SetPropertyValue(SetScaleInternal, value);
+        set => SetPropertyValue(SetScaleInternal, value, Definition.Scale);
     }
 
     public Matrix4x4 TransformNoScale => Matrix4x4.CreateFromQuaternion(RotationQuaternion) * Matrix4x4.CreateTranslation(Position);
@@ -122,7 +122,7 @@ internal abstract class IObjectDefinitionEditor<TDefinition> : DefinitionEditorB
         Definition.Scale = scale;
     }
 
-    protected IObjectDefinitionEditor(IServiceProvider serviceProvider, TDefinition definition, string key, StageDefinitionEditor stage) : base(serviceProvider)
+    protected ObjectDefinitionEditor(IServiceProvider serviceProvider, TDefinition definition, string key, StageDefinitionEditor stage) : base(serviceProvider)
     {
         SelectionManager = serviceProvider.GetRequiredService<ISelectionManager>();
         OverlayService = serviceProvider.GetRequiredService<IOverlayService>();
@@ -144,11 +144,10 @@ internal abstract class IObjectDefinitionEditor<TDefinition> : DefinitionEditorB
 
     public void SetDisplayName(string displayName)
     {
-        Definition.DisplayName = displayName;
-        OutlinerNode.DisplayName = displayName;
+        SetPropertyValue(value => { Definition.DisplayName = value; OutlinerNode.DisplayName = value; }, displayName, DisplayName, "Display Name");
     }
 
-    public override void DrawProperties()
+    protected override void OnDrawProperties()
     {
         string displayName = DisplayName;
         if (ImGui.InputText("Display Name", ref displayName, 512, flags: ImGuiInputTextFlags.EnterReturnsTrue))
@@ -184,8 +183,7 @@ internal abstract class IObjectDefinitionEditor<TDefinition> : DefinitionEditorB
         yield return new OutlinerContextMenuItem("Duplicate", "Creates a copy of this object.", _ =>
         {
             var clonedDefinition = Definition.Clone();
-            var newEditor = Stage.AddObject(clonedDefinition);
-            SelectionManager.SelectedEditor = newEditor;
+            Stage.AddObject(clonedDefinition);
         });
         yield return new OutlinerContextMenuItem("Delete", $"Removes this {TypeInfo.DisplayName} from the stage.", _ =>
         {
@@ -200,10 +198,13 @@ internal abstract class IObjectDefinitionEditor<TDefinition> : DefinitionEditorB
         OutlinerNode.IsSelected = true;
     }
 
-    protected override void SetPropertyValue<TValue>(Action<TValue> setter, TValue value, [CallerMemberName] string? propertyName = null)
+    protected override void SetPropertyValue<TValue>(Action<TValue> setter, TValue newValue, TValue oldValue, [CallerMemberName] string? propertyName = null)
     {
-        base.SetPropertyValue(setter, value, propertyName);
-        RefreshPreviewObject();
+        base.SetPropertyValue(val =>
+        {
+            setter.Invoke(val);
+            RefreshPreviewObject();
+        }, newValue, oldValue, propertyName);
     }
 
     protected virtual void DrawOverlays(IOverlayDrawContext obj)
@@ -248,10 +249,6 @@ internal abstract class IObjectDefinitionEditor<TDefinition> : DefinitionEditorB
     public virtual void RemovedFromStage()
     {
         OverlayService.DrawOverlays -= DrawOverlays;
-        if (SelectionManager.SelectedEditor == this)
-        {
-            SelectionManager.SelectedEditor = null;
-        }
         PreviewLiveObject?.Dispose();
         PreviewLiveObject = null;
     }

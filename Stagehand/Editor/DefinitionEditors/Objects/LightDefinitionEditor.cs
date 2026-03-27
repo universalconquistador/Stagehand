@@ -14,7 +14,7 @@ using System.Text;
 
 namespace Stagehand.Editor.DefinitionEditors.Objects;
 
-internal class LightDefinitionEditor : IObjectDefinitionEditor<LightDefinition>
+internal class LightDefinitionEditor : ObjectDefinitionEditor<LightDefinition>
 {
     private const float HitTestRadius = 0.25f;
 
@@ -30,43 +30,43 @@ internal class LightDefinitionEditor : IObjectDefinitionEditor<LightDefinition>
     public LightShape Shape
     {
         get => Definition.Shape;
-        set => SetPropertyValue(value => Definition.Shape = value, value);
+        set => SetPropertyValue(value => Definition.Shape = value, value, Definition.Shape);
     }
 
     public Vector3 Color
     {
         get => Definition.Color;
-        set => SetPropertyValue(value => Definition.Color = value, value);
+        set => SetPropertyValue(value => Definition.Color = value, value, Definition.Color);
     }
 
     public float Intensity
     {
         get => Definition.Intensity;
-        set => SetPropertyValue(value => Definition.Intensity = value, value);
+        set => SetPropertyValue(value => Definition.Intensity = value, value, Definition.Intensity);
     }
 
     public bool EnableSpecularHighlights
     {
         get => Definition.EnableSpecularHighlights;
-        set => SetPropertyValue(value => Definition.EnableSpecularHighlights = value, value);
+        set => SetPropertyValue(value => Definition.EnableSpecularHighlights = value, value, Definition.EnableSpecularHighlights);
     }
 
     public Vector2 FlatLightSkewAngleDegrees
     {
         get => Definition.FlatLightSkewAngleDegrees;
-        set => SetPropertyValue(value => Definition.FlatLightSkewAngleDegrees = value, value);
+        set => SetPropertyValue(value => Definition.FlatLightSkewAngleDegrees = value, value, Definition.FlatLightSkewAngleDegrees);
     }
 
     public float SpotLightAngleDegrees
     {
         get => Definition.SpotLightAngleDegrees;
-        set => SetPropertyValue(value => Definition.SpotLightAngleDegrees = value, value);
+        set => SetPropertyValue(value => Definition.SpotLightAngleDegrees = value, value, Definition.SpotLightAngleDegrees);
     }
 
     public float AngularFalloffDegrees
     {
         get => Definition.AngularFalloffDegrees;
-        set => SetPropertyValue(value => Definition.AngularFalloffDegrees = value, value);
+        set => SetPropertyValue(value => Definition.AngularFalloffDegrees = value, value, Definition.AngularFalloffDegrees);
     }
 
     // Falloff
@@ -74,19 +74,19 @@ internal class LightDefinitionEditor : IObjectDefinitionEditor<LightDefinition>
     public LightFalloffFunction FalloffFunction
     {
         get => Definition.FalloffFunction;
-        set => SetPropertyValue(value => Definition.FalloffFunction = value, value);
+        set => SetPropertyValue(value => Definition.FalloffFunction = value, value, Definition.FalloffFunction);
     }
 
     public float FalloffFactor
     {
         get => Definition.FalloffFactor;
-        set => SetPropertyValue(value => Definition.FalloffFactor = value, value);
+        set => SetPropertyValue(value => Definition.FalloffFactor = value, value, Definition.FalloffFactor);
     }
 
     public float Range
     {
         get => Definition.Range;
-        set => SetPropertyValue(value => Definition.Range = value, value);
+        set => SetPropertyValue(value => Definition.Range = value, value, Definition.Range);
     }
 
     // Shadow
@@ -94,37 +94,37 @@ internal class LightDefinitionEditor : IObjectDefinitionEditor<LightDefinition>
     public bool EnableObjectShadows
     {
         get => Definition.EnableObjectShadows;
-        set => SetPropertyValue(value => Definition.EnableObjectShadows = value, value);
+        set => SetPropertyValue(value => Definition.EnableObjectShadows = value, value, Definition.EnableObjectShadows);
     }
 
     public bool EnableCharacterShadows
     {
         get => Definition.EnableCharacterShadows;
-        set => SetPropertyValue(value => Definition.EnableCharacterShadows = value, value);
+        set => SetPropertyValue(value => Definition.EnableCharacterShadows = value, value, Definition.EnableCharacterShadows);
     }
 
     public bool EnableDynamicShadows
     {
         get => Definition.EnableDynamicShadows;
-        set => SetPropertyValue(value => Definition.EnableDynamicShadows = value, value);
+        set => SetPropertyValue(value => Definition.EnableDynamicShadows = value, value, Definition.EnableDynamicShadows);
     }
 
     public float ShadowPlaneNear
     {
         get => Definition.ShadowPlaneNear;
-        set => SetPropertyValue(value => Definition.ShadowPlaneNear = value, value);
+        set => SetPropertyValue(value => Definition.ShadowPlaneNear = value, value, Definition.ShadowPlaneNear);
     }
 
     public float ShadowPlaneFar
     {
         get => Definition.ShadowPlaneFar;
-        set => SetPropertyValue(value => Definition.ShadowPlaneFar = value, value);
+        set => SetPropertyValue(value => Definition.ShadowPlaneFar = value, value, Definition.ShadowPlaneFar);
     }
 
     public float CharacterShadowRange
     {
         get => Definition.CharacterShadowRange;
-        set => SetPropertyValue(value => Definition.CharacterShadowRange = value, value);
+        set => SetPropertyValue(value => Definition.CharacterShadowRange = value, value, Definition.CharacterShadowRange);
     }
 
     public LightDefinitionEditor(IServiceProvider serviceProvider, LightDefinition definition, string key, StageDefinitionEditor stage) : base(serviceProvider, definition, key, stage)
@@ -254,9 +254,9 @@ internal class LightDefinitionEditor : IObjectDefinitionEditor<LightDefinition>
         }
     }
 
-    public override void DrawProperties()
+    protected override void OnDrawProperties()
     {
-        base.DrawProperties();
+        base.OnDrawProperties();
 
         // Light properties
 

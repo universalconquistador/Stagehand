@@ -19,7 +19,7 @@ using ImGuiExtensions = Stagehand.Utils.ImGuiExtensions;
 
 namespace Stagehand.Editor.DefinitionEditors.Objects;
 
-internal class WeaponDefinitionEditor : IObjectDefinitionEditor<WeaponDefinition>
+internal class WeaponDefinitionEditor : ObjectDefinitionEditor<WeaponDefinition>
 {
     public static readonly DefinitionTypeInfo StaticTypeInfo = new DefinitionTypeInfo("Weapon", "A weapon model.", FontAwesomeIcon.Gun);
 
@@ -34,37 +34,37 @@ internal class WeaponDefinitionEditor : IObjectDefinitionEditor<WeaponDefinition
     public int ModelSetId
     {
         get => Definition.ModelSetId;
-        set => SetPropertyValue(value => Definition.ModelSetId = value, value);
+        set => SetPropertyValue(value => Definition.ModelSetId = value, value, Definition.ModelSetId);
     }
 
     public int SecondaryId
     {
         get => Definition.SecondaryId;
-        set => SetPropertyValue(value => Definition.SecondaryId = value, value);
+        set => SetPropertyValue(value => Definition.SecondaryId = value, value, Definition.SecondaryId);
     }
 
     public int Variant
     {
         get => Definition.Variant;
-        set => SetPropertyValue(value => Definition.Variant = value, value);
+        set => SetPropertyValue(value => Definition.Variant = value, value, Definition.Variant);
     }
 
     public int PrimaryDye
     {
         get => Definition.PrimaryDye;
-        set => SetPropertyValue(value => Definition.PrimaryDye = value, value);
+        set => SetPropertyValue(value => Definition.PrimaryDye = value, value, Definition.PrimaryDye);
     }
 
     public int SecondaryDye
     {
         get => Definition.SecondaryDye;
-        set => SetPropertyValue(value => Definition.SecondaryDye = value, value);
+        set => SetPropertyValue(value => Definition.SecondaryDye = value, value, Definition.SecondaryDye);
     }
 
     public int AnimationVariant
     {
         get => Definition.AnimationVariant;
-        set => SetPropertyValue(value => Definition.AnimationVariant = value, value);
+        set => SetPropertyValue(value => Definition.AnimationVariant = value, value, Definition.AnimationVariant);
     }
 
     private string _weaponFilter = "";
@@ -119,9 +119,9 @@ internal class WeaponDefinitionEditor : IObjectDefinitionEditor<WeaponDefinition
         }
     }
 
-    public override void DrawProperties()
+    protected override void OnDrawProperties()
     {
-        base.DrawProperties();
+        base.OnDrawProperties();
 
         int selectedWeaponOption = -1;
         for (int i = 0; i < _allWeaponOptions.Length; i++)

@@ -18,8 +18,8 @@ internal class SelectionManager : ISelectionManager, IDisposable
 {
     private readonly ITargetManager _targetManager;
     private readonly IFramework _framework;
+    private readonly ITransactionManager _transactionManager;
 
-    // TODO: Add transaction support
     public IDefinitionEditor? SelectedEditor
     {
         get;
@@ -27,23 +27,28 @@ internal class SelectionManager : ISelectionManager, IDisposable
         {
             if (value != SelectedEditor)
             {
-                SelectedEditor?.Deselected();
-                field = value;
-                SelectedEditor?.Selected();
-
-                // When the user selects something, untarget anything targeted
-                if (value != null && _targetManager.Target != null)
+                _transactionManager.DoTransaction(new SetPropertyTransaction<SelectionManager, IDefinitionEditor?>(objectName: null, "selection", this, value, SelectedEditor, (newValue, oldValue) =>
                 {
-                    _targetManager.Target = null;
-                }
+                    oldValue?.Deselected();
+                    field = newValue;
+                    newValue?.Selected();
+
+                    // When the user selects something, untarget anything targeted
+                    if (newValue != null && _targetManager.Target != null)
+                    {
+                        _targetManager.Target = null;
+                    }
+                    
+                }, affectsDataModel: false));
             }
         }
     }
 
-    public SelectionManager(ITargetManager targetManager, IFramework framework)
+    public SelectionManager(ITargetManager targetManager, IFramework framework, ITransactionManager transactionManager)
     {
         _targetManager = targetManager;
         _framework = framework;
+        _transactionManager = transactionManager;
 
         framework.Update += OnFrameworkUpdate;
     }

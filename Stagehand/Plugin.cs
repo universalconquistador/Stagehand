@@ -110,6 +110,7 @@ public sealed class Plugin : IDalamudPlugin
             services.AddHostedService(c => c.GetRequiredService<LocalStageService>());
 
             // Editor services are scoped to the editor session
+            services.AddScoped<ITransactionManager, TransactionManager>();
             services.AddScoped<IEditorHitTestService, EditorHitTestService>();
             services.AddScoped<IEditorTool, SelectTool>();
             services.AddScoped<IEditorTool, MoveTool>();

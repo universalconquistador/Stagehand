@@ -5,6 +5,7 @@ using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Stagehand.Definitions.Objects;
 using System;
 using System.Collections.Generic;
@@ -13,7 +14,7 @@ using System.Text;
 
 namespace Stagehand.Editor.DefinitionEditors.Objects;
 
-internal class VfxObjectDefinitionEditor : IObjectDefinitionEditor<VfxObjectDefinition>
+internal class VfxObjectDefinitionEditor : ObjectDefinitionEditor<VfxObjectDefinition>
 {
     public static readonly DefinitionTypeInfo StaticTypeInfo = new DefinitionTypeInfo("VFX", "An instance of a visual effect.", FontAwesomeIcon.WandSparkles);
 
@@ -24,13 +25,13 @@ internal class VfxObjectDefinitionEditor : IObjectDefinitionEditor<VfxObjectDefi
     public string VfxGamePath
     {
         get => Definition.VfxGamePath;
-        set => SetPropertyValue(value => Definition.VfxGamePath = value, value);
+        set => SetPropertyValue(value => Definition.VfxGamePath = value, value, Definition.VfxGamePath);
     }
 
     public Vector4 Color
     {
         get => Definition.Color;
-        set => SetPropertyValue(value => Definition.Color = value, value);
+        set => SetPropertyValue(value => Definition.Color = value, value, Definition.Color);
     }
 
     public VfxObjectDefinitionEditor(IServiceProvider serviceProvider, VfxObjectDefinition definition, string key, StageDefinitionEditor stage) : base(serviceProvider, definition, key, stage)
@@ -38,9 +39,9 @@ internal class VfxObjectDefinitionEditor : IObjectDefinitionEditor<VfxObjectDefi
         _dataManager = serviceProvider.GetRequiredService<IDataManager>();
     }
 
-    public override void DrawProperties()
+    protected override void OnDrawProperties()
     {
-        base.DrawProperties();
+        base.OnDrawProperties();
 
         string vfxGamePath = VfxGamePath;
         if (ImGui.InputText("VFX Resource (Game Path: .avfx)", ref vfxGamePath, 1024, ImGuiInputTextFlags.EnterReturnsTrue))

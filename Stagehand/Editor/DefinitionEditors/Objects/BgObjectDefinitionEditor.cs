@@ -16,7 +16,7 @@ using System.Text;
 
 namespace Stagehand.Editor.DefinitionEditors.Objects;
 
-internal class BgObjectDefinitionEditor : IObjectDefinitionEditor<BgObjectDefinition>
+internal class BgObjectDefinitionEditor : ObjectDefinitionEditor<BgObjectDefinition>
 {
     public static readonly DefinitionTypeInfo StaticTypeInfo = new DefinitionTypeInfo("Background Object", "A static mesh in the scene.", FontAwesomeIcon.Cube);
 
@@ -29,19 +29,19 @@ internal class BgObjectDefinitionEditor : IObjectDefinitionEditor<BgObjectDefini
     public string ModelGamePath
     {
         get => Definition.ModelGamePath;
-        set => SetPropertyValue(SetModelGamePathInternal, value);
+        set => SetPropertyValue(SetModelGamePathInternal, value, Definition.ModelGamePath);
     }
 
     public float Opacity
     {
         get => Definition.Opacity;
-        set => SetPropertyValue(value => Definition.Opacity = value, value);
+        set => SetPropertyValue(value => Definition.Opacity = value, value, Definition.Opacity);
     }
 
     public Vector4 DyeColor
     {
         get => Definition.DyeColor;
-        set => SetPropertyValue(value => Definition.DyeColor = value, value);
+        set => SetPropertyValue(value => Definition.DyeColor = value, value, Definition.DyeColor);
     }
 
     public BgObjectDefinitionEditor(IServiceProvider serviceProvider, BgObjectDefinition definition, string key, StageDefinitionEditor stage) : base(serviceProvider, definition, key, stage)
@@ -100,9 +100,9 @@ internal class BgObjectDefinitionEditor : IObjectDefinitionEditor<BgObjectDefini
         base.RemovedFromStage();
     }
 
-    public override void DrawProperties()
+    protected override void OnDrawProperties()
     {
-        base.DrawProperties();
+        base.OnDrawProperties();
 
         string modelGamePath = ModelGamePath;
         if (ImGui.InputText("Model (Game Path: .mdl)", ref modelGamePath, 1024, ImGuiInputTextFlags.EnterReturnsTrue))

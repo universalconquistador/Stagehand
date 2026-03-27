@@ -35,31 +35,31 @@ public class StageDefinitionEditor : DefinitionEditorBase
     public string Name
     {
         get => Definition.Info.Name;
-        set => SetPropertyValue(value => Definition.Info = Definition.Info with { Name = value }, value);
+        set => SetPropertyValue(value => Definition.Info = Definition.Info with { Name = value }, value, Definition.Info.Name);
     }
 
     public string AuthorName
     {
         get => Definition.Info.AuthorName;
-        set => SetPropertyValue(value => Definition.Info = Definition.Info with { AuthorName = value }, value);
+        set => SetPropertyValue(value => Definition.Info = Definition.Info with { AuthorName = value }, value, Definition.Info.AuthorName);
     }
 
     public string Version
     {
         get => Definition.Info.VersionString;
-        set => SetPropertyValue(value => Definition.Info = Definition.Info with { VersionString = value }, value);
+        set => SetPropertyValue(value => Definition.Info = Definition.Info with { VersionString = value }, value, Definition.Info.VersionString);
     }
 
     public string Description
     {
         get => Definition.Info.Description;
-        set => SetPropertyValue(value => Definition.Info = Definition.Info with { Description = value }, value);
+        set => SetPropertyValue(value => Definition.Info = Definition.Info with { Description = value }, value, Definition.Info.Description);
     }
 
     public int IntendedTerritoryType
     {
         get => Definition.Info.IntendedTerritoryType;
-        set => SetPropertyValue(value => Definition.Info = Definition.Info with { IntendedTerritoryType = value }, value);
+        set => SetPropertyValue(value => Definition.Info = Definition.Info with { IntendedTerritoryType = value }, value, Definition.Info.IntendedTerritoryType);
     }
 
     public StageDefinitionEditor(IServiceProvider serviceProvider, StageDefinition definition)
@@ -87,7 +87,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
         _selectionManager.SelectedEditor = this;
     }
 
-    public override void DrawProperties()
+    protected override void OnDrawProperties()
     {
         string name = Name;
         if (ImGui.InputText("Name", ref name, 512, ImGuiInputTextFlags.EnterReturnsTrue))
@@ -164,14 +164,38 @@ public class StageDefinitionEditor : DefinitionEditorBase
         base.Dispose();
     }
 
-    public IObjectDefinitionEditor AddObject(ObjectDefinition newObject)
+    public IObjectDefinitionEditor AddObject(ObjectDefinition newObject, bool select = true)
     {
         var key = Guid.NewGuid().ToString();
-        Definition.Objects.Add(key, newObject);
         var newEditor = CreateEditorForObjectDefinition(newObject, key);
-        _objectEditors.Add(key, newEditor);
-        OutlinerNode.AddChild(newEditor.OutlinerNode);
-        newEditor.AddedToStage();
+
+        using (TransactionManager.BeginTransactionGroup($"Create new {newEditor.TypeInfo.DisplayName}"))
+        {
+            // Add the new editor
+            var transaction = new DelegateTransaction($"Create new {newEditor.TypeInfo.DisplayName}", () =>
+            {
+                Definition.Objects.Add(key, newObject);
+                _objectEditors.Add(key, newEditor);
+                OutlinerNode.AddChild(newEditor.OutlinerNode);
+                newEditor.AddedToStage();
+            }, () =>
+            {
+                newEditor.RemovedFromStage();
+                OutlinerNode.RemoveChild(newEditor.OutlinerNode);
+                _objectEditors.Remove(key);
+                Definition.Objects.Remove(key);
+            }, affectsDataModel: true);
+            // If the transaction is permanently undone, dispose the new editor
+            transaction.AddDisposable(newEditor, disposeWhenDone: false, disposeWhenUndone: true);
+            TransactionManager.DoTransaction(transaction);
+
+            // Select the editor if necessary
+            if (select)
+            {
+                _selectionManager.SelectedEditor = newEditor;
+            }
+        }
+
         return newEditor;
     }
 
@@ -179,11 +203,33 @@ public class StageDefinitionEditor : DefinitionEditorBase
     {
         if (_objectEditors.TryGetValue(objectEditor.Key, out var foundEditor) && foundEditor == objectEditor)
         {
-            foundEditor.RemovedFromStage();
-            OutlinerNode.RemoveChild(foundEditor.OutlinerNode);
-            _objectEditors.Remove(objectEditor.Key);
-            foundEditor.Dispose();
-            Definition.Objects.Remove(objectEditor.Key);
+            var definition = Definition.Objects[objectEditor.Key];
+            using (var transactionGroup = TransactionManager.BeginTransactionGroup($"Delete {objectEditor.DisplayName}"))
+            {
+                // Deselect the editor if necessary
+                if (_selectionManager.SelectedEditor == foundEditor)
+                {
+                    _selectionManager.SelectedEditor = null;
+                }
+
+                // Remove the object
+                var transaction = new DelegateTransaction($"Delete {objectEditor.DisplayName}", () =>
+                {
+                    foundEditor.RemovedFromStage();
+                    OutlinerNode.RemoveChild(foundEditor.OutlinerNode);
+                    _objectEditors.Remove(objectEditor.Key);
+                    Definition.Objects.Remove(objectEditor.Key);
+                }, () =>
+                {
+                    Definition.Objects.Add(objectEditor.Key, definition);
+                    _objectEditors.Add(objectEditor.Key, foundEditor);
+                    OutlinerNode.AddChild(foundEditor.OutlinerNode);
+                    foundEditor.AddedToStage();
+                }, affectsDataModel: true);
+                // If the transaction is permanently done, dispose the editor
+                transaction.AddDisposable(foundEditor, disposeWhenDone: true, disposeWhenUndone: false);
+                TransactionManager.DoTransaction(transaction);
+            }
         }
     }
 

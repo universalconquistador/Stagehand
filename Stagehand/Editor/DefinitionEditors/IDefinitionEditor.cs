@@ -1,4 +1,6 @@
+using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Microsoft.Extensions.DependencyInjection;
 using Stagehand.Editor.Services;
 using System;
 using System.Collections.Generic;
@@ -47,7 +49,10 @@ public interface IDefinitionEditor : IDisposable
 
 public abstract class DefinitionEditorBase : IDefinitionEditor
 {
+    private bool _draggingProperty = false;
+
     protected IServiceProvider ServiceProvider { get; }
+    protected ITransactionManager TransactionManager { get; }
 
     public abstract string DisplayName { get; }
     public abstract DefinitionTypeInfo TypeInfo { get; }
@@ -57,15 +62,34 @@ public abstract class DefinitionEditorBase : IDefinitionEditor
     public DefinitionEditorBase(IServiceProvider serviceProvider)
     {
         ServiceProvider = serviceProvider;
+        TransactionManager = ServiceProvider.GetRequiredService<ITransactionManager>();
     }
 
-    protected virtual void SetPropertyValue<TValue>(Action<TValue> setter, TValue value, [CallerMemberName] string? propertyName = null)
+    protected virtual void SetPropertyValue<TValue>(Action<TValue> setter, TValue newValue, TValue oldValue, [CallerMemberName] string? propertyName = null)
     {
-        // TODO: Hook into transaction system
-        setter.Invoke(value);
+        // UBER HACK: Dragging a property should be a transaction group! There's not really a great way to detect this right now, so this is what we've got.
+        // Really this does not belong here, and even more importantly this is not necessarily called from an ImGui draw or even the right thread!
+        if (ImGui.IsMouseDown(ImGuiMouseButton.Left) && !_draggingProperty)
+        {
+            _draggingProperty = true;
+            TransactionManager.PushTransactionGroup($"Set {DisplayName}'s {propertyName} to {newValue}");
+        }
+
+        TransactionManager.DoTransaction(new SetPropertyTransaction<IDefinitionEditor, TValue>(DisplayName, propertyName ?? string.Empty, this, newValue, oldValue, (@new, old) => setter.Invoke(@new)));
     }
 
-    public abstract void DrawProperties();
+    public void DrawProperties()
+    {
+        OnDrawProperties();
+
+        if (!ImGui.IsMouseDown(ImGuiMouseButton.Left) && _draggingProperty)
+        {
+            TransactionManager.PopTransactionGroup();
+            _draggingProperty = false;
+        }
+    }
+
+    protected abstract void OnDrawProperties();
 
     public virtual void Selected()
     {
@@ -74,6 +98,13 @@ public abstract class DefinitionEditorBase : IDefinitionEditor
 
     public virtual void Deselected()
     {
+        // UBER HACK: Backstop to make sure if we stop drawing we still end a property drag transaction group
+        if (_draggingProperty)
+        {
+            TransactionManager.PopTransactionGroup();
+            _draggingProperty = false;
+        }
+
         IsSelected = false;
     }
 
@@ -83,5 +114,10 @@ public abstract class DefinitionEditorBase : IDefinitionEditor
         {
             Deselected();
         }
+    }
+
+    public override string ToString()
+    {
+        return DisplayName;
     }
 }
