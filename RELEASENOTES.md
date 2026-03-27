@@ -60,3 +60,8 @@ Later down the road:
 ## 0.3.4
 
  - Added light widgets for all four shapes of lights and tweaked selection color and thickness. The flat light skew angle visualization is not *quite* correct but it's going to have to suffice for now.
+
+## 0.3.5
+
+ - Prevented the Stagehand library and editor windows from hiding during gpose.
+ - Updated to for compatability with FFXIV version `2026.03.17.0000.0000`.
