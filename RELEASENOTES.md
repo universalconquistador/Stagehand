@@ -65,3 +65,8 @@ Later down the road:
 
  - Prevented the Stagehand library and editor windows from hiding during gpose.
  - Updated to for compatability with FFXIV version `2026.03.17.0000.0000`.
+
+## 0.3.6
+
+ - Added undo & redo system to the editor! No keybinds for it yet though, sorry. I had to write a little bit of jank spaghetti code to handle dragging property sliders as one action, so please do let me know if you manage to break it.
+ - Fixed the visual size of a selected weapon's visual bounding box.
