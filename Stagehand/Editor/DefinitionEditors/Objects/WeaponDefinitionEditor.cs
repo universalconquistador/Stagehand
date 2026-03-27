@@ -7,6 +7,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using Lumina.Excel.Sheets;
 using Microsoft.Extensions.DependencyInjection;
 using Stagehand.Definitions.Objects;
+using Stagehand.Services;
 using Stagehand.Utils;
 using System;
 using System.Collections.Generic;
@@ -98,6 +99,23 @@ internal class WeaponDefinitionEditor : IObjectDefinitionEditor<WeaponDefinition
             }
 
             _allWeaponOptions = weaponOptions.OrderBy(weaponOption => weaponOption.DisplayName).ToArray();
+        }
+    }
+
+    protected override void DrawOverlays(IOverlayDrawContext obj)
+    {
+        // Unclear why, but Weapon scene objects report their oriented bounds as double their actual size
+        if (IsSelected)
+        {
+            var color = ComputeOverlayColor();
+
+            if (PreviewLiveObject != null)
+            {
+                if (PreviewLiveObject.TryGetOrientedBounds(out var bounds))
+                {
+                    obj.DrawBox(bounds.Transform, bounds.HalfExtents * 0.5f, 2.0f, color);
+                }
+            }
         }
     }
 
