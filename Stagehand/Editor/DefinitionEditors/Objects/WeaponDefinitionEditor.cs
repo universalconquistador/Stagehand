@@ -155,11 +155,22 @@ internal class WeaponDefinitionEditor : ObjectDefinitionEditor<WeaponDefinition>
                             {
                                 if (ImGui.Selectable($"###Weapon{i}", i == selectedWeaponOption, ImGuiSelectableFlags.AllowItemOverlap, new Vector2(0.0f, iconSize + ImGui.GetStyle().FramePadding.Y * 2.0f)))
                                 {
-                                    ModelSetId = _allWeaponOptions[i].ModelSetId;
-                                    SecondaryId = _allWeaponOptions[i].SecondaryId;
-                                    Variant = _allWeaponOptions[i].Variant;
-                                    PrimaryDye = _allWeaponOptions[i].PrimaryDye;
-                                    SecondaryDye = _allWeaponOptions[i].SecondaryDye;
+                                    using (TransactionManager.BeginTransactionGroup($"Set {DisplayName}'s Weapon to {_allWeaponOptions[i].DisplayName}"))
+                                    {
+                                        ModelSetId = _allWeaponOptions[i].ModelSetId;
+                                        SecondaryId = _allWeaponOptions[i].SecondaryId;
+                                        Variant = _allWeaponOptions[i].Variant;
+
+                                        if (_allWeaponOptions[i].PrimaryDye > 0)
+                                        {
+                                            PrimaryDye = _allWeaponOptions[i].PrimaryDye;
+                                        }
+
+                                        if (_allWeaponOptions[i].SecondaryDye > 0)
+                                        {
+                                            SecondaryDye = _allWeaponOptions[i].SecondaryDye;
+                                        }
+                                    }
                                 }
                                 ImGui.SameLine(0.0f);
                                 ImGui.AlignTextToFramePadding();
