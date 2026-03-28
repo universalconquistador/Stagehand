@@ -184,8 +184,18 @@ internal class ModelBvhCacheService : IModelBvhCacheService, IDisposable
 
     public bool TryIntersectModel(string modelResourcePath, Vector3 rayStart, Vector3 rayDirection, out Vector3 intersectionPoint, out Vector3 intersectionNormal)
     {
-        var cachedBvh = _bvhCache.GetOrAdd(modelResourcePath, path => new CachedStaticBvh(path, _dataManager, _logger));
-        return cachedBvh.IntersectsRay(rayStart, rayDirection, out intersectionPoint, out intersectionNormal);
+        if (!_dataManager.FileExists(modelResourcePath))
+        {
+            _logger.LogInformation($"Model {modelResourcePath} does not exist.");
+            intersectionPoint = rayStart;
+            intersectionNormal = Vector3.Zero;
+            return false;
+        }
+        else
+        {
+            var cachedBvh = _bvhCache.GetOrAdd(modelResourcePath, path => new CachedStaticBvh(path, _dataManager, _logger));
+            return cachedBvh.IntersectsRay(rayStart, rayDirection, out intersectionPoint, out intersectionNormal);
+        }
     }
 
     public bool TryGetBounds(string modelResourcePath, out Vector3 boundsMin, out Vector3 boundsMax)

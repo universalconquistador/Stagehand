@@ -247,7 +247,7 @@ public class StaticBvh : IDisposable
                 break;
             }
             
-            for (int triangleIndex = 0; triangleIndex < mesh.IndexCount / 3; triangleIndex++)
+            for (int triangleIndex = 0; triangleIndex < mesh.IndexCount / 3 && baseTriangle + triangleIndex < indices.Length / 3; triangleIndex++)
             {
                 triangleMemory.Memory.Span[baseTriangle + triangleIndex] = new()
                 {

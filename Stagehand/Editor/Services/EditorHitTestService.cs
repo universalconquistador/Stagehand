@@ -187,8 +187,8 @@ public class EditorHitTestModel : IEditorHitTestShape
     #region Bounds
 
     private bool _isLocalBoundsValid = false;
-    private Vector3 _localBoundsCenter;
-    private Vector3 _localBoundsHalfExtents;
+    public Vector3 LocalBoundsCenter { get; private set; } = Vector3.Zero;
+    public Vector3 LocalBoundsHalfExtents { get; private set; } = Vector3.Zero;
 
     private bool _isWorldBoundsValid = false;
     private SphereBounds _worldBounds = default;
@@ -205,8 +205,8 @@ public class EditorHitTestModel : IEditorHitTestShape
                     {
                         if (_bvhCacheService.TryGetBounds(ModelResourcePath, out var boundsMin, out var boundsMax))
                         {
-                            _localBoundsCenter = (boundsMin + boundsMax) * 0.5f;
-                            _localBoundsHalfExtents = (boundsMax - boundsMin) * 0.5f;
+                            LocalBoundsCenter = (boundsMin + boundsMax) * 0.5f;
+                            LocalBoundsHalfExtents = (boundsMax - boundsMin) * 0.5f;
 
                             _isLocalBoundsValid = true;
                         }
@@ -219,8 +219,8 @@ public class EditorHitTestModel : IEditorHitTestShape
                     }
                     else
                     {
-                        var worldBoundsCenter = Vector3.Transform(_localBoundsCenter, Transform);
-                        var worldBoundsToCorner = Vector3.TransformNormal(_localBoundsHalfExtents, Transform);
+                        var worldBoundsCenter = Vector3.Transform(LocalBoundsCenter, Transform);
+                        var worldBoundsToCorner = Vector3.TransformNormal(LocalBoundsHalfExtents, Transform);
 
                         _worldBounds = new SphereBounds() { CenterPoint = worldBoundsCenter, Radius = worldBoundsToCorner.Length() };
                         _isWorldBoundsValid = true;

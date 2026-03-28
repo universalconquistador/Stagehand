@@ -7,6 +7,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using Lumina.Excel.Sheets;
 using Microsoft.Extensions.DependencyInjection;
 using Stagehand.Definitions.Objects;
+using Stagehand.Editor.Services;
 using Stagehand.Services;
 using Stagehand.Utils;
 using System;
@@ -27,6 +28,9 @@ internal class WeaponDefinitionEditor : ObjectDefinitionEditor<WeaponDefinition>
 
     private readonly ITextureProvider _textureProvider;
     private readonly IDataManager _dataManager;
+    private readonly IEditorHitTestService _hitTestService;
+    private readonly IModelBvhCacheService _modelBvhCacheService;
+    private readonly EditorHitTestModel _hitTestModel;
 
     private record class WeaponOption(string DisplayName, int IconId, int ModelSetId, int SecondaryId, int Variant, int PrimaryDye, int SecondaryDye);
     private static WeaponOption[] _allWeaponOptions;
@@ -34,13 +38,13 @@ internal class WeaponDefinitionEditor : ObjectDefinitionEditor<WeaponDefinition>
     public int ModelSetId
     {
         get => Definition.ModelSetId;
-        set => SetPropertyValue(value => Definition.ModelSetId = value, value, Definition.ModelSetId);
+        set => SetPropertyValue(SetModelSetIdInternal, value, Definition.ModelSetId);
     }
 
     public int SecondaryId
     {
         get => Definition.SecondaryId;
-        set => SetPropertyValue(value => Definition.SecondaryId = value, value, Definition.SecondaryId);
+        set => SetPropertyValue(SetSecondaryIdInternal, value, Definition.SecondaryId);
     }
 
     public int Variant
@@ -75,6 +79,14 @@ internal class WeaponDefinitionEditor : ObjectDefinitionEditor<WeaponDefinition>
     {
         _textureProvider = serviceProvider.GetRequiredService<ITextureProvider>();
         _dataManager = serviceProvider.GetRequiredService<IDataManager>();
+        _hitTestService = serviceProvider.GetRequiredService<IEditorHitTestService>();
+        _modelBvhCacheService = serviceProvider.GetRequiredService<IModelBvhCacheService>();
+        _hitTestModel = new EditorHitTestModel(this, MdlPathForWeapon((ushort)ModelSetId, (ushort)SecondaryId), _modelBvhCacheService, _dataManager)
+        {
+            Position = Position,
+            Rotation = RotationQuaternion,
+            Scale = Scale,
+        };
         List<WeaponOption> weaponOptions = new List<WeaponOption>();
 
         if (_allWeaponOptions == null)
@@ -102,19 +114,67 @@ internal class WeaponDefinitionEditor : ObjectDefinitionEditor<WeaponDefinition>
         }
     }
 
+    public override void AddedToStage()
+    {
+        base.AddedToStage();
+
+        _hitTestService.AddShape(_hitTestModel);
+    }
+
+    protected override void SetPositionInternal(Vector3 position)
+    {
+        base.SetPositionInternal(position);
+        _hitTestModel.Position = Position;
+    }
+
+    protected override void SetRotationPitchYawRollDegreesInternal(Vector3 rotationPYRDegrees)
+    {
+        base.SetRotationPitchYawRollDegreesInternal(rotationPYRDegrees);
+        _hitTestModel.Rotation = RotationQuaternion;
+    }
+
+    protected override void SetRotationQuaternionInternal(Quaternion rotationQuaternion)
+    {
+        base.SetRotationQuaternionInternal(rotationQuaternion);
+        _hitTestModel.Rotation = RotationQuaternion;
+    }
+
+    protected override void SetScaleInternal(Vector3 scale)
+    {
+        base.SetScaleInternal(scale);
+        _hitTestModel.Scale = Scale;
+    }
+
+    protected virtual void SetModelSetIdInternal(int modelSetId)
+    {
+        Definition.ModelSetId = modelSetId;
+        _hitTestModel.ModelResourcePath = MdlPathForWeapon((ushort)ModelSetId, (ushort)SecondaryId);
+    }
+
+    protected virtual void SetSecondaryIdInternal(int secondaryId)
+    {
+        Definition.SecondaryId = secondaryId;
+        _hitTestModel.ModelResourcePath = MdlPathForWeapon((ushort)ModelSetId, (ushort)SecondaryId);
+    }
+
+    public override void RemovedFromStage()
+    {
+        _hitTestService.RemoveShape(_hitTestModel);
+
+        base.RemovedFromStage();
+    }
+
     protected override void DrawOverlays(IOverlayDrawContext obj)
     {
-        // Unclear why, but Weapon scene objects report their oriented bounds as double their actual size
+        // Unclear why, but Weapon scene objects report their oriented bounds as weird. Sometimes exactly double their actual size, sometimes less than that, it's strange.
+        // So, use the bounds computed from the .mdl by the hit test model.
         if (IsSelected)
         {
             var color = ComputeOverlayColor();
 
-            if (PreviewLiveObject != null)
+            if (_hitTestModel.LocalBoundsHalfExtents.LengthSquared() > 0.0f)
             {
-                if (PreviewLiveObject.TryGetOrientedBounds(out var bounds))
-                {
-                    obj.DrawBox(bounds.Transform, bounds.HalfExtents * 0.5f, 2.0f, color);
-                }
+                obj.DrawBox(Matrix4x4.CreateTranslation(_hitTestModel.LocalBoundsCenter) * Transform, _hitTestModel.LocalBoundsHalfExtents, 2.0f, color);
             }
         }
     }
@@ -247,5 +307,11 @@ internal class WeaponDefinitionEditor : ObjectDefinitionEditor<WeaponDefinition>
         }
 
 #endif
+    }
+
+    // As hardcoded in Client::Graphics::Scene::Weapon.ResolveMdlPath
+    private static string MdlPathForWeapon(ushort modelSetId, ushort secondaryId)
+    {
+        return $"chara/weapon/w{modelSetId:D4}/obj/body/b{secondaryId:D4}/model/w{modelSetId:D4}b{secondaryId:D4}.mdl";
     }
 }
