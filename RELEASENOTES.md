@@ -27,19 +27,20 @@ Known issues:
 
 Not yet implemented: (in no particular order)
  - Better stage library tools (delete, rename, make folder, etc), although if you put your stages into folders via the file explorer, those will be reflected in the plugin
- - Interactive placement tools
  - ~~Click-to-select~~
- - Undo + redo
+ - ~~Undo + redo~~
  - ~~3D light widgets to show spot light cone angle, etc~~
  - Better resource browsing for model & VFX resources
- - Object folders for organization
  - IPC API to facilitate e.g. sync services
 
 Later down the road:
- - Housing object import (and .sgb layouts in general)
  - Support for modded models, weapons, and VFX
- - Looping animations
+ - Housing object import (and .sgb layouts in general)
+ - Object folders for organization
+ - Hotkey support in editor
+ - Interactive placement tools
  - Saveable prefabs
+ - Looping animations
 
 
  Thank you for helping me with my plugin! Please leave any feedback, bugs, suggestions, thoughts, cool builds, etc! (Keeping in mind the known issues & not yet implemented features above)
@@ -69,4 +70,10 @@ Later down the road:
 ## 0.3.6
 
  - Added undo & redo system to the editor! No keybinds for it yet though, sorry. I had to write a little bit of jank spaghetti code to handle dragging property sliders as one action, so please do let me know if you manage to break it.
- - Fixed the visual size of a selected weapon's visual bounding box.
+ - Fixed the visual size of a selected weapon's bounding box.
+
+## 0.3.7
+
+ - Added click support to weapons in the editor, and adjusted how they compute their selected outline to be more accurate.
+ - Fixed click-drag edits showing the old value in the undo/redo tooltip rather than the new value.
+ - Fixed choosing a weapon becoming many partial undo steps.
