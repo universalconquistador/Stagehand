@@ -84,7 +84,7 @@ public abstract class DefinitionEditorBase : IDefinitionEditor
 
         if (!ImGui.IsMouseDown(ImGuiMouseButton.Left) && _draggingProperty)
         {
-            TransactionManager.PopTransactionGroup();
+            TransactionManager.PopTransactionGroup(adoptLastTitle: true);
             _draggingProperty = false;
         }
     }

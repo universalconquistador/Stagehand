@@ -54,7 +54,7 @@ public interface ITransaction : IDisposable
 
 public abstract class TransactionBase : ITransaction
 {
-    public string Title { get; }
+    public string Title { get; protected set; }
     public bool AffectsDataModel { get; protected set; }
     protected bool IsDone { get; private set; }
 
@@ -255,7 +255,8 @@ public interface ITransactionManager
     /// <summary>
     /// Ends the creation of a transaction group that was begun with <see cref="PushTransactionGroup(string)"/>.
     /// </summary>
-    void PopTransactionGroup();
+    /// <param name="adoptLastTitle">Whether to use the title of the most recently added transaction for this group.</param>
+    void PopTransactionGroup(bool adoptLastTitle = false);
 
     /// <summary>
     /// Undoes the most recently done or redone transaction, if any.
@@ -281,6 +282,7 @@ internal class TransactionManager : ITransactionManager, IDisposable
         private readonly List<ITransaction> _transactions = new();
 
         public GroupTransaction? OuterGroup { get; }
+        public bool HasTransactions => _transactions.Count > 0;
 
         public GroupTransaction(string title, GroupTransaction? outerGroup)
             : base(title, affectsDataModel: false)
@@ -305,6 +307,14 @@ internal class TransactionManager : ITransactionManager, IDisposable
             }
 
             AffectsDataModel |= transaction.AffectsDataModel;
+        }
+
+        public void AdoptLastTitle()
+        {
+            if (_transactions.Count > 0)
+            {
+                Title = _transactions[_transactions.Count - 1].Title;
+            }
         }
 
         protected override void OnDo()
@@ -386,7 +396,7 @@ internal class TransactionManager : ITransactionManager, IDisposable
         _currentGroupTransaction = newGroupTransaction;
     }
 
-    public void PopTransactionGroup()
+    public void PopTransactionGroup(bool adoptLastTitle = false)
     {
         ThrowIfInTransaction("Cannot enter or exit a transaction group while doing or undoing a transaction!");
 
@@ -398,12 +408,20 @@ internal class TransactionManager : ITransactionManager, IDisposable
 
         _currentGroupTransaction = group.OuterGroup;
 
-        if (group.OuterGroup == null)
+        if (group.HasTransactions)
         {
-            ClearRedo();
-            _undoStack.Push(group);
+            if (adoptLastTitle)
+            {
+                group.AdoptLastTitle();
+            }
 
-            TransactionDone?.Invoke(group);
+            if (group.OuterGroup == null)
+            {
+                ClearRedo();
+                _undoStack.Push(group);
+
+                TransactionDone?.Invoke(group);
+            }
         }
     }
 
