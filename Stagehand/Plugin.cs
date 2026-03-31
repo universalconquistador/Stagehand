@@ -103,7 +103,8 @@ public sealed class Plugin : IDalamudPlugin
             services.AddSingleton<ILiveStageService, LiveStageService>();
             services.AddSingleton<IEditorService, EditorService>();
 
-            services.AddHostedService<ConfigWindow>();
+            services.AddSingleton<IConfigWindow, ConfigWindow>();
+            services.AddHostedService(services => services.GetRequiredService<IConfigWindow>());
             services.AddHostedService<DebugWindow>();
             services.AddHostedService<LibraryWindow>();
             services.AddSingleton<LocalStageService>();

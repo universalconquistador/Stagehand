@@ -59,6 +59,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
     private readonly ILocalDefinitionService _localDefinitionService;
     private readonly ILiveStageService _liveStageService;
     private readonly IEditorService _editorService;
+    private readonly IConfigWindow _configWindow;
     private readonly LocalStageService _localStageService;
     private readonly WindowSystem _windowSystem;
     private readonly StagehandConfiguration _configuration;
@@ -69,7 +70,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
     private List<SelectableWorld> _allWorlds;
     private int[] _allHouses = Enumerable.Range(0, 31).ToArray();
 
-    public LibraryWindow(ILogger<LibraryWindow> logger, IDalamudPluginInterface dalamudPluginInterface, ICommandManager commandManager, IDataManager dataManager, IClientState clientState, IPlayerState playerState, ILocalDefinitionService localDefinitionService, ILiveStageService liveStageService, IEditorService editorService, LocalStageService localStageService, WindowSystem windowSystem, StagehandConfiguration configuration) : base($"Stagehand {dalamudPluginInterface.Manifest.AssemblyVersion}###StagehandLibrary")
+    public LibraryWindow(ILogger<LibraryWindow> logger, IDalamudPluginInterface dalamudPluginInterface, ICommandManager commandManager, IDataManager dataManager, IClientState clientState, IPlayerState playerState, ILocalDefinitionService localDefinitionService, ILiveStageService liveStageService, IEditorService editorService, IConfigWindow configWindow, LocalStageService localStageService, WindowSystem windowSystem, StagehandConfiguration configuration) : base($"Stagehand {dalamudPluginInterface.Manifest.AssemblyVersion}###StagehandLibrary")
     {
         SizeConstraints = new WindowSizeConstraints
         {
@@ -87,6 +88,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
         _localDefinitionService = localDefinitionService;
         _liveStageService = liveStageService;
         _editorService = editorService;
+        _configWindow = configWindow;
         _localStageService = localStageService;
         _windowSystem = windowSystem;
         _configuration = configuration;
@@ -190,7 +192,14 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                 ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - ImGuiComponents.GetIconButtonWithTextWidth(FontAwesomeIcon.Cog, ""));
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.Cog))
                 {
-                    // TODO: Show config window!
+                    _configWindow.Show();
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    using (ImRaii.Tooltip())
+                    {
+                        ImGui.Text("Open the Stagehand settings");
+                    }
                 }
 
                 ImGui.TableNextColumn();

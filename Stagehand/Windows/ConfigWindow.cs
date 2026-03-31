@@ -10,7 +10,12 @@ using Microsoft.Extensions.Hosting;
 
 namespace Stagehand.Windows;
 
-public class ConfigWindow : Window, IHostedService, IDisposable
+public interface IConfigWindow : IHostedService
+{
+    void Show();
+}
+
+public class ConfigWindow : Window, IConfigWindow, IDisposable
 {
     private readonly IDalamudPluginInterface _dalamudPluginInterface;
     private readonly WindowSystem _windowSystem;
@@ -25,6 +30,11 @@ public class ConfigWindow : Window, IHostedService, IDisposable
         _dalamudPluginInterface = dalamudPluginInterface;
         _windowSystem = windowSystem;
         _configuration = configuration;
+    }
+
+    void IConfigWindow.Show()
+    {
+        IsOpen = true;
     }
 
     public void Dispose() { }
