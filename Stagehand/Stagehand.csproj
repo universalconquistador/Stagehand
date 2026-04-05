@@ -30,6 +30,10 @@ Use /stagehand to get started.</Description>
     </PropertyGroup>
 
     <ItemGroup>
+      <Content Include="Properties\**\*.json" />
+    </ItemGroup>
+
+    <ItemGroup>
       <None Include="ThreadLocalHelper.dll">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
@@ -44,5 +48,20 @@ Use /stagehand to get started.</Description>
         <ProjectReference Include="..\..\FFXIVClientStructs\InteropGenerator.Runtime\InteropGenerator.Runtime.csproj" Condition="'$(Configuration)'=='Debug'" Private="True" />
         <ProjectReference Include="..\Stagehand.Api\Stagehand.Api.csproj" />
         <ProjectReference Include="..\Stagehand.Definitions\Stagehand.Definitions.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Update="Properties\Resources.Designer.cs">
+        <DesignTime>True</DesignTime>
+        <AutoGen>True</AutoGen>
+        <DependentUpon>Resources.resx</DependentUpon>
+      </Compile>
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Update="Properties\Resources.resx">
+        <Generator>ResXFileCodeGenerator</Generator>
+        <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      </EmbeddedResource>
     </ItemGroup>
 </Project>

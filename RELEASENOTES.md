@@ -77,3 +77,11 @@ Later down the road:
  - Added click support to weapons in the editor, and adjusted how they compute their selected outline to be more accurate.
  - Fixed click-drag edits showing the old value in the undo/redo tooltip rather than the new value.
  - Fixed choosing a weapon becoming many partial undo steps.
+
+## 0.3.8
+
+ - Adds the Asset Library window for browsing game assets. Currently it shows the `.mdl` and `.avfx` assets referenced by the game's environments. You can show the Asset Library window from the button in the main Stagehand window, or from the button next to the Model and VFX properties in the editor.
+ - When adding a new auto load location, the 'Use current location' button will now enable the world, ward, and house filters as appropriate.
+ - Small polish items on the auto load condition UI.
+ - The Stage is now selected by default when opening the editor.
+ - Fixed a bug displaying folders in the Stage library.

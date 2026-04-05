@@ -60,6 +60,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
     private readonly ILiveStageService _liveStageService;
     private readonly IEditorService _editorService;
     private readonly IConfigWindow _configWindow;
+    private readonly IAssetLibraryWindow _assetLibraryWindow;
     private readonly LocalStageService _localStageService;
     private readonly WindowSystem _windowSystem;
     private readonly StagehandConfiguration _configuration;
@@ -70,7 +71,8 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
     private List<SelectableWorld> _allWorlds;
     private int[] _allHouses = Enumerable.Range(0, 31).ToArray();
 
-    public LibraryWindow(ILogger<LibraryWindow> logger, IDalamudPluginInterface dalamudPluginInterface, ICommandManager commandManager, IDataManager dataManager, IClientState clientState, IPlayerState playerState, ILocalDefinitionService localDefinitionService, ILiveStageService liveStageService, IEditorService editorService, IConfigWindow configWindow, LocalStageService localStageService, WindowSystem windowSystem, StagehandConfiguration configuration) : base($"Stagehand {dalamudPluginInterface.Manifest.AssemblyVersion}###StagehandLibrary")
+    public LibraryWindow(ILogger<LibraryWindow> logger, IDalamudPluginInterface dalamudPluginInterface, ICommandManager commandManager, IDataManager dataManager, IClientState clientState, IPlayerState playerState, ILocalDefinitionService localDefinitionService, ILiveStageService liveStageService, IEditorService editorService, IConfigWindow configWindow, IAssetLibraryWindow assetLibraryWindow, LocalStageService localStageService, WindowSystem windowSystem, StagehandConfiguration configuration)
+        : base($"Stagehand {dalamudPluginInterface.Manifest.AssemblyVersion}###StagehandLibrary")
     {
         SizeConstraints = new WindowSizeConstraints
         {
@@ -89,6 +91,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
         _liveStageService = liveStageService;
         _editorService = editorService;
         _configWindow = configWindow;
+        _assetLibraryWindow = assetLibraryWindow;
         _localStageService = localStageService;
         _windowSystem = windowSystem;
         _configuration = configuration;
@@ -189,7 +192,19 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                 }
 
                 ImGui.TableNextColumn();
-                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - ImGuiComponents.GetIconButtonWithTextWidth(FontAwesomeIcon.Cog, ""));
+                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - ImGuiComponents.GetIconButtonWithTextWidth(FontAwesomeIcon.Cog, "") - ImGui.GetStyle().ItemInnerSpacing.X - ImGuiComponents.GetIconButtonWithTextWidth(FontAwesomeIcon.Cubes, ""));
+                if (ImGuiComponents.IconButton(IAssetLibraryWindow.Icon))
+                {
+                    _assetLibraryWindow.Show();
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    using (ImRaii.Tooltip())
+                    {
+                        ImGui.Text("Open the Asset Library");
+                    }
+                }
+                ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.Cog))
                 {
                     _configWindow.Show();
@@ -222,7 +237,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                             foreach (var localDefinition in _localDefinitionService.LocalDefinitions.OrderBy(pair => pair.Key, PathSorter.CurrentCultureIgnoreCase))
                             {
                                 // Leave any directories that we are currently in that we shouldn't be in
-                                while (!localDefinition.Key.StartsWith(directory) && directory.Length > 1 && ((directoryDepth > 0 || isInCollapsedDirectory)))
+                                while (directory.Length > 1 && !localDefinition.Key.StartsWith(directory + Path.DirectorySeparatorChar) && ((directoryDepth > 0 || isInCollapsedDirectory)))
                                 {
                                     if (!isInCollapsedDirectory)
                                     {
@@ -236,7 +251,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                                 // Enter any directories that are not already entered
                                 int nextDirectorySeparator = localDefinition.Key.IndexOf(Path.DirectorySeparatorChar, directory.Length + 1);
                                 bool isLeafVisible = !isInCollapsedDirectory;
-                                while (nextDirectorySeparator >= 0)
+                                while (!isInCollapsedDirectory && nextDirectorySeparator >= 0)
                                 {
                                     string subdirName = localDefinition.Key.Substring(directory.Length + 1, nextDirectorySeparator - directory.Length - 1);
 
@@ -457,6 +472,9 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                             int conditionIndex = 0;
                             foreach (var condition in selectedMetadata.AutomaticShowConditions)
                             {
+                                // Yeah, this is an n^2 lookup. Not ideal but I really don't think people will assign a Large(tm) number of auto show conditions to a single definition.
+                                var territoryInfo = _allTerritories.FirstOrDefault(territory => territory.Id == condition.TerritoryId);
+
                                 ImGui.TableNextRow();
 
                                 if (condition.Evaluate(location))
@@ -465,33 +483,44 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                                 }
 
                                 ImGui.TableNextColumn();
+                                ImGui.AlignTextToFramePadding();
                                 if (condition.WorldId != ushort.MaxValue)
                                 {
-                                    ImGui.AlignTextToFramePadding();
                                     using (ImRaii.Disabled(location.WorldId != condition.WorldId))
                                     {
                                         ImGui.Text($"{_dataManager.GetExcelSheet<World>().GetRow(condition.WorldId).Name}");
                                     }
                                 }
+                                else
+                                {
+                                    ImGui.TextDisabled("(All)");
+                                }
 
                                 ImGui.TableNextColumn();
                                 ImGui.AlignTextToFramePadding();
-                                ImGui.Text($"{_dataManager.GetExcelSheet<TerritoryType>().GetRow(condition.TerritoryId).PlaceName.ValueNullable?.Name} ({condition.TerritoryId})");
+                                using (ImRaii.Disabled(location.TerritoryId != condition.TerritoryId))
+                                {
+                                    ImGui.Text($"{_dataManager.GetExcelSheet<TerritoryType>().GetRow(condition.TerritoryId).PlaceName.ValueNullable?.Name} ({condition.TerritoryId})");
+                                }
 
                                 ImGui.TableNextColumn();
+                                ImGui.AlignTextToFramePadding();
                                 if (condition.WardId != ushort.MaxValue)
                                 {
-                                    ImGui.AlignTextToFramePadding();
                                     using (ImRaii.Disabled(location.WardId != condition.WardId))
                                     {
                                         ImGui.Text($"Ward {condition.WardId}");
                                     }
                                 }
+                                else if (territoryInfo != null && territoryInfo.IsInHousingWard)
+                                {
+                                    ImGui.TextDisabled("(All)");
+                                }
 
                                 ImGui.TableNextColumn();
+                                ImGui.AlignTextToFramePadding();
                                 if (condition.DivisionId != ushort.MaxValue)
                                 {
-                                    ImGui.AlignTextToFramePadding();
                                     using (ImRaii.Disabled(location.DivisionId != condition.DivisionId))
                                     {
                                         if (condition.DivisionId >= 1 && condition.DivisionId <= _divisions.Length)
@@ -504,11 +533,15 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                                         }
                                     }
                                 }
+                                else if (territoryInfo != null && territoryInfo.IsInHousingWard)
+                                {
+                                    ImGui.TextDisabled("(All)");
+                                }
 
                                 ImGui.TableNextColumn();
+                                ImGui.AlignTextToFramePadding();
                                 if (condition.HouseId != ushort.MaxValue)
                                 {
-                                    ImGui.AlignTextToFramePadding();
                                     using (ImRaii.Disabled(location.HouseId != condition.HouseId))
                                     {
                                         if (condition.HouseId >= 0 && condition.HouseId < _allHouses.Length)
@@ -521,15 +554,23 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                                         }
                                     }
                                 }
+                                else if (territoryInfo != null && territoryInfo.IsInHousingRoom)
+                                {
+                                    ImGui.TextDisabled("(All)");
+                                }
 
                                 ImGui.TableNextColumn();
+                                ImGui.AlignTextToFramePadding();
                                 if (condition.RoomId != ushort.MaxValue)
                                 {
-                                    ImGui.AlignTextToFramePadding();
                                     using (ImRaii.Disabled(location.RoomId != condition.RoomId))
                                     {
                                         ImGui.Text($"Room {condition.RoomId}");
                                     }
+                                }
+                                else if (territoryInfo != null && territoryInfo.IsInHousingRoom)
+                                {
+                                    ImGui.TextDisabled("(All)");
                                 }
 
                                 ImGui.TableNextColumn();
@@ -538,6 +579,13 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                                     var json = JsonSerializer.Serialize(condition);
                                     ImGui.SetClipboardText(json);
                                 }
+                                if (ImGui.IsItemHovered())
+                                {
+                                    using (ImRaii.Tooltip())
+                                    {
+                                        ImGui.Text("Copy auto load condition to clipboard");
+                                    }
+                                }
 
                                 ImGui.TableNextColumn();
                                 if (ImGuiComponents.IconButton($"###DeleteCondition{conditionIndex}", FontAwesomeIcon.Trash))
@@ -545,6 +593,13 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                                     var newConditions = selectedMetadata.AutomaticShowConditions.ToList();
                                     newConditions.RemoveAt(conditionIndex);
                                     _localDefinitionService.SetAutomaticShowConditions(_selectedLocalDefinitionFilename, newConditions);
+                                }
+                                if (ImGui.IsItemHovered())
+                                {
+                                    using (ImRaii.Tooltip())
+                                    {
+                                        ImGui.Text("Delete auto load condition");
+                                    }
                                 }
 
                                 conditionIndex += 1;
@@ -851,6 +906,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                 if (_allWorlds[i].Id == location.WorldId)
                 {
                     _autoLoadNewWorldIndex = i;
+                    _autoLoadNewUseWorld = true;
                 }
             }
 
@@ -865,6 +921,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
             if (location.WardId != -1)
             {
                 _autoLoadNewWardId = location.WardId;
+                _autoLoadNewUseWard = _autoLoadNewUseWorld;
             }
             else
             {
@@ -879,6 +936,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
             if (location.HouseId != -1)
             {
                 _autoLoadNewHouseId = location.HouseId;
+                _autoLoadNewUseHouse = _autoLoadNewUseWard;
             }
             else
             {

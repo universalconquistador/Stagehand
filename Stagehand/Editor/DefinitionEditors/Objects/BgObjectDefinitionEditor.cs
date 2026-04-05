@@ -1,6 +1,7 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
+using Dalamud.Interface.Components;
 using Dalamud.Interface.Style;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
@@ -9,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Stagehand.Definitions.Objects;
 using Stagehand.Editor.Services;
 using Stagehand.Services;
+using Stagehand.Windows;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -24,6 +26,7 @@ internal class BgObjectDefinitionEditor : ObjectDefinitionEditor<BgObjectDefinit
 
     private readonly IDataManager _dataManager;
     private readonly IEditorHitTestService _hitTestService;
+    private readonly IAssetLibraryWindow _assetLibraryWindow;
     private readonly EditorHitTestModel _hitTestModel;
 
     public string ModelGamePath
@@ -48,6 +51,7 @@ internal class BgObjectDefinitionEditor : ObjectDefinitionEditor<BgObjectDefinit
     {
         _dataManager = serviceProvider.GetRequiredService<IDataManager>();
         _hitTestService = serviceProvider.GetRequiredService<IEditorHitTestService>();
+        _assetLibraryWindow = serviceProvider.GetRequiredService<IAssetLibraryWindow>();
         _hitTestModel = new EditorHitTestModel(this, ModelGamePath, serviceProvider.GetRequiredService<IModelBvhCacheService>(), serviceProvider.GetRequiredService<IDataManager>())
         {
             Position = Position,
@@ -93,6 +97,15 @@ internal class BgObjectDefinitionEditor : ObjectDefinitionEditor<BgObjectDefinit
         _hitTestModel.ModelResourcePath = ModelGamePath;
     }
 
+    protected override void SetDisplayNameInternal(string displayName)
+    {
+        base.SetDisplayNameInternal(displayName);
+        if (IsSelected)
+        {
+            _assetLibraryWindow.SetSelectionCallback(DisplayName, "Model", AssetType.MdlResource, () => IsInStage && IsSelected, asset => ModelGamePath = asset.GamePath);
+        }
+    }
+
     public override void RemovedFromStage()
     {
         _hitTestService.RemoveShape(_hitTestModel);
@@ -100,12 +113,19 @@ internal class BgObjectDefinitionEditor : ObjectDefinitionEditor<BgObjectDefinit
         base.RemovedFromStage();
     }
 
+    public override void Selected()
+    {
+        base.Selected();
+
+        _assetLibraryWindow.SetSelectionCallback(DisplayName, "Model", AssetType.MdlResource, () => IsInStage && IsSelected, asset => ModelGamePath = asset.GamePath);
+    }
+
     protected override void OnDrawProperties()
     {
         base.OnDrawProperties();
 
         string modelGamePath = ModelGamePath;
-        if (ImGui.InputText("Model (Game Path: .mdl)", ref modelGamePath, 1024, ImGuiInputTextFlags.EnterReturnsTrue))
+        if (ImGui.InputText("Model", ref modelGamePath, 1024, ImGuiInputTextFlags.EnterReturnsTrue))
         {
             ModelGamePath = modelGamePath;
         }
@@ -124,6 +144,18 @@ internal class BgObjectDefinitionEditor : ObjectDefinitionEditor<BgObjectDefinit
             using (ImRaii.Tooltip())
             {
                 ImGui.TextUnformatted(exists ? "Game path exists" : "Game path does not exist");
+            }
+        }
+        ImGui.SameLine(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight());
+        if (ImGuiComponents.IconButton(IAssetLibraryWindow.Icon, new Vector2(ImGui.GetFrameHeight(), ImGui.GetFrameHeight())))
+        {
+            _assetLibraryWindow.Show();
+        }
+        if (ImGui.IsItemHovered())
+        {
+            using (ImRaii.Tooltip())
+            {
+                ImGui.TextUnformatted("Open the Asset Library");
             }
         }
 

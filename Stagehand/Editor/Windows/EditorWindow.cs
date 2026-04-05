@@ -52,6 +52,8 @@ internal class EditorWindow : Window, IDisposable
         _definition = definition;
         _definitionEditor = new StageDefinitionEditor(_serviceScope.ServiceProvider, definition);
         _outliner.RootNode = _definitionEditor.OutlinerNode;
+        _selectionManager.SelectedEditor = _definitionEditor;
+        _transactionManager.ClearHistory();
     }
 
     private void SaveDefinition()
@@ -206,14 +208,7 @@ internal class EditorWindow : Window, IDisposable
         var addMenuWidth = 75.0f * ImGuiHelpers.GlobalScale;
         ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - addMenuWidth);
         ImGui.SetNextItemWidth(addMenuWidth);
-        ImRaii.IEndObject? addMenu;
-        using (ImRaii.PushColor(ImGuiCol.FrameBg, ImGui.GetStyle().Colors[(int)ImGuiCol.Button]))
-        using (ImRaii.PushColor(ImGuiCol.FrameBgActive, ImGui.GetStyle().Colors[(int)ImGuiCol.ButtonActive]))
-        using (ImRaii.PushColor(ImGuiCol.FrameBgHovered, ImGui.GetStyle().Colors[(int)ImGuiCol.ButtonHovered]))
-        {
-            addMenu = ImRaii.Combo("###AddMenu", "Create");
-        }
-        using (addMenu)
+        using (var addMenu = Utils.ImGuiExtensions.DropdownButton("###AddMenu", "Create"))
         {
             if (addMenu.Success)
             {
@@ -238,7 +233,7 @@ internal class EditorWindow : Window, IDisposable
         // Properties
         if (_selectionManager.SelectedEditor != null)
         {
-            DrawPropertiesHeader(_selectionManager.SelectedEditor.DisplayName, _selectionManager.SelectedEditor.TypeInfo.DisplayName, _selectionManager.SelectedEditor.TypeInfo.Icon, _selectionManager.SelectedEditor.TypeInfo.Description);
+            Utils.ImGuiExtensions.PropertiesHeader(_selectionManager.SelectedEditor.DisplayName, _selectionManager.SelectedEditor.TypeInfo.DisplayName, _selectionManager.SelectedEditor.TypeInfo.Icon, _selectionManager.SelectedEditor.TypeInfo.Description, out _);
             using (var propertiesPanel = ImRaii.Child("###PropertiesPanel", ImGui.GetContentRegionAvail(), border: false))
             {
                 if (propertiesPanel.Success)
@@ -386,46 +381,6 @@ internal class EditorWindow : Window, IDisposable
                     }
                 }
             }
-        }
-    }
-
-    private void DrawPropertiesHeader(string displayName, string typeDisplayName, FontAwesomeIcon icon, string typeDescription, bool spaceAfter = true)
-    {
-        ImGui.Indent(2.0f);
-        ImGuiHelpers.ScaledDummy(1);
-        if (icon != FontAwesomeIcon.None)
-        {
-            using (ImRaii.PushFont(UiBuilder.IconFont))
-            {
-                ImGui.TextUnformatted(icon.ToIconString());
-            }
-        }
-        ImGui.SameLine();
-        ImGui.TextUnformatted(displayName);
-        ImGuiHelpers.ScaledDummy(0.5f);
-        ImGui.TextDisabled(typeDisplayName);
-
-        if (ImGui.IsItemHovered() && !string.IsNullOrEmpty(typeDescription))
-        {
-            using (ImRaii.Tooltip())
-            using (ImRaii.TextWrapPos(250.0f * ImGuiHelpers.GlobalScale))
-            {
-                ImGui.TextWrapped(typeDescription);
-            }
-        }
-
-        ImGuiHelpers.ScaledDummy(1);
-        ImGui.Indent(-2);
-        ImGui.Separator();
-        ImGui.Indent(2);
-
-        if (spaceAfter)
-        {
-            ImGuiHelpers.ScaledDummy(1.0f);
-        }
-        else
-        {
-            ImGui.SetCursorPosY(ImGui.GetCursorPosY() - ImGui.GetStyle().ItemSpacing.Y);
         }
     }
 

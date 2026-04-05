@@ -19,13 +19,17 @@ internal static class ImGuiExtensions
     public static void FilterBox(ImU8String hint, ref string currentFilter)
     {
         var icon = FontAwesomeIcon.Times;
-        var clearButtonWidth = ImGui.GetFrameHeight();
-        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - clearButtonWidth - ImGui.GetStyle().ItemInnerSpacing.X);
+        var clearButtonWidth = 0.0f;
+        clearButtonWidth = ImGui.GetFrameHeight();
+        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - (currentFilter.Length > 0 ? clearButtonWidth + ImGui.GetStyle().ItemInnerSpacing.X : 0));
         ImGui.InputTextWithHint("##SearchFilter", hint, ref currentFilter, 2048);
-        ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
-        if (ImGuiComponents.IconButton(icon, new Vector2(clearButtonWidth, clearButtonWidth)))
+        if (currentFilter.Length > 0)
         {
-            currentFilter = string.Empty;
+            ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
+            if (ImGuiComponents.IconButton(icon, new Vector2(clearButtonWidth, clearButtonWidth)))
+            {
+                currentFilter = string.Empty;
+            }
         }
     }
 
@@ -154,5 +158,56 @@ internal static class ImGuiExtensions
         }
 
         return result;
+    }
+
+    public static void PropertiesHeader(string displayName, string typeDisplayName, FontAwesomeIcon icon, string typeDescription, out bool isDisplayNameHovered, bool spaceAfter = true)
+    {
+        ImGui.Indent(2.0f);
+        ImGuiHelpers.ScaledDummy(1);
+        if (icon != FontAwesomeIcon.None)
+        {
+            using (ImRaii.PushFont(UiBuilder.IconFont))
+            {
+                ImGui.TextUnformatted(icon.ToIconString());
+            }
+        }
+        ImGui.SameLine();
+        ImGui.TextUnformatted(displayName);
+        isDisplayNameHovered = ImGui.IsItemHovered();
+        ImGuiHelpers.ScaledDummy(0.5f);
+        ImGui.TextDisabled(typeDisplayName);
+
+        if (ImGui.IsItemHovered() && !string.IsNullOrEmpty(typeDescription))
+        {
+            using (ImRaii.Tooltip())
+            using (ImRaii.TextWrapPos(250.0f * ImGuiHelpers.GlobalScale))
+            {
+                ImGui.TextWrapped(typeDescription);
+            }
+        }
+
+        ImGuiHelpers.ScaledDummy(1);
+        ImGui.Indent(-2);
+        ImGui.Separator();
+        ImGui.Indent(2);
+
+        if (spaceAfter)
+        {
+            ImGuiHelpers.ScaledDummy(1.0f);
+        }
+        else
+        {
+            ImGui.SetCursorPosY(ImGui.GetCursorPosY() - ImGui.GetStyle().ItemSpacing.Y);
+        }
+    }
+
+    public static ImRaii.IEndObject DropdownButton(ImU8String id, ImU8String label)
+    {
+        using (ImRaii.PushColor(ImGuiCol.FrameBg, ImGui.GetStyle().Colors[(int)ImGuiCol.Button]))
+        using (ImRaii.PushColor(ImGuiCol.FrameBgActive, ImGui.GetStyle().Colors[(int)ImGuiCol.ButtonActive]))
+        using (ImRaii.PushColor(ImGuiCol.FrameBgHovered, ImGui.GetStyle().Colors[(int)ImGuiCol.ButtonHovered]))
+        {
+            return ImRaii.Combo(id, label);
+        }
     }
 }

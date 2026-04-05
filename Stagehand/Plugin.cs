@@ -1,3 +1,4 @@
+global using Microsoft.Extensions.Logging; // Stop autoimporting Lumina logging!!!!!!!!
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Command;
 using Dalamud.Interface.Utility;
@@ -8,7 +9,6 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Stagehand.Editor;
 using Stagehand.Editor.Services;
 using Stagehand.Editor.Tools;
@@ -105,6 +105,8 @@ public sealed class Plugin : IDalamudPlugin
 
             services.AddSingleton<IConfigWindow, ConfigWindow>();
             services.AddHostedService(services => services.GetRequiredService<IConfigWindow>());
+            services.AddSingleton<IAssetLibraryWindow, AssetLibraryWindow>();
+            services.AddHostedService(services => services.GetRequiredService<IAssetLibraryWindow>());
             services.AddHostedService<DebugWindow>();
             services.AddHostedService<LibraryWindow>();
             services.AddSingleton<LocalStageService>();

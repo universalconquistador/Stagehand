@@ -71,6 +71,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
     public StageDefinitionEditor Stage { get; }
     public OutlinerNode OutlinerNode { get; }
     public ILiveObject? PreviewLiveObject { get; protected set; }
+    public bool IsInStage { get; private set; }
 
     public override string DisplayName => Definition.DisplayName;
 
@@ -144,7 +145,13 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
 
     public void SetDisplayName(string displayName)
     {
-        SetPropertyValue(value => { Definition.DisplayName = value; OutlinerNode.DisplayName = value; }, displayName, DisplayName, "Display Name");
+        SetPropertyValue(SetDisplayNameInternal, displayName, DisplayName, "Display Name");
+    }
+
+    protected virtual void SetDisplayNameInternal(string displayName)
+    {
+        Definition.DisplayName = displayName;
+        OutlinerNode.DisplayName = displayName;
     }
 
     protected override void OnDrawProperties()
@@ -239,6 +246,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
     {
         PreviewLiveObject = LiveObjectService.CreateObject(Definition);
         OverlayService.DrawOverlays += DrawOverlays;
+        IsInStage = true;
     }
 
     public virtual void RefreshPreviewObject()
@@ -248,6 +256,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
 
     public virtual void RemovedFromStage()
     {
+        IsInStage = false;
         OverlayService.DrawOverlays -= DrawOverlays;
         PreviewLiveObject?.Dispose();
         PreviewLiveObject = null;

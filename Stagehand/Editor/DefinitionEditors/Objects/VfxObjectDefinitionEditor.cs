@@ -1,12 +1,14 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
+using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Stagehand.Definitions.Objects;
+using Stagehand.Windows;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -21,6 +23,7 @@ internal class VfxObjectDefinitionEditor : ObjectDefinitionEditor<VfxObjectDefin
     public override DefinitionTypeInfo TypeInfo => StaticTypeInfo;
 
     private readonly IDataManager _dataManager;
+    private readonly IAssetLibraryWindow _assetLibraryWindow;
 
     public string VfxGamePath
     {
@@ -37,6 +40,23 @@ internal class VfxObjectDefinitionEditor : ObjectDefinitionEditor<VfxObjectDefin
     public VfxObjectDefinitionEditor(IServiceProvider serviceProvider, VfxObjectDefinition definition, string key, StageDefinitionEditor stage) : base(serviceProvider, definition, key, stage)
     {
         _dataManager = serviceProvider.GetRequiredService<IDataManager>();
+        _assetLibraryWindow = serviceProvider.GetRequiredService<IAssetLibraryWindow>();
+    }
+
+    protected override void SetDisplayNameInternal(string displayName)
+    {
+        base.SetDisplayNameInternal(displayName);
+        if (IsSelected)
+        {
+            _assetLibraryWindow.SetSelectionCallback(DisplayName, "VFX", AssetType.AvfxResource, () => IsInStage && IsSelected, asset => VfxGamePath = asset.GamePath);
+        }
+    }
+
+    public override void Selected()
+    {
+        base.Selected();
+
+        _assetLibraryWindow.SetSelectionCallback(DisplayName, "VFX", AssetType.AvfxResource, () => IsInStage && IsSelected, asset => VfxGamePath = asset.GamePath);
     }
 
     protected override void OnDrawProperties()
@@ -63,6 +83,18 @@ internal class VfxObjectDefinitionEditor : ObjectDefinitionEditor<VfxObjectDefin
             using (ImRaii.Tooltip())
             {
                 ImGui.TextUnformatted(exists ? "Game path exists" : "Game path does not exist");
+            }
+        }
+        ImGui.SameLine(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight());
+        if (ImGuiComponents.IconButton(IAssetLibraryWindow.Icon, new Vector2(ImGui.GetFrameHeight(), ImGui.GetFrameHeight())))
+        {
+            _assetLibraryWindow.Show();
+        }
+        if (ImGui.IsItemHovered())
+        {
+            using (ImRaii.Tooltip())
+            {
+                ImGui.TextUnformatted("Open the Asset Library");
             }
         }
 
