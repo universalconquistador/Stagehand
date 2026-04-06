@@ -31,6 +31,7 @@ Not yet implemented: (in no particular order)
  - ~~Undo + redo~~
  - ~~3D light widgets to show spot light cone angle, etc~~
  - Better resource browsing for model & VFX resources
+ - Public website for documentation
  - IPC API to facilitate e.g. sync services
 
 Later down the road:

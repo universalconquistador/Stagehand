@@ -24,6 +24,12 @@ using System.Threading.Tasks;
 
 namespace Stagehand.Windows;
 
+/// <summary>
+/// A type of asset in the asset library.
+/// </summary>
+/// <param name="DisplayName">The user-facing name of this asset type.</param>
+/// <param name="DisplayDescription">The description of this asset type.</param>
+/// <param name="Icon">The icon for this asset type.</param>
 public record class AssetType(string DisplayName, string DisplayDescription, FontAwesomeIcon Icon)
 {
     public static readonly AssetType<MdlResourceAssetInfo> MdlResource = new("Model Resource", ".mdl", FontAwesomeIcon.Cube);
@@ -33,22 +39,37 @@ public record class AssetType(string DisplayName, string DisplayDescription, Fon
 
 public record class AssetType<TAssetInfo>(string DisplayName, string DisplayDescription, FontAwesomeIcon Icon) : AssetType(DisplayName, DisplayDescription, Icon);
 
+/// <summary>
+/// The base class for information about an asset in the asset library.
+/// </summary>
 public record class AssetInfo(string DisplayName, AssetType Type, string ID)
 {
+    /// <summary>
+    /// Draws the properties of this asset into the selected asset pane of the asset library.
+    /// </summary>
     public virtual void DrawProperties()
     { }
 
+    /// <summary>
+    /// Creates a live object at the given location and rotation to preview this asset.
+    /// </summary>
     public virtual ILiveObject? CreatePreviewObject(ILiveObjectService liveObjectService, Vector3 location, Quaternion rotation)
     {
         return null;
     }
 
+    /// <summary>
+    /// Creates a new object definition for adding this asset to a Stage definition.
+    /// </summary>
     public virtual ObjectDefinition? CreateObjectDefinition(Vector3 location, Quaternion rotation)
     {
         return null;
     }
 }
 
+/// <summary>
+/// Asset info for a resource in the game's files.
+/// </summary>
 public record class ResourceAssetInfo(string DisplayName, AssetType Type, string GamePath) : AssetInfo(DisplayName, Type, GamePath)
 {
     public override void DrawProperties()
@@ -72,6 +93,9 @@ public record class ResourceAssetInfo(string DisplayName, AssetType Type, string
     }
 }
 
+/// <summary>
+/// Asset info for a model resource (*.mdl)
+/// </summary>
 public record class MdlResourceAssetInfo(string DisplayName, AssetType Type, string GamePath) : ResourceAssetInfo(DisplayName, Type, GamePath)
 {
     public override ILiveObject? CreatePreviewObject(ILiveObjectService liveObjectService, Vector3 location, Quaternion rotation)
@@ -91,6 +115,9 @@ public record class MdlResourceAssetInfo(string DisplayName, AssetType Type, str
     }
 }
 
+/// <summary>
+/// Asset info for a VFX resource (*.avfx)
+/// </summary>
 public record class AvfxResourceAssetInfo(string DisplayName, AssetType Type, string GamePath) : ResourceAssetInfo(DisplayName, Type, GamePath)
 {
     public override ILiveObject? CreatePreviewObject(ILiveObjectService liveObjectService, Vector3 location, Quaternion rotation)
@@ -110,14 +137,48 @@ public record class AvfxResourceAssetInfo(string DisplayName, AssetType Type, st
     }
 }
 
+/// <summary>
+/// A window where users can browse the various assets available to them.
+/// </summary>
 public interface IAssetLibraryWindow : IHostedService
 {
+    /// <summary>
+    /// The icon that represents the asset library window.
+    /// </summary>
     public const FontAwesomeIcon Icon = FontAwesomeIcon.Cubes;
 
+    /// <summary>
+    /// Whether the Asset Library window is open.
+    /// </summary>
     bool IsOpen { get; }
+
+    /// <summary>
+    /// Raised when the user requests to create an object definition from an asset.
+    /// </summary>
+    /// <remarks>
+    /// Whether this event has any handlers determines whether the Create button is visible.
+    /// </remarks>
     event Action<ObjectDefinition> CreateObject;
+
+    /// <summary>
+    /// Shows the Asset Library window and brings it to the front of the window order.
+    /// </summary>
     void Show();
+
+    /// <summary>
+    /// Hides the Asset Library window.
+    /// </summary>
     void Hide();
+
+    /// <summary>
+    /// Sets the callback to use for assigning an asset from the Asset Library window.
+    /// </summary>
+    /// <typeparam name="TAssetInfo">The type of asset info that can be selected.</typeparam>
+    /// <param name="objectName">The name of the object whose property will be set.</param>
+    /// <param name="propertyName">The name of the property that the assignment will set.</param>
+    /// <param name="assetType">The type of asset to select.</param>
+    /// <param name="stillValidCallback">A callback to test whether this is still valid.</param>
+    /// <param name="selectCallback">The callback to invoke to assign an asset.</param>
     void SetSelectionCallback<TAssetInfo>(string objectName, string propertyName, AssetType<TAssetInfo> assetType, Func<bool> stillValidCallback, Action<TAssetInfo> selectCallback);
 }
 
