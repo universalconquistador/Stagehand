@@ -16,6 +16,7 @@ using Stagehand.Utils;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Text.Json;
@@ -188,6 +189,15 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
 
     private record class PathCache(List<string> MdlPaths, List<string> AvfxPaths);
 
+    private record class TreeNode(string DisplayName, FontAwesomeIcon Icon, IEnumerable<TreeNode> ChildNodes, bool CanSelect)
+    {
+        public bool IsVisibleInFilter { get; set; } = true;
+    }
+
+    private record class ResourceTreeNode(ResourceAssetInfo Resource) : TreeNode(Resource.DisplayName, Resource.Type.Icon, Array.Empty<TreeNode>(), CanSelect: true);
+
+    private record class FolderTreeNode(string DisplayName, List<FolderTreeNode> ChildFolderNodeList, List<TreeNode> ChildNodeList) : TreeNode(DisplayName, FontAwesomeIcon.Folder, ChildFolderNodeList.Concat(ChildNodeList), CanSelect: false);
+
     private interface ISelectionCallback
     {
         string ObjectName { get; }
@@ -227,7 +237,7 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
     private readonly AssetLibraryTab[] _allTabs;
     private ISelectionCallback? _activeSelectionCallback;
 
-    private readonly ResourceAssetInfo[] _gameResources;
+    private readonly IReadOnlyList<TreeNode> _gameResourceRootNodes;
 
     private HoverPreviewMode HoverPreviewMode
     {
@@ -304,21 +314,95 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
         var pathCache = JsonSerializer.Deserialize<PathCache>(pathCacheBytes);
         if (pathCache != null)
         {
-            _gameResources = new ResourceAssetInfo[pathCache.MdlPaths.Count + pathCache.AvfxPaths.Count];
-            for (int i = 0; i < pathCache.MdlPaths.Count; i++)
+            List<FolderTreeNode> rootFolders = new();
+            List<TreeNode> rootNodes = new();
+            Dictionary<string, FolderTreeNode> folderNodes = new();
+
+            Func<string, FolderTreeNode> addOrGetFolderNode = null!;
+            addOrGetFolderNode = path =>
             {
-                _gameResources[i] = new MdlResourceAssetInfo(System.IO.Path.GetFileNameWithoutExtension(pathCache.MdlPaths[i]), AssetType.MdlResource, pathCache.MdlPaths[i]);
-            }
-            for (int i = 0; i < pathCache.AvfxPaths.Count; i++)
+                if (folderNodes.TryGetValue(path, out var existingNode))
+                {
+                    return existingNode;
+                }
+                else
+                {
+                    var newNode = new FolderTreeNode(Path.GetFileName(path), new(), new());
+
+                    var lastSlash = path.LastIndexOf('/');
+                    if (lastSlash > 0)
+                    {
+                        var parentNode = addOrGetFolderNode(path.Substring(0, lastSlash));
+                        parentNode.ChildNodeList.Add(newNode);
+                    }
+                    else
+                    {
+                        rootFolders.Add(newNode);
+                    }
+
+                    folderNodes[path] = newNode;
+
+                    return newNode;
+                }
+            };
+
+            foreach (var mdlPath in pathCache.MdlPaths)
             {
-                _gameResources[pathCache.MdlPaths.Count + i] = new AvfxResourceAssetInfo(System.IO.Path.GetFileNameWithoutExtension(pathCache.AvfxPaths[i]), AssetType.AvfxResource, pathCache.AvfxPaths[i]);
+                var resource = new MdlResourceAssetInfo(Path.GetFileNameWithoutExtension(mdlPath), AssetType.MdlResource, mdlPath);
+
+                var newNode = new ResourceTreeNode(resource);
+                var lastSlash = mdlPath.LastIndexOf('/');
+                if (lastSlash > 0)
+                {
+                    var parentNode = addOrGetFolderNode(mdlPath.Substring(0, lastSlash));
+                    parentNode.ChildNodeList.Add(newNode);
+                }
+                else
+                {
+                    rootNodes.Add(newNode);
+                }
             }
-            _gameResources.Sort((x, y) => Utils.PathSorter.CurrentCultureIgnoreCase.Compare(x.GamePath, y.GamePath));
+
+            foreach (var avfxPath in pathCache.AvfxPaths)
+            {
+                var resource = new AvfxResourceAssetInfo(Path.GetFileNameWithoutExtension(avfxPath), AssetType.AvfxResource, avfxPath);
+
+                var newNode = new ResourceTreeNode(resource);
+                var lastSlash = avfxPath.LastIndexOf('/');
+                if (lastSlash > 0)
+                {
+                    var parentNode = addOrGetFolderNode(avfxPath.Substring(0, lastSlash));
+                    parentNode.ChildNodeList.Add(newNode);
+                }
+                else
+                {
+                    rootNodes.Add(newNode);
+                }
+            }
+
+            Action<FolderTreeNode> sortFolder = null!;
+            sortFolder = folder =>
+            {
+                folder.ChildNodeList.Sort((a, b) => a.DisplayName.CompareTo(b.DisplayName, StringComparison.CurrentCultureIgnoreCase));
+                folder.ChildFolderNodeList.Sort((a, b) => a.DisplayName.CompareTo(b.DisplayName, StringComparison.CurrentCultureIgnoreCase));
+
+                foreach (var childFolder in folder.ChildFolderNodeList)
+                {
+                    sortFolder(childFolder);
+                }
+            };
+            foreach (var rootFolder in rootFolders)
+            {
+                sortFolder(rootFolder);
+            }
+            rootNodes.Sort((a, b) => a.DisplayName.CompareTo(b.DisplayName, StringComparison.CurrentCultureIgnoreCase));
+
+            _gameResourceRootNodes = rootFolders.Concat(rootNodes).ToArray();
         }
         else
         {
             _logger.LogError("Failed to parse path cache!");
-            _gameResources = Array.Empty<ResourceAssetInfo>();
+            _gameResourceRootNodes = Array.Empty<TreeNode>();
         }
     }
 
@@ -508,9 +592,32 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
         _activeSelectionCallback = new SelectionCallback<TAssetInfo>(objectName, propertyName, assetType, stillValidCallback, selectCallback);
     }
 
+    private void RefreshNodeFilter(TreeNode node, string filter)
+    {
+        bool anyChildVisible = false;
+        foreach (var child in node.ChildNodes)
+        {
+            RefreshNodeFilter(child, filter);
+            if (child.IsVisibleInFilter)
+            {
+                anyChildVisible = true;
+            }
+        }
+
+        node.IsVisibleInFilter = anyChildVisible || node.DisplayName.Contains(filter, StringComparison.CurrentCultureIgnoreCase);
+    }
+
     private void DrawGameResourcesTab()
     {
+        string prevFilter = _gameResourcesFilter;
         Utils.ImGuiExtensions.FilterBox("Filter"u8, ref _gameResourcesFilter);
+        if (_gameResourcesFilter != prevFilter)
+        {
+            foreach (var rootNode in _gameResourceRootNodes)
+            {
+                RefreshNodeFilter(rootNode, _gameResourcesFilter);
+            }
+        }
 
         AssetInfo? hoveredAsset = null;
 
@@ -521,105 +628,69 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
             {
                 const ImGuiTreeNodeFlags commonFlags = ImGuiTreeNodeFlags.SpanFullWidth | ImGuiTreeNodeFlags.AllowItemOverlap /* | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.OpenOnDoubleClick */ | ImGuiTreeNodeFlags.FramePadding;
 
-                string directory = "";
-                int directoryDepth = 0;
-                bool isInCollapsedDirectory = false;
                 var defaultItemSpacing = ImGui.GetStyle().ItemSpacing;
                 using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero))
                 {
-                    foreach (var resource in _gameResources)
+                    Action<TreeNode> drawTreeNode = null!;
+                    drawTreeNode = node =>
                     {
-                        if (_gameResourcesFilter.Length > 0 && !resource.GamePath.Contains(_gameResourcesFilter, StringComparison.CurrentCultureIgnoreCase))
+                        if (!node.IsVisibleInFilter)
                         {
-                            continue;
+                            return;
                         }
 
-                        // Leave any directories that we are currently in that we shouldn't be in
-                        while (directory.Length > 1 && !resource.GamePath.StartsWith(directory + '/') && ((directoryDepth > 0 || isInCollapsedDirectory)))
+                        var flags = commonFlags;
+                        if (!node.ChildNodes.Any(child => child.IsVisibleInFilter))
                         {
-                            if (!isInCollapsedDirectory)
-                            {
-                                ImGui.TreePop();
-                                directoryDepth -= 1;
-                            }
-                            isInCollapsedDirectory = false;
-                            var priorSeparator = directory.LastIndexOf('/', directory.Length - 2);
-                            directory = priorSeparator >= 0 ? directory.Substring(0, priorSeparator) : string.Empty;
+                            flags |= ImGuiTreeNodeFlags.Leaf;
                         }
 
-                        // Enter any directories that are not already entered
-                        int nextDirectorySeparator = resource.GamePath.IndexOf('/', directory.Length + 1);
-                        bool isLeafVisible = !isInCollapsedDirectory;
-                        while (!isInCollapsedDirectory && nextDirectorySeparator >= 0)
+                        if (node is ResourceTreeNode resourceNode && resourceNode.Resource == _selectedAssetInfo)
                         {
-                            string subdirName = resource.GamePath.Substring(directory.Length > 0 ? directory.Length + 1 : 0, directory.Length > 0 ? nextDirectorySeparator - directory.Length - 1 : nextDirectorySeparator);
-
-                            // The directory's treenode
-
-                            bool enteredDirectory;
-                            using (ImRaii.PushFont(UiBuilder.IconFont))
-                            {
-                                enteredDirectory = ImGui.TreeNodeEx($"{FontAwesomeIcon.Folder.ToIconString()}###{subdirName}", commonFlags);
-                            }
-
-                            ImGui.SameLine();
-                            ImGui.TextUnformatted($"  {subdirName}");
-
-                            if (directory.Length > 0)
-                            {
-                                directory += '/';
-                            }
-                            directory += subdirName;
-                            if (enteredDirectory)
-                            {
-                                isInCollapsedDirectory = false;
-                                directoryDepth += 1;
-                                nextDirectorySeparator = resource.GamePath.IndexOf('/', directory.Length + 1);
-                            }
-                            else
-                            {
-                                isLeafVisible = false;
-                                isInCollapsedDirectory = true;
-                                break;
-                            }
+                            flags |= ImGuiTreeNodeFlags.Selected;
                         }
 
-                        if (isLeafVisible)
+                        using (ImRaii.PushFont(UiBuilder.IconFont))
+                        using (var fileTreeNode = ImRaii.TreeNode($"{node.Icon.ToIconString()}###{node.DisplayName}", flags))
                         {
-                            // The file's treenode
-                            using (ImRaii.PushFont(UiBuilder.IconFont))
-                            using (var fileTreeNode = ImRaii.TreeNode($"{resource.Type.Icon.ToIconString()}###{resource.GamePath}", commonFlags | ImGuiTreeNodeFlags.Leaf | (resource == _selectedAssetInfo ? ImGuiTreeNodeFlags.Selected : ImGuiTreeNodeFlags.None)))
+                            if (node.CanSelect && ImGui.IsItemClicked() && node is ResourceTreeNode resourceNodeSelect)
                             {
-                                if (ImGui.IsItemClicked())
+                                _selectedAssetInfo = resourceNodeSelect.Resource;
+                            }
+
+                            using (ImRaii.DefaultFont())
+                            {
+                                if (ImGui.IsItemHovered() && node is ResourceTreeNode resourceNodeHover)
                                 {
-                                    _selectedAssetInfo = resource;
-                                }
+                                    var resource = resourceNodeHover.Resource;
+                                    hoveredAsset = resource;
 
-                                using (ImRaii.DefaultFont())
-                                {
-                                    if (ImGui.IsItemHovered())
+                                    using (ImRaii.Tooltip())
+                                    using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, defaultItemSpacing))
                                     {
-                                        hoveredAsset = resource;
-
-                                        using (ImRaii.Tooltip())
-                                        using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, defaultItemSpacing))
-                                        {
-                                            ImGui.TextUnformatted(resource.GamePath);
-                                            ImGui.Separator();
-                                            ImGui.TextDisabled(resource.Type.DisplayName);
-                                        }
+                                        ImGui.TextUnformatted(resource.GamePath);
+                                        ImGui.Separator();
+                                        ImGui.TextDisabled(resource.Type.DisplayName);
                                     }
+                                }
 
-                                    ImGui.SameLine();
-                                    ImGui.TextUnformatted($"  {resource.DisplayName}");
+                                ImGui.SameLine();
+                                ImGui.TextUnformatted($"  {node.DisplayName}");
+                            }
+
+                            if (fileTreeNode.Success)
+                            {
+                                foreach (var child in node.ChildNodes)
+                                {
+                                    drawTreeNode(child);
                                 }
                             }
                         }
-                    }
+                    };
 
-                    for (int i = 0; i < directoryDepth; i++)
+                    foreach (var rootNode in _gameResourceRootNodes)
                     {
-                        ImGui.TreePop();
+                        drawTreeNode(rootNode);
                     }
                 }
             }
