@@ -6,8 +6,11 @@ using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Common.Lua;
 using Microsoft.Extensions.Hosting;
+using Stagehand.Definitions.Objects;
 using Stagehand.Editor.DefinitionEditors.Objects;
+using Stagehand.Live;
 using Stagehand.Services;
 using Stagehand.Utils;
 using System;
@@ -23,8 +26,8 @@ namespace Stagehand.Windows;
 
 public record class AssetType(string DisplayName, string DisplayDescription, FontAwesomeIcon Icon)
 {
-    public static readonly AssetType<ResourceAssetInfo> MdlResource = new("Model Resource", ".mdl", FontAwesomeIcon.Cube);
-    public static readonly AssetType<ResourceAssetInfo> AvfxResource = new("VFX Resource", ".avfx", FontAwesomeIcon.WandSparkles);
+    public static readonly AssetType<MdlResourceAssetInfo> MdlResource = new("Model Resource", ".mdl", FontAwesomeIcon.Cube);
+    public static readonly AssetType<AvfxResourceAssetInfo> AvfxResource = new("VFX Resource", ".avfx", FontAwesomeIcon.WandSparkles);
     public static readonly AssetType<ResourceAssetInfo> SgbResource = new("Shared Group Resource", ".sgb", FontAwesomeIcon.Archive);
 }
 
@@ -34,6 +37,16 @@ public record class AssetInfo(string DisplayName, AssetType Type, string ID)
 {
     public virtual void DrawProperties()
     { }
+
+    public virtual ILiveObject? CreatePreviewObject(ILiveObjectService liveObjectService, Vector3 location, Quaternion rotation)
+    {
+        return null;
+    }
+
+    public virtual ObjectDefinition? CreateObjectDefinition(Vector3 location, Quaternion rotation)
+    {
+        return null;
+    }
 }
 
 public record class ResourceAssetInfo(string DisplayName, AssetType Type, string GamePath) : AssetInfo(DisplayName, Type, GamePath)
@@ -59,11 +72,50 @@ public record class ResourceAssetInfo(string DisplayName, AssetType Type, string
     }
 }
 
+public record class MdlResourceAssetInfo(string DisplayName, AssetType Type, string GamePath) : ResourceAssetInfo(DisplayName, Type, GamePath)
+{
+    public override ILiveObject? CreatePreviewObject(ILiveObjectService liveObjectService, Vector3 location, Quaternion rotation)
+    {
+        return liveObjectService.CreateBgObject(GamePath, location, rotation, Vector3.One);
+    }
+
+    public override ObjectDefinition? CreateObjectDefinition(Vector3 location, Quaternion rotation)
+    {
+        return new BgObjectDefinition()
+        {
+            DisplayName = DisplayName,
+            ModelGamePath = GamePath,
+            Position = location,
+            RotationQuaternion = rotation,
+        };
+    }
+}
+
+public record class AvfxResourceAssetInfo(string DisplayName, AssetType Type, string GamePath) : ResourceAssetInfo(DisplayName, Type, GamePath)
+{
+    public override ILiveObject? CreatePreviewObject(ILiveObjectService liveObjectService, Vector3 location, Quaternion rotation)
+    {
+        return liveObjectService.CreateVfx(GamePath, location, rotation, Vector3.One, Vector4.One);
+    }
+
+    public override ObjectDefinition? CreateObjectDefinition(Vector3 location, Quaternion rotation)
+    {
+        return new VfxObjectDefinition()
+        {
+            DisplayName = DisplayName,
+            VfxGamePath = GamePath,
+            Position = location,
+            RotationQuaternion = rotation,
+        };
+    }
+}
+
 public interface IAssetLibraryWindow : IHostedService
 {
     public const FontAwesomeIcon Icon = FontAwesomeIcon.Cubes;
 
     bool IsOpen { get; }
+    event Action<ObjectDefinition> CreateObject;
     void Show();
     void Hide();
     void SetSelectionCallback<TAssetInfo>(string objectName, string propertyName, AssetType<TAssetInfo> assetType, Func<bool> stillValidCallback, Action<TAssetInfo> selectCallback);
@@ -71,13 +123,6 @@ public interface IAssetLibraryWindow : IHostedService
 
 internal class AssetLibraryWindow : Window, IAssetLibraryWindow
 {
-    private enum HoverPreviewMode
-    {
-        None,
-        NearPlayer,
-        EditorObject,
-    }
-
     private record class AssetLibraryTab(string DisplayName, Action DrawAction);
 
     private record class PathCache(List<string> MdlPaths, List<string> AvfxPaths);
@@ -112,6 +157,10 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
     }
 
     private readonly ILogger _logger;
+    private readonly ILiveObjectService _liveObjectService;
+    private readonly IObjectTable _objectTable;
+    private readonly IOverlayService _overlayService;
+    private readonly StagehandConfiguration _configuration;
     private readonly WindowSystem _windowSystem;
 
     private readonly AssetLibraryTab[] _allTabs;
@@ -119,17 +168,64 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
 
     private readonly ResourceAssetInfo[] _gameResources;
 
-    private HoverPreviewMode _hoverPreviewMode = HoverPreviewMode.NearPlayer;
+    private HoverPreviewMode HoverPreviewMode
+    {
+        get;
+        set
+        {
+            field = value;
+
+            _configuration.AssetLibraryPreviewMode = value;
+            _configuration.Save();
+
+            if (value != HoverPreviewMode.NearPlayer)
+            {
+                _hoverPreviewObject?.Dispose();
+                _hoverPreviewObject = null;
+            }
+        }
+    }
     private AssetInfo? _selectedAssetInfo;
     private string _gameResourcesFilter = "";
 
     bool IAssetLibraryWindow.IsOpen => base.IsOpen;
 
-    public AssetLibraryWindow(ILogger<AssetLibraryWindow> logger, WindowSystem windowSystem)
+    public event Action<ObjectDefinition>? CreateObject;
+
+    private ILiveObject? _hoverPreviewObject;
+    private AssetInfo? HoveredAssetInfo
+    {
+        get;
+        set
+        {
+            if (field != value)
+            {
+                _hoverPreviewObject?.Dispose();
+                _hoverPreviewObject = null;
+
+                field = value;
+
+                var localPlayer = _objectTable.LocalPlayer;
+                if (HoverPreviewMode == HoverPreviewMode.NearPlayer && value != null && localPlayer != null)
+                {
+                    var rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, localPlayer.Rotation);
+                    _hoverPreviewObject = value.CreatePreviewObject(_liveObjectService, localPlayer.Position + Vector3.Transform(Vector3.UnitZ, rotation) * 2.0f, rotation);
+                }
+            }
+        }
+    }
+
+    public AssetLibraryWindow(ILogger<AssetLibraryWindow> logger, ILiveObjectService liveObjectService, IObjectTable objectTable, IOverlayService overlayService, StagehandConfiguration configuration, WindowSystem windowSystem)
         : base("Stagehand Asset Library")
     {
         _logger = logger;
+        _liveObjectService = liveObjectService;
+        _objectTable = objectTable;
+        _overlayService = overlayService;
+        _configuration = configuration;
         _windowSystem = windowSystem;
+
+        HoverPreviewMode = _configuration.AssetLibraryPreviewMode;
 
         _allTabs =
         [
@@ -150,11 +246,11 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
             _gameResources = new ResourceAssetInfo[pathCache.MdlPaths.Count + pathCache.AvfxPaths.Count];
             for (int i = 0; i < pathCache.MdlPaths.Count; i++)
             {
-                _gameResources[i] = new ResourceAssetInfo(System.IO.Path.GetFileNameWithoutExtension(pathCache.MdlPaths[i]), AssetType.MdlResource, pathCache.MdlPaths[i]);
+                _gameResources[i] = new MdlResourceAssetInfo(System.IO.Path.GetFileNameWithoutExtension(pathCache.MdlPaths[i]), AssetType.MdlResource, pathCache.MdlPaths[i]);
             }
             for (int i = 0; i < pathCache.AvfxPaths.Count; i++)
             {
-                _gameResources[pathCache.MdlPaths.Count + i] = new ResourceAssetInfo(System.IO.Path.GetFileNameWithoutExtension(pathCache.AvfxPaths[i]), AssetType.AvfxResource, pathCache.AvfxPaths[i]);
+                _gameResources[pathCache.MdlPaths.Count + i] = new AvfxResourceAssetInfo(System.IO.Path.GetFileNameWithoutExtension(pathCache.AvfxPaths[i]), AssetType.AvfxResource, pathCache.AvfxPaths[i]);
             }
             _gameResources.Sort((x, y) => Utils.PathSorter.CurrentCultureIgnoreCase.Compare(x.GamePath, y.GamePath));
         }
@@ -218,9 +314,9 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
 
                                 if (addMenu.Success)
                                 {
-                                    if (ImGui.Selectable("Off", _hoverPreviewMode == HoverPreviewMode.None))
+                                    if (ImGui.Selectable("Off", HoverPreviewMode == HoverPreviewMode.None))
                                     {
-                                        _hoverPreviewMode = HoverPreviewMode.None;
+                                        HoverPreviewMode = HoverPreviewMode.None;
                                     }
                                     if (ImGui.IsItemHovered())
                                     {
@@ -230,9 +326,9 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
                                         }
                                     }
 
-                                    if (ImGui.Selectable("Near Player", _hoverPreviewMode == HoverPreviewMode.NearPlayer))
+                                    if (ImGui.Selectable("Near Player", HoverPreviewMode == HoverPreviewMode.NearPlayer))
                                     {
-                                        _hoverPreviewMode = HoverPreviewMode.NearPlayer;
+                                        HoverPreviewMode = HoverPreviewMode.NearPlayer;
                                     }
                                     if (ImGui.IsItemHovered())
                                     {
@@ -242,9 +338,10 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
                                         }
                                     }
 
-                                    if (ImGui.Selectable("Editor Object", _hoverPreviewMode == HoverPreviewMode.EditorObject))
+#if false // TODO: Implement editor object preview
+                                    if (ImGui.Selectable("Editor Object", HoverPreviewMode == HoverPreviewMode.EditorObject))
                                     {
-                                        _hoverPreviewMode = HoverPreviewMode.EditorObject;
+                                        HoverPreviewMode = HoverPreviewMode.EditorObject;
                                     }
                                     if (ImGui.IsItemHovered())
                                     {
@@ -253,6 +350,7 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
                                             ImGui.TextUnformatted("Preview the hovered asset on the object\nbeing edited, if possible");
                                         }
                                     }
+#endif
                                 }
                             }
 
@@ -273,18 +371,66 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
 
                                 _selectedAssetInfo.DrawProperties();
 
+                                var createWidth = 0.0f;
+                                if (CreateObject != null)
+                                {
+                                    createWidth = ImGuiComponents.GetIconButtonWithTextWidth(FontAwesomeIcon.Plus, "Create");
+                                }
+
+                                ImGui.SetCursorPosY(ImGui.GetContentRegionMax().Y - ImGui.GetFrameHeight());
                                 if (_activeSelectionCallback != null)
                                 {
-                                    var assignText = $"Assign to {_activeSelectionCallback.ObjectName}'s {_activeSelectionCallback.PropertyName}";
+                                    var assignText = "Assign";
                                     var assignWidth = ImGuiComponents.GetIconButtonWithTextWidth(FontAwesomeIcon.ArrowRight, assignText);
-                                    ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - assignWidth);
-                                    ImGui.SetCursorPosY(ImGui.GetContentRegionMax().Y - ImGui.GetFrameHeight());
+                                    ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - assignWidth - (createWidth > 0 ? createWidth + ImGui.GetStyle().ItemInnerSpacing.X : 0.0f));
                                     ImGui.SetNextItemWidth(assignWidth);
                                     using (ImRaii.Disabled(_activeSelectionCallback.AssetType != _selectedAssetInfo.Type))
                                     {
                                         if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.ArrowRight, assignText))
                                         {
                                             _activeSelectionCallback.TrySelect(_selectedAssetInfo);
+                                        }
+                                        if (ImGui.IsItemHovered())
+                                        {
+                                            using (ImRaii.Tooltip())
+                                            {
+                                                ImGui.TextUnformatted($"Assign to {_activeSelectionCallback.ObjectName}'s {_activeSelectionCallback.PropertyName}");
+                                            }
+                                        }
+                                    }
+                                    if (CreateObject != null)
+                                    {
+                                        ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
+                                    }
+                                }
+                                else
+                                {
+                                    ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - createWidth);
+                                }
+
+                                if (CreateObject != null)
+                                {
+                                    ImGui.SetNextItemWidth(createWidth);
+                                    if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Plus, "Create"))
+                                    {
+                                        var rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, _objectTable.LocalPlayer?.Rotation ?? 0.0f);
+                                        var newObjectDefinition = _selectedAssetInfo.CreateObjectDefinition((_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.Transform(Vector3.UnitZ, rotation) * 2.0f, rotation);
+                                        if (newObjectDefinition != null)
+                                        {
+                                            if (_hoverPreviewObject != null)
+                                            {
+                                                _hoverPreviewObject.Dispose();
+                                                _hoverPreviewObject = null;
+                                            }
+
+                                            CreateObject.Invoke(newObjectDefinition);
+                                        }
+                                    }
+                                    if (ImGui.IsItemHovered())
+                                    {
+                                        using (ImRaii.Tooltip())
+                                        {
+                                            ImGui.TextUnformatted("Add this to the Stage being edited");
                                         }
                                     }
                                 }
@@ -304,6 +450,8 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
     private void DrawGameResourcesTab()
     {
         Utils.ImGuiExtensions.FilterBox("Filter"u8, ref _gameResourcesFilter);
+
+        AssetInfo? hoveredAsset = null;
 
         float bottomBarHeight = ImGui.GetTextLineHeight() + ImGui.GetStyle().FramePadding.Y * 2.0f;
         using (var listBox = ImRaii.ListBox("###GameResources", ImGui.GetContentRegionAvail() - new Vector2(0.0f, bottomBarHeight + ImGui.GetStyle().ItemSpacing.Y)))
@@ -390,6 +538,8 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
                                 {
                                     if (ImGui.IsItemHovered())
                                     {
+                                        hoveredAsset = resource;
+
                                         using (ImRaii.Tooltip())
                                         using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, defaultItemSpacing))
                                         {
@@ -413,6 +563,8 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
                 }
             }
         }
+
+        HoveredAssetInfo = hoveredAsset;
     }
 
     private void DrawHousingTab()
@@ -423,13 +575,29 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
     public Task StartAsync(CancellationToken cancellationToken)
     {
         _windowSystem.AddWindow(this);
+        _overlayService.DrawOverlays += this.DrawOverlays;
 
         return Task.CompletedTask;
     }
 
+    private void DrawOverlays(IOverlayDrawContext context)
+    {
+        if (_hoverPreviewObject != null && _hoverPreviewObject.TryGetOrientedBounds(out var orientedBounds))
+        {
+            context.DrawBox(orientedBounds.Transform, orientedBounds.HalfExtents, 1.0f, new Vector4(0.9f, 0.9f, 0.9f, 0.5f));
+        }
+    }
+
     public Task StopAsync(CancellationToken cancellationToken)
     {
+        _overlayService.DrawOverlays -= DrawOverlays;
         _windowSystem.RemoveWindow(this);
+
+        if (_hoverPreviewObject != null)
+        {
+            _hoverPreviewObject.Dispose();
+            _hoverPreviewObject = null;
+        }
 
         return Task.CompletedTask;
     }

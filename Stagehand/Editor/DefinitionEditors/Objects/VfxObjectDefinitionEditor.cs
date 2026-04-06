@@ -64,7 +64,7 @@ internal class VfxObjectDefinitionEditor : ObjectDefinitionEditor<VfxObjectDefin
         base.OnDrawProperties();
 
         string vfxGamePath = VfxGamePath;
-        if (ImGui.InputText("VFX Resource (Game Path: .avfx)", ref vfxGamePath, 1024, ImGuiInputTextFlags.EnterReturnsTrue))
+        if (ImGui.InputText("VFX Path", ref vfxGamePath, 1024, ImGuiInputTextFlags.EnterReturnsTrue))
         {
             VfxGamePath = vfxGamePath;
         }

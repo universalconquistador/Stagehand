@@ -11,6 +11,7 @@ using Stagehand.Definitions.Objects;
 using Stagehand.Editor.DefinitionEditors;
 using Stagehand.Editor.DefinitionEditors.Objects;
 using Stagehand.Editor.Services;
+using Stagehand.Windows;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -28,6 +29,7 @@ internal class EditorWindow : Window, IDisposable
     private readonly ISelectionManager _selectionManager;
     private readonly ITransactionManager _transactionManager;
     private readonly IObjectTable _objectTable;
+    private readonly IAssetLibraryWindow _assetLibraryWindow;
 
     public event Action? Closed;
 
@@ -47,6 +49,7 @@ internal class EditorWindow : Window, IDisposable
         _selectionManager = _serviceScope.ServiceProvider.GetRequiredService<ISelectionManager>();
         _transactionManager = _serviceScope.ServiceProvider.GetRequiredService<ITransactionManager>();
         _objectTable = _serviceScope.ServiceProvider.GetRequiredService<IObjectTable>();
+        _assetLibraryWindow = _serviceScope.ServiceProvider.GetRequiredService<IAssetLibraryWindow>();
 
         _definitionFilename = definitionFilename;
         _definition = definition;
@@ -54,6 +57,12 @@ internal class EditorWindow : Window, IDisposable
         _outliner.RootNode = _definitionEditor.OutlinerNode;
         _selectionManager.SelectedEditor = _definitionEditor;
         _transactionManager.ClearHistory();
+        _assetLibraryWindow.CreateObject += OnAssetLibraryCreateObject;
+    }
+
+    private void OnAssetLibraryCreateObject(ObjectDefinition newObjectDefinition)
+    {
+        _definitionEditor.AddObject(newObjectDefinition);
     }
 
     private void SaveDefinition()
@@ -393,6 +402,7 @@ internal class EditorWindow : Window, IDisposable
 
     public void Dispose()
     {
+        _assetLibraryWindow.CreateObject -= OnAssetLibraryCreateObject;
         _definitionEditor.Dispose();
         _serviceScope.Dispose();
     }

@@ -81,6 +81,7 @@ Later down the road:
 ## 0.3.8
 
  - Adds the Asset Library window for browsing game assets. Currently it shows the `.mdl` and `.avfx` assets referenced by the game's environments. You can show the Asset Library window from the button in the main Stagehand window, or from the button next to the Model and VFX properties in the editor.
+ - You can optionally preview assets ingame when you hover over them in the Asset Library, and if you are editing a Stage you can easily add them with one click.
  - When adding a new auto load location, the 'Use current location' button will now enable the world, ward, and house filters as appropriate.
  - Small polish items on the auto load condition UI.
  - The Stage is now selected by default when opening the editor.

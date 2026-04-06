@@ -5,6 +5,13 @@ using System.Collections.Generic;
 
 namespace Stagehand;
 
+public enum HoverPreviewMode
+{
+    None,
+    NearPlayer,
+    EditorObject,
+}
+
 [Serializable]
 public class StagehandConfiguration : IPluginConfiguration
 {
@@ -23,6 +30,11 @@ public class StagehandConfiguration : IPluginConfiguration
     /// Don't edit this directly; go through <see cref="ILocalDefinitionService"/>.
     /// </remarks>
     public Dictionary<string, List<AutomaticShowCondition>> AutomaticShowConditions { get; set; } = new();
+
+    /// <summary>
+    /// How to preview assets when they are hovered in the Asset Library.
+    /// </summary>
+    public HoverPreviewMode AssetLibraryPreviewMode { get; set; } = HoverPreviewMode.NearPlayer;
 
     // The below exists just to make saving less cumbersome
     public void Save()

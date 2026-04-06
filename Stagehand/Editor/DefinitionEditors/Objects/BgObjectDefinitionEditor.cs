@@ -102,7 +102,7 @@ internal class BgObjectDefinitionEditor : ObjectDefinitionEditor<BgObjectDefinit
         base.SetDisplayNameInternal(displayName);
         if (IsSelected)
         {
-            _assetLibraryWindow.SetSelectionCallback(DisplayName, "Model", AssetType.MdlResource, () => IsInStage && IsSelected, asset => ModelGamePath = asset.GamePath);
+            _assetLibraryWindow.SetSelectionCallback(DisplayName, "Model Path", AssetType.MdlResource, () => IsInStage && IsSelected, asset => ModelGamePath = asset.GamePath);
         }
     }
 
@@ -117,7 +117,7 @@ internal class BgObjectDefinitionEditor : ObjectDefinitionEditor<BgObjectDefinit
     {
         base.Selected();
 
-        _assetLibraryWindow.SetSelectionCallback(DisplayName, "Model", AssetType.MdlResource, () => IsInStage && IsSelected, asset => ModelGamePath = asset.GamePath);
+        _assetLibraryWindow.SetSelectionCallback(DisplayName, "Model Path", AssetType.MdlResource, () => IsInStage && IsSelected, asset => ModelGamePath = asset.GamePath);
     }
 
     protected override void OnDrawProperties()
@@ -125,7 +125,7 @@ internal class BgObjectDefinitionEditor : ObjectDefinitionEditor<BgObjectDefinit
         base.OnDrawProperties();
 
         string modelGamePath = ModelGamePath;
-        if (ImGui.InputText("Model", ref modelGamePath, 1024, ImGuiInputTextFlags.EnterReturnsTrue))
+        if (ImGui.InputText("Model Path", ref modelGamePath, 1024, ImGuiInputTextFlags.EnterReturnsTrue))
         {
             ModelGamePath = modelGamePath;
         }
