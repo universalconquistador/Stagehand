@@ -26,6 +26,7 @@ public class OutlinerContextMenuItem
 
 public class OutlinerNode
 {
+    private readonly string _uniqueId;
     private string _displayName;
     public string DisplayName
     {
@@ -54,9 +55,10 @@ public class OutlinerNode
 
     private bool _recomputeChildOrder = false;
 
-    public OutlinerNode(string displayName, FontAwesomeIcon icon, string tooltipPrimary = "", string tooltipSecondary = "")
+    public OutlinerNode(string displayName, string uniqueId, FontAwesomeIcon icon, string tooltipPrimary = "", string tooltipSecondary = "")
     {
         _displayName = displayName;
+        _uniqueId = uniqueId;
         Icon = icon;
         TooltipPrimary = tooltipPrimary;
         TooltipSecondary = tooltipSecondary;
@@ -84,7 +86,20 @@ public class OutlinerNode
     {
         if (_recomputeChildOrder)
         {
-            _childNodes.Sort((a, b) => a.DisplayName.CompareTo(b.DisplayName, StringComparison.CurrentCultureIgnoreCase));
+            _childNodes.Sort((a, b) =>
+            {
+                var sortValue = a.DisplayName.CompareTo(b.DisplayName, StringComparison.CurrentCultureIgnoreCase);
+
+                // If two display names are identical, sort by unique ID to maintain a stable sort
+                if (sortValue == 0)
+                {
+                    sortValue = a._uniqueId.CompareTo(b._uniqueId, StringComparison.Ordinal);
+                }
+
+                return sortValue;
+            });
+
+            _recomputeChildOrder = false;
         }
 
         bool anyChildrenVisibleWithFilter = false;

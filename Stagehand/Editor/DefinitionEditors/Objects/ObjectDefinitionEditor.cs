@@ -133,7 +133,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         Key = key;
         Stage = stage;
 
-        OutlinerNode = new OutlinerNode(definition.DisplayName, TypeInfo.Icon, TypeInfo.DisplayName, TypeInfo.Description);
+        OutlinerNode = new OutlinerNode(definition.DisplayName, key, TypeInfo.Icon, TypeInfo.DisplayName, TypeInfo.Description);
         OutlinerNode.Clicked += OnOutlinerNodeClicked;
         OutlinerNode.ContextMenuItems = GenerateContextMenuItems();
     }

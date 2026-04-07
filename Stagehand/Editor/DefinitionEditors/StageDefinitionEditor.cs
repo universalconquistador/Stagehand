@@ -70,7 +70,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
         _selectionManager = serviceProvider.GetRequiredService<ISelectionManager>();
         _clientState = serviceProvider.GetRequiredService<IClientState>();
 
-        OutlinerNode = new OutlinerNode(DisplayName, TypeInfo.Icon, TypeInfo.DisplayName, TypeInfo.Description);
+        OutlinerNode = new OutlinerNode(DisplayName, Guid.NewGuid().ToString(), TypeInfo.Icon, TypeInfo.DisplayName, TypeInfo.Description);
         OutlinerNode.Clicked += OnOutlinerNodeClicked;
 
         foreach (var objectDefinitionPair in definition.Objects)
