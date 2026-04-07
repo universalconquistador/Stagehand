@@ -822,17 +822,17 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
 
                             if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Plus, "Add"))
                             {
+                                SelectableTerritory? _selectedTerritory = null;
                                 _localDefinitionService.SetAutomaticShowConditions(_selectedLocalDefinitionFilename, selectedMetadata.AutomaticShowConditions.Append(new AutomaticShowCondition()
                                 {
                                     TerritoryId = _allTerritories[_autoLoadNewTerritoryIndex].Id,
                                     WorldId = _autoLoadNewUseWorld ? _allWorlds[_autoLoadNewWorldIndex].Id : ushort.MaxValue,
-                                    WardId = (_autoLoadNewUseWorld && _autoLoadNewUseWard) ? (ushort)_autoLoadNewWardId : ushort.MaxValue,
-                                    DivisionId = (_autoLoadNewUseWorld && _autoLoadNewUseWard) ? (ushort)(_autoLoadNewDivisionIndex + 1) : ushort.MaxValue,
-                                    HouseId = (_autoLoadNewUseWorld && _autoLoadNewUseWard && _autoLoadNewUseHouse) ? (ushort)_autoLoadNewHouseId : ushort.MaxValue,
-                                    RoomId = (_autoLoadNewUseWorld && _autoLoadNewUseWard && _autoLoadNewUseHouse) ? (ushort)_autoLoadNewRoomId : ushort.MaxValue,
+                                    WardId = (_autoLoadNewUseWorld && _autoLoadNewUseWard && _allTerritories[_autoLoadNewTerritoryIndex].IsInHousingWard) ? (ushort)_autoLoadNewWardId : ushort.MaxValue,
+                                    DivisionId = (_autoLoadNewUseWorld && _autoLoadNewUseWard && _allTerritories[_autoLoadNewTerritoryIndex].IsInHousingWard) ? (ushort)(_autoLoadNewDivisionIndex + 1) : ushort.MaxValue,
+                                    HouseId = (_autoLoadNewUseWorld && _autoLoadNewUseWard && _autoLoadNewUseHouse && _allTerritories[_autoLoadNewTerritoryIndex].IsInHousingRoom) ? (ushort)_autoLoadNewHouseId : ushort.MaxValue,
+                                    RoomId = (_autoLoadNewUseWorld && _autoLoadNewUseWard && _autoLoadNewUseHouse && _allTerritories[_autoLoadNewTerritoryIndex].IsInHousingRoom) ? (ushort)_autoLoadNewRoomId : ushort.MaxValue,
                                 }));
                             }
-
                         }
                     }
 
