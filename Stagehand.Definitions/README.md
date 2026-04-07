@@ -1,5 +1,5 @@
 &nbsp;
-![Stagehand Logo](Stagehand%20Logo%202x.png)
+![Stagehand Logo](https://github.com/universalconquistador/Stagehand/blob/master/Stagehand%20Logo%202x.png?raw=true)
 
 # `Stagehand.Definitions`
 
