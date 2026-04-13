@@ -15,6 +15,7 @@ using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using Microsoft.Extensions.Hosting;
+using Stagehand.Api;
 using Stagehand.Live;
 using Stagehand.Services;
 using Stagehand.Utils;
@@ -204,7 +205,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
 
         //ImGui.Checkbox("SuppressInput", ref _suppressInput);
 
-        if (Location.TryGetLocation(_clientState, _playerState, out var location))
+        if (StageLocation.TryGetLocation(_clientState, _playerState, out var location))
         {
             ImGui.LabelText("Location", $"World: {location.WorldId}, Territory: {location.TerritoryId}, Ward: {location.WardId}, Division: {location.DivisionId}, House: {location.HouseId}, Room: {location.RoomId}");
         }

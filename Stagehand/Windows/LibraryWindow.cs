@@ -14,6 +14,7 @@ using FFXIVClientStructs.FFXIV.Client.Game;
 using Lumina.Excel.Sheets;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Stagehand.Api;
 using Stagehand.Definitions;
 using Stagehand.Editor;
 using Stagehand.Services;
@@ -467,7 +468,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
 
                             ImGui.TableHeadersRow();
 
-                            Location.TryGetLocation(_clientState, _playerState, out var location);
+                            StageLocation.TryGetLocation(_clientState, _playerState, out var location);
 
                             int conditionIndex = 0;
                             foreach (var condition in selectedMetadata.AutomaticShowConditions)
@@ -899,7 +900,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
 
     private void UseCurrentLocation()
     {
-        if (Location.TryGetLocation(_clientState, _playerState, out var location))
+        if (StageLocation.TryGetLocation(_clientState, _playerState, out var location))
         {
             for (int i = 0; i < _allWorlds.Count; i++)
             {

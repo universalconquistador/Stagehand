@@ -1,6 +1,7 @@
 using Dalamud.Plugin.Services;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Stagehand.Api;
 using Stagehand.Definitions;
 using Stagehand.Editor;
 using Stagehand.Utils;
@@ -30,7 +31,7 @@ internal class LocalStageService : IHostedService
     private readonly IEditorService _editorService;
 
     private readonly ConcurrentDictionary<string, bool> _manualVisibilitySettings = new();
-    private Location _lastLocation;
+    private StageLocation _lastLocation;
 
     public LocalStageService(ILogger<LocalStageService> logger, IFramework framework, IClientState clientState, IPlayerState playerState, ILocalDefinitionService localDefinitionService, ILiveStageService liveStageService, IEditorService editorService, StagehandConfiguration configuration)
     {
@@ -68,7 +69,7 @@ internal class LocalStageService : IHostedService
 
     private void Update(IFramework framework)
     {
-        Location.TryGetLocation(_clientState, _playerState, out var location);
+        StageLocation.TryGetLocation(_clientState, _playerState, out var location);
 
         if (location != _lastLocation)
         {
@@ -91,7 +92,7 @@ internal class LocalStageService : IHostedService
     {
         _framework.RunOnFrameworkThread(() =>
         {
-            if (!Location.TryGetLocation(_clientState, _playerState, out var location))
+            if (!StageLocation.TryGetLocation(_clientState, _playerState, out var location))
                 return;
 
             foreach (var removed in removedDefinitions)
@@ -154,7 +155,7 @@ internal class LocalStageService : IHostedService
         var liveKey = LiveStageHelpers.MakeLocalStageKey(path);
         bool currentlyVisible = _liveStageService.TryGetLiveStage(liveKey, out var liveStage);
 
-        if (!Location.TryGetLocation(_clientState, _playerState, out var location))
+        if (!StageLocation.TryGetLocation(_clientState, _playerState, out var location))
             return;
 
         bool shouldBeVisible = path != _editorService.OpenEditorFilename
@@ -199,7 +200,7 @@ internal class LocalStageService : IHostedService
         // Consider instead waiting for the screen to start fading in via RaptureAtkUnitManager.IsUiFading or AgentInterface.GameEvent.LoadingEnded.
         _framework.RunOnTick(() =>
         {
-            if (!Location.TryGetLocation(_clientState, _playerState, out var location))
+            if (!StageLocation.TryGetLocation(_clientState, _playerState, out var location))
                 return;
             foreach (var localDefinition in _localDefinitionService.LocalDefinitions)
             {

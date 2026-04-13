@@ -4,24 +4,27 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Stagehand.Utils;
+namespace Stagehand.Api;
 
 /// <summary>
-/// 
+/// Identifies a distinct place that stages can be assigned to.
 /// </summary>
+/// <remarks>
+/// This includes the world, the territory, the housing ward & division, and the house & room. This does <em>not</em> include the instance for instanced zones.
+/// </remarks>
 /// <param name="WorldId">The world row ID as found in the <see cref="Lumina.Excel.Sheets.World"/> sheet.</param>
 /// <param name="TerritoryId">The territory row ID as found in in the <see cref="Lumina.Excel.Sheets.TerritoryType"/> sheet.</param>
 /// <param name="WardId">The ward number from 1-30, or -1 if not in a housing ward or if in a company workshop.</param>
 /// <param name="DivisionId">The division number from 1-2, or -1 if not in a housing ward or if in a company workshop.</param>
 /// <param name="HouseId">The house number in the division the player is in from 1-30, or 0 for the apartment building, or -1 if not in a housing building or if in a company workshop.</param>
 /// <param name="RoomId">The room number (apartment unit/private chambers) the player is in starting at 1, or 0 if the player is in the main house room or apartment lobby, or -1 if not in a housing building or if in a company workshop.</param>
-public record struct Location(uint WorldId, ushort TerritoryId, int WardId, int DivisionId, int HouseId, int RoomId)
+public record struct StageLocation(uint WorldId, ushort TerritoryId, int WardId, int DivisionId, int HouseId, int RoomId)
 {
-    public static unsafe bool TryGetLocation(IClientState clientState, IPlayerState playerState, out Location location)
+    public static unsafe bool TryGetLocation(IClientState clientState, IPlayerState playerState, out StageLocation location)
     {
         if (clientState.IsLoggedIn)
         {
-            location = new Location();
+            location = new StageLocation();
             location.TerritoryId = clientState.TerritoryType;
             location.WorldId = playerState.CurrentWorld.RowId;
 

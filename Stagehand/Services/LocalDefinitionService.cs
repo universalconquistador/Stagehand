@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Stagehand.Api;
 using Stagehand.Definitions;
 using Stagehand.Utils;
 using System;
@@ -26,7 +27,7 @@ public record struct AutomaticShowCondition
     public ushort HouseId { get; set; }
     public ushort RoomId { get; set; }
 
-    public bool Evaluate(Location location)
+    public bool Evaluate(StageLocation location)
     {
         if (location.TerritoryId != TerritoryId)
             return false;
