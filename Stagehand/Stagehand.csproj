@@ -23,7 +23,7 @@ Use /stagehand to get started.</Description>
         <CanUnloadAsync>false</CanUnloadAsync>
         <LoadPriority>1</LoadPriority>
         <ImageUrls></ImageUrls>
-        <IconUrl></IconUrl>
+        <IconUrl>https://github.com/universalconquistador/Stagehand/releases/latest/download/icon.png</IconUrl>
         <Changelog></Changelog>
 
         <Use_Dalamud_FFXIVClientStructs Condition="'$(Configuration)'=='Debug'">false</Use_Dalamud_FFXIVClientStructs>
