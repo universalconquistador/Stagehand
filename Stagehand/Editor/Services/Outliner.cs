@@ -106,7 +106,7 @@ public class OutlinerNode
                 
                 if (sortValue == 0)
                 {
-                    SortOrder = a.DisplayName.CompareTo(b.DisplayName, StringComparison.CurrentCultureIgnoreCase);
+                    sortValue = a.DisplayName.CompareTo(b.DisplayName, StringComparison.CurrentCultureIgnoreCase);
                 }
 
                 // If two display names are identical, sort by unique ID to maintain a stable sort
