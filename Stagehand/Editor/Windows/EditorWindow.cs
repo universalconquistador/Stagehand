@@ -230,10 +230,28 @@ internal class EditorWindow : Window, IDisposable
                 }
                 ImGui.Separator();
 
-                DrawCreateMenuItem(BgObjectDefinitionEditor.StaticTypeInfo, () => new BgObjectDefinition() { ModelGamePath = "bgcommon/world/aet/001/bgparts/w_aet_001_04a.mdl" });
-                DrawCreateMenuItem(LightDefinitionEditor.StaticTypeInfo, () => new LightDefinition());
-                DrawCreateMenuItem(VfxObjectDefinitionEditor.StaticTypeInfo, () => new VfxObjectDefinition() { VfxGamePath = "bgcommon/world/common/vfx_for_event/eff/b0150_eext_y.avfx" });
-                DrawCreateMenuItem(WeaponDefinitionEditor.StaticTypeInfo, () => new WeaponDefinition());
+                DrawCreateMenuItem(BgObjectDefinitionEditor.StaticTypeInfo, _definitionEditor.Objects, () => new BgObjectDefinition()
+                {
+                    DisplayName = $"New {BgObjectDefinitionEditor.StaticTypeInfo.DisplayName}",
+                    ModelGamePath = "bgcommon/world/aet/001/bgparts/w_aet_001_04a.mdl",
+                    Position = (_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.UnitY
+                });
+                DrawCreateMenuItem(LightDefinitionEditor.StaticTypeInfo, _definitionEditor.Objects, () => new LightDefinition()
+                {
+                    DisplayName = $"New {LightDefinitionEditor.StaticTypeInfo.DisplayName}",
+                    Position = (_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.UnitY
+                });
+                DrawCreateMenuItem(VfxObjectDefinitionEditor.StaticTypeInfo, _definitionEditor.Objects, () => new VfxObjectDefinition()
+                {
+                    DisplayName = $"New {VfxObjectDefinitionEditor.StaticTypeInfo.DisplayName}",
+                    VfxGamePath = "bgcommon/world/common/vfx_for_event/eff/b0150_eext_y.avfx",
+                    Position = (_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.UnitY
+                });
+                DrawCreateMenuItem(WeaponDefinitionEditor.StaticTypeInfo, _definitionEditor.Objects, () => new WeaponDefinition()
+                {
+                    DisplayName = $"New {WeaponDefinitionEditor.StaticTypeInfo.DisplayName}",
+                    Position = (_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.UnitY
+                });
             }
         }
 
@@ -263,7 +281,8 @@ internal class EditorWindow : Window, IDisposable
         }
     }
 
-    private void DrawCreateMenuItem(DefinitionTypeInfo typeInfo, Func<ObjectDefinition> newObjectFactory)
+    private void DrawCreateMenuItem<TDefinition, TEditor>(DefinitionTypeInfo typeInfo, DefinitionEditorDictionary<TDefinition, TEditor> collection, Func<TDefinition> newObjectFactory)
+        where TEditor : class, IChildDefinitionEditor
     {
         bool selected;
         using (ImRaii.PushFont(UiBuilder.IconFont))
@@ -285,9 +304,7 @@ internal class EditorWindow : Window, IDisposable
         if (selected)
         {
             var newObject = newObjectFactory.Invoke();
-            newObject.DisplayName = $"New {typeInfo.DisplayName}";
-            newObject.Position = (_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.UnitY;
-            _definitionEditor.Objects.Add(newObject);
+            collection.Add(newObject);
         }
     }
 
