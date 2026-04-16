@@ -40,6 +40,19 @@ public class OutlinerNode
             _displayName = value;
         }
     }
+    private int _sortOrder = 0;
+    public int SortOrder
+    {
+        get => _sortOrder;
+        set
+        {
+            if (_sortOrder != value && ParentNode != null)
+            {
+                ParentNode._recomputeChildOrder = true;
+            }
+            _sortOrder = value;
+        }
+    }
     public FontAwesomeIcon Icon { get; set; }
     public string TooltipPrimary { get; set; } = string.Empty;
     public string TooltipSecondary { get; set; } = string.Empty;
@@ -55,13 +68,14 @@ public class OutlinerNode
 
     private bool _recomputeChildOrder = false;
 
-    public OutlinerNode(string displayName, string uniqueId, FontAwesomeIcon icon, string tooltipPrimary = "", string tooltipSecondary = "")
+    public OutlinerNode(string displayName, string uniqueId, FontAwesomeIcon icon, string tooltipPrimary = "", string tooltipSecondary = "", int sortOrder = 0)
     {
         _displayName = displayName;
         _uniqueId = uniqueId;
         Icon = icon;
         TooltipPrimary = tooltipPrimary;
         TooltipSecondary = tooltipSecondary;
+        SortOrder = sortOrder;
     }
 
     public void AddChild(OutlinerNode child)
@@ -88,7 +102,12 @@ public class OutlinerNode
         {
             _childNodes.Sort((a, b) =>
             {
-                var sortValue = a.DisplayName.CompareTo(b.DisplayName, StringComparison.CurrentCultureIgnoreCase);
+                var sortValue = a.SortOrder.CompareTo(b.SortOrder);
+                
+                if (sortValue == 0)
+                {
+                    SortOrder = a.DisplayName.CompareTo(b.DisplayName, StringComparison.CurrentCultureIgnoreCase);
+                }
 
                 // If two display names are identical, sort by unique ID to maintain a stable sort
                 if (sortValue == 0)
