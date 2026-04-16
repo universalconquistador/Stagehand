@@ -62,7 +62,7 @@ internal class EditorWindow : Window, IDisposable
 
     private void OnAssetLibraryCreateObject(ObjectDefinition newObjectDefinition)
     {
-        _definitionEditor.AddObject(newObjectDefinition);
+        _definitionEditor.Objects.Add(newObjectDefinition);
     }
 
     private void SaveDefinition()
@@ -287,7 +287,7 @@ internal class EditorWindow : Window, IDisposable
             var newObject = newObjectFactory.Invoke();
             newObject.DisplayName = $"New {typeInfo.DisplayName}";
             newObject.Position = (_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.UnitY;
-            _definitionEditor.AddObject(newObject);
+            _definitionEditor.Objects.Add(newObject);
         }
     }
 

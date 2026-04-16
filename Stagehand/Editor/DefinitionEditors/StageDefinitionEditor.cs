@@ -30,7 +30,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
     public override DefinitionTypeInfo TypeInfo => StaticTypeInfo;
 
     public OutlinerNode OutlinerNode { get; }
-    private readonly Dictionary<string, IObjectDefinitionEditor> _objectEditors = new();
+    public DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor> Objects { get; }
 
     public string Name
     {
@@ -73,13 +73,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
         OutlinerNode = new OutlinerNode(DisplayName, Guid.NewGuid().ToString(), TypeInfo.Icon, TypeInfo.DisplayName, TypeInfo.Description);
         OutlinerNode.Clicked += OnOutlinerNodeClicked;
 
-        foreach (var objectDefinitionPair in definition.Objects)
-        {
-            var newEditor = CreateEditorForObjectDefinition(objectDefinitionPair.Value, objectDefinitionPair.Key);
-            _objectEditors[objectDefinitionPair.Key] = newEditor;
-            OutlinerNode.AddChild(newEditor.OutlinerNode);
-            newEditor.AddedToStage();
-        }
+        Objects = new(definition.Objects, OutlinerNode, CreateEditorForObjectDefinition, TransactionManager, _selectionManager);
     }
 
     private void OnOutlinerNodeClicked(OutlinerNode obj)
@@ -154,83 +148,9 @@ public class StageDefinitionEditor : DefinitionEditorBase
 
     public override void Dispose()
     {
-        foreach (var obj in _objectEditors)
-        {
-            obj.Value.RemovedFromStage();
-            obj.Value.Dispose();
-        }
-        _objectEditors.Clear();
+        Objects.Dispose();
 
         base.Dispose();
-    }
-
-    public IObjectDefinitionEditor AddObject(ObjectDefinition newObject, bool select = true)
-    {
-        var key = Guid.NewGuid().ToString();
-        var newEditor = CreateEditorForObjectDefinition(newObject, key);
-
-        using (TransactionManager.BeginTransactionGroup($"Create new {newEditor.TypeInfo.DisplayName}"))
-        {
-            // Add the new editor
-            var transaction = new DelegateTransaction($"Create new {newEditor.TypeInfo.DisplayName}", () =>
-            {
-                Definition.Objects.Add(key, newObject);
-                _objectEditors.Add(key, newEditor);
-                OutlinerNode.AddChild(newEditor.OutlinerNode);
-                newEditor.AddedToStage();
-            }, () =>
-            {
-                newEditor.RemovedFromStage();
-                OutlinerNode.RemoveChild(newEditor.OutlinerNode);
-                _objectEditors.Remove(key);
-                Definition.Objects.Remove(key);
-            }, affectsDataModel: true);
-            // If the transaction is permanently undone, dispose the new editor
-            transaction.AddDisposable(newEditor, disposeWhenDone: false, disposeWhenUndone: true);
-            TransactionManager.DoTransaction(transaction);
-
-            // Select the editor if necessary
-            if (select)
-            {
-                _selectionManager.SelectedEditor = newEditor;
-            }
-        }
-
-        return newEditor;
-    }
-
-    public void RemoveObject(IObjectDefinitionEditor objectEditor)
-    {
-        if (_objectEditors.TryGetValue(objectEditor.Key, out var foundEditor) && foundEditor == objectEditor)
-        {
-            var definition = Definition.Objects[objectEditor.Key];
-            using (var transactionGroup = TransactionManager.BeginTransactionGroup($"Delete {objectEditor.DisplayName}"))
-            {
-                // Deselect the editor if necessary
-                if (_selectionManager.SelectedEditor == foundEditor)
-                {
-                    _selectionManager.SelectedEditor = null;
-                }
-
-                // Remove the object
-                var transaction = new DelegateTransaction($"Delete {objectEditor.DisplayName}", () =>
-                {
-                    foundEditor.RemovedFromStage();
-                    OutlinerNode.RemoveChild(foundEditor.OutlinerNode);
-                    _objectEditors.Remove(objectEditor.Key);
-                    Definition.Objects.Remove(objectEditor.Key);
-                }, () =>
-                {
-                    Definition.Objects.Add(objectEditor.Key, definition);
-                    _objectEditors.Add(objectEditor.Key, foundEditor);
-                    OutlinerNode.AddChild(foundEditor.OutlinerNode);
-                    foundEditor.AddedToStage();
-                }, affectsDataModel: true);
-                // If the transaction is permanently done, dispose the editor
-                transaction.AddDisposable(foundEditor, disposeWhenDone: true, disposeWhenUndone: false);
-                TransactionManager.DoTransaction(transaction);
-            }
-        }
     }
 
     private IObjectDefinitionEditor CreateEditorForObjectDefinition(ObjectDefinition objectDefinition, string objectKey)

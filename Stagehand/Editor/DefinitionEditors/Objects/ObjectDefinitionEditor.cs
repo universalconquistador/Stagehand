@@ -16,18 +16,8 @@ namespace Stagehand.Editor.DefinitionEditors.Objects;
 /// <summary>
 /// A definition editor that edits an object definition.
 /// </summary>
-public interface IObjectDefinitionEditor : IDefinitionEditor
+public interface IObjectDefinitionEditor : IChildDefinitionEditor
 {
-    /// <summary>
-    /// The object key in the stage definition.
-    /// </summary>
-    string Key { get; }
-
-    /// <summary>
-    /// The outliner node that represents this object.
-    /// </summary>
-    OutlinerNode OutlinerNode { get; }
-
     /// <summary>
     /// This object's position in world space.
     /// </summary>
@@ -47,16 +37,6 @@ public interface IObjectDefinitionEditor : IDefinitionEditor
     /// This object's scale in world space.
     /// </summary>
     Vector3 Scale { get; set; }
-
-    /// <summary>
-    /// Notifies this object definition editor that it was added to the Stage being edited.
-    /// </summary>
-    void AddedToStage();
-
-    /// <summary>
-    /// Notifies this object definition editor that it was removed from the Stage being edited.
-    /// </summary>
-    void RemovedFromStage();
 }
 
 internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBase, IObjectDefinitionEditor
@@ -190,11 +170,11 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         yield return new OutlinerContextMenuItem("Duplicate", "Creates a copy of this object.", _ =>
         {
             var clonedDefinition = Definition.Clone();
-            Stage.AddObject(clonedDefinition);
+            Stage.Objects.Add(clonedDefinition);
         });
         yield return new OutlinerContextMenuItem("Delete", $"Removes this {TypeInfo.DisplayName} from the stage.", _ =>
         {
-            Stage.RemoveObject(this);
+            Stage.Objects.Remove(this);
         });
     }
 
