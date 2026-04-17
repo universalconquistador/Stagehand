@@ -1,6 +1,7 @@
 global using Microsoft.Extensions.Logging; // Stop autoimporting Lumina logging!!!!!!!!
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Command;
+using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
@@ -41,6 +42,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly IHost _host;
 
     private readonly OverlayService _overlayService;
+    private readonly FileDialogManager _dialogManager;
 
     public StagehandConfiguration Configuration { get; init; }
     
@@ -68,6 +70,7 @@ public sealed class Plugin : IDalamudPlugin
         Directory.CreateDirectory(Configuration.DefinitionLibraryPath);
 
         _overlayService = new OverlayService(GameGui);
+        _dialogManager = new FileDialogManager();
 
         // Fluent style syntax is an abberant abomination, so we use sane C# instead
         var hostBuilder = new HostBuilder();
@@ -98,6 +101,7 @@ public sealed class Plugin : IDalamudPlugin
             services.AddSingleton<IModelBvhCacheService, ModelBvhCacheService>();
             services.AddSingleton<IViewportInputService, ViewportInputService>();
             services.AddSingleton<IOverlayService>(_overlayService);
+            services.AddSingleton(_dialogManager);
             services.AddSingleton<ILocalDefinitionService, LocalDefinitionService>();
             services.AddSingleton<ILiveObjectService, LiveObjectService>();
             services.AddSingleton<ILiveStageService, LiveStageService>();
@@ -136,6 +140,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         WindowSystem.Draw();
         _overlayService.Draw();
+        _dialogManager.Draw();
     }
 
     public void Dispose()

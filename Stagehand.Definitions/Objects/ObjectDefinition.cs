@@ -60,8 +60,10 @@ public abstract class ObjectDefinition
         }
     }
 
-    // TODO: Penumbra support
-    //public Guid PenumbraCollection { get; set; } = Guid.Empty;
+    /// <summary>
+    /// The ID of the modpack to use for this object, or an empty string to use no modpack.
+    /// </summary>
+    public string ModpackId { get; set; } = string.Empty;
 
     /// <summary>
     /// Creates an identical copy of this object definition.
@@ -78,7 +80,7 @@ public abstract class ObjectDefinition
         other.Position = Position;
         other.RotationPitchYawRollDegrees = RotationPitchYawRollDegrees;
         other.Scale = Scale;
-        //other.PenumbraCollection = PenumbraCollection;
+        other.ModpackId = ModpackId;
     }
 
     public abstract TResult Visit<TVisitor, TParam, TResult>(ref TParam param)

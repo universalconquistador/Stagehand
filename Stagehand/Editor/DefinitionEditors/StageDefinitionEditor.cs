@@ -31,6 +31,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
 
     public OutlinerNode OutlinerNode { get; }
     public DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor> Objects { get; }
+    public DefinitionEditorDictionary<EmbeddedModpackDefinition, EmbeddedModpackDefinitionEditor> EmbeddedModpacks { get; }
 
     public string Name
     {
@@ -74,6 +75,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
         OutlinerNode.Clicked += OnOutlinerNodeClicked;
 
         Objects = new(definition.Objects, OutlinerNode, CreateEditorForObjectDefinition, TransactionManager, _selectionManager);
+        EmbeddedModpacks = new(definition.EmbeddedModpacks, OutlinerNode, CreateEditorForEmbeddedModpackDefinition, TransactionManager, _selectionManager);
     }
 
     private void OnOutlinerNodeClicked(OutlinerNode obj)
@@ -148,9 +150,15 @@ public class StageDefinitionEditor : DefinitionEditorBase
 
     public override void Dispose()
     {
+        EmbeddedModpacks.Dispose();
         Objects.Dispose();
 
         base.Dispose();
+    }
+
+    private EmbeddedModpackDefinitionEditor CreateEditorForEmbeddedModpackDefinition(EmbeddedModpackDefinition definition, string key)
+    {
+        return new EmbeddedModpackDefinitionEditor(ServiceProvider, definition, key);
     }
 
     private IObjectDefinitionEditor CreateEditorForObjectDefinition(ObjectDefinition objectDefinition, string objectKey)

@@ -2,7 +2,9 @@ using Stagehand.Definitions.Objects;
 using Stagehand.Editor.DefinitionEditors.Objects;
 using Stagehand.Editor.Services;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace Stagehand.Editor.DefinitionEditors;
@@ -38,7 +40,7 @@ public interface IChildDefinitionEditor : IDefinitionEditor
 /// </summary>
 /// <typeparam name="TDefinition"></typeparam>
 /// <typeparam name="TEditor"></typeparam>
-public class DefinitionEditorDictionary<TDefinition, TEditor> : IDisposable
+public class DefinitionEditorDictionary<TDefinition, TEditor> : IDisposable, IReadOnlyDictionary<string, TEditor>
     where TEditor : class, IChildDefinitionEditor
 {
     private readonly ITransactionManager _transactionManager;
@@ -49,6 +51,11 @@ public class DefinitionEditorDictionary<TDefinition, TEditor> : IDisposable
     private readonly Func<TDefinition, string, TEditor> _editorFactory;
 
     private readonly Dictionary<string, TEditor> _objectEditors = new();
+
+    public IEnumerable<string> Keys => _objectEditors.Keys;
+    public IEnumerable<TEditor> Values => _objectEditors.Values;
+    public int Count => _objectEditors.Count;
+    public TEditor this[string key] => _objectEditors[key];
 
     public DefinitionEditorDictionary(Dictionary<string, TDefinition> objects, OutlinerNode outlinerNode, Func<TDefinition, string, TEditor> editorFactory,
         ITransactionManager transactionManager, ISelectionManager selectionManager)
@@ -152,5 +159,25 @@ public class DefinitionEditorDictionary<TDefinition, TEditor> : IDisposable
             _outlinerNode.RemoveChild(obj.Value.OutlinerNode);
         }
         _objectEditors.Clear();
+    }
+
+    public bool ContainsKey(string key)
+    {
+        return _objectEditors.ContainsKey(key);
+    }
+
+    public bool TryGetValue(string key, [MaybeNullWhen(false)] out TEditor value)
+    {
+        return _objectEditors.TryGetValue(key, out value);
+    }
+
+    public IEnumerator<KeyValuePair<string, TEditor>> GetEnumerator()
+    {
+        return _objectEditors.GetEnumerator();
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return ((IEnumerable)_objectEditors).GetEnumerator();
     }
 }

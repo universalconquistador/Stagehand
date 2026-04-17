@@ -1,5 +1,6 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
+using Dalamud.Interface.Utility.Raii;
 using Microsoft.Extensions.DependencyInjection;
 using Stagehand.Definitions.Objects;
 using Stagehand.Editor.Services;
@@ -7,6 +8,7 @@ using Stagehand.Live;
 using Stagehand.Services;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -83,6 +85,12 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
 
     public Matrix4x4 Transform => Matrix4x4.CreateScale(Scale) * TransformNoScale;
 
+    public string ModpackId
+    {
+        get => Definition.ModpackId;
+        set => SetPropertyValue(SetModpackIdInternal, value, Definition.ModpackId);
+    }
+
     protected virtual void SetPositionInternal(Vector3 position)
     {
         Definition.Position = position;
@@ -101,6 +109,11 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
     protected virtual void SetScaleInternal(Vector3 scale)
     {
         Definition.Scale = scale;
+    }
+
+    protected virtual void SetModpackIdInternal(string modpackId)
+    {
+        Definition.ModpackId = modpackId;
     }
 
     protected ObjectDefinitionEditor(IServiceProvider serviceProvider, TDefinition definition, string key, StageDefinitionEditor stage) : base(serviceProvider)
@@ -140,6 +153,36 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         if (ImGui.InputText("Display Name", ref displayName, 512, flags: ImGuiInputTextFlags.EnterReturnsTrue))
         {
             SetDisplayName(displayName);
+        }
+        var modpackPreview = "(None)";
+        if (ModpackId != string.Empty)
+        {
+            if (Stage.EmbeddedModpacks.TryGetValue(ModpackId, out var editor))
+            {
+                modpackPreview = editor.DisplayName;
+            }
+            else
+            {
+                modpackPreview = "(Invalid)";
+            }
+        }
+        using (var modpackCombo = ImRaii.Combo("Modpack", modpackPreview))
+        {
+            if (modpackCombo)
+            {
+                if (ImGui.Selectable("(None)", ModpackId == string.Empty))
+                {
+                    ModpackId = string.Empty;
+                }
+
+                foreach (var modpack in Stage.EmbeddedModpacks.OrderBy(pair => pair.Value.DisplayName))
+                {
+                    if (ImGui.Selectable(modpack.Value.DisplayName, ModpackId == modpack.Key))
+                    {
+                        ModpackId = modpack.Key;
+                    }
+                }
+            }
         }
 
         ImGuiHelpers.ScaledDummy(4.0f);

@@ -94,7 +94,12 @@ public class StageDefinition
     /// <summary>
     /// The objects in this Stage definition, identified by unique string identifiers.
     /// </summary>
-    public Dictionary<string, ObjectDefinition> Objects { get; set; } = new Dictionary<string, ObjectDefinition>();
+    public Dictionary<string, ObjectDefinition> Objects { get; set; } = new();
+
+    /// <summary>
+    /// The modpacks embedded in this Stage definition, identified by unique string identifiers.
+    /// </summary>
+    public Dictionary<string, EmbeddedModpackDefinition> EmbeddedModpacks { get; set; } = new();
 
     /// <summary>
     /// Writes this Stage definition to the given stream in JSON format.

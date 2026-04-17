@@ -223,11 +223,15 @@ internal class EditorWindow : Window, IDisposable
             {
                 using (ImRaii.Disabled())
                 {
-                    if (ImGui.Selectable("Folder"))
+                    if (ImGui.Selectable("New Folder"))
                     {
                         // TODO: Implement!
                     }
                 }
+                DrawCreateMenuItem(EmbeddedModpackDefinitionEditor.StaticTypeInfo, _definitionEditor.EmbeddedModpacks, () => new EmbeddedModpackDefinition()
+                {
+                    DisplayName = "New Modpack",
+                });
                 ImGui.Separator();
 
                 DrawCreateMenuItem(BgObjectDefinitionEditor.StaticTypeInfo, _definitionEditor.Objects, () => new BgObjectDefinition()
