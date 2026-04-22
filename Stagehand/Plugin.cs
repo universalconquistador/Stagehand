@@ -103,10 +103,13 @@ public sealed class Plugin : IDalamudPlugin
             services.AddSingleton<IOverlayService>(_overlayService);
             services.AddSingleton(_dialogManager);
             services.AddSingleton<ILocalDefinitionService, LocalDefinitionService>();
+            services.AddSingleton<IMemoryResourceService, MemoryResourceService>();
+            services.AddSingleton<IResourceRedirectionService, ResourceRedirectionService>();
             services.AddSingleton<ILiveObjectService, LiveObjectService>();
             services.AddSingleton<ILiveStageService, LiveStageService>();
             services.AddSingleton<IEditorService, EditorService>();
 
+            // Global windows
             services.AddSingleton<IConfigWindow, ConfigWindow>();
             services.AddHostedService(services => services.GetRequiredService<IConfigWindow>());
             services.AddSingleton<IAssetLibraryWindow, AssetLibraryWindow>();

@@ -18,7 +18,7 @@ public interface ILiveObject : IDisposable
     /// </summary>
     /// <param name="definition">The object definition, whose concrete type must match this live object.</param>
     /// <returns>True if the update was successful, or false if this live object cannot be updated with the given object definition.</returns>
-    bool TryUpdate(ObjectDefinition definition);
+    bool TryUpdate(ObjectDefinition definition, ILiveModpack? modpack);
 
     /// <summary>
     /// Attempts to get the oriented bounds of this live object.
@@ -41,11 +41,12 @@ internal abstract unsafe class LiveObject : ILiveObject
     public virtual Quaternion Rotation { get => ObjectPtr->Rotation; set => ObjectPtr->Rotation = value; }
     public virtual Vector3 Scale { get => ObjectPtr->Scale; set => ObjectPtr->Scale = value; }
 
-    public Guid PenumbraCollectionId { get; }
+    public ILiveModpack? Modpack { get; }
 
-    public LiveObject(Object* objectPtr)
+    public LiveObject(Object* objectPtr, ILiveModpack? modpack)
     {
         ObjectPtr = objectPtr;
+        Modpack = modpack;
     }
 
     public virtual void Dispose()
@@ -53,7 +54,7 @@ internal abstract unsafe class LiveObject : ILiveObject
         ObjectPtr = null;
     }
 
-    public abstract bool TryUpdate(ObjectDefinition definition);
+    public abstract bool TryUpdate(ObjectDefinition definition, ILiveModpack? modpack);
 
     public abstract bool TryGetOrientedBounds(out FFXIVClientStructs.FFXIV.Common.Math.OrientedBounds orientedBounds);
 }

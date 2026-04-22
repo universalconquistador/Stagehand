@@ -36,6 +36,12 @@ public class StagehandConfiguration : IPluginConfiguration
     /// </summary>
     public HoverPreviewMode AssetLibraryPreviewMode { get; set; } = HoverPreviewMode.NearPlayer;
 
+    public bool LogMemoryResourceUntouched { get; set; } = true;
+    public bool LogMemoryResourceHandled { get; set; } = true;
+
+    public bool LogModpackResourceUntouched { get; set; } = true;
+    public bool LogModpackResourceHandled { get; set; } = true;
+
     // The below exists just to make saving less cumbersome
     public void Save()
     {

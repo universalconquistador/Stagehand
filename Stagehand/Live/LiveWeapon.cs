@@ -17,7 +17,7 @@ internal sealed unsafe class LiveWeapon : LiveDrawObject
     public byte PrimaryDye { get => WeaponPtr->Stain0; set => WeaponPtr->Stain0 = value; }
     public byte SecondaryDye { get => WeaponPtr->Stain1; set => WeaponPtr->Stain1 = value; }
 
-    public LiveWeapon(Weapon* weaponPtr) : base((DrawObject*)weaponPtr)
+    public LiveWeapon(Weapon* weaponPtr, ILiveModpack? modpack) : base((DrawObject*)weaponPtr, modpack)
     {
     }
 
@@ -29,8 +29,15 @@ internal sealed unsafe class LiveWeapon : LiveDrawObject
         base.Dispose();
     }
 
-    public override bool TryUpdate(ObjectDefinition definition)
+    public override bool TryUpdate(ObjectDefinition definition, ILiveModpack? modpack)
     {
+        // If we are adding or removing a modpack or making a material change to the modpack, we can't update in place
+        if ((modpack == null) != (Modpack == null)
+            || (Modpack != null && modpack != null && Modpack.EffectsHash != modpack.EffectsHash))
+        {
+            return false;
+        }
+
         if (definition is WeaponDefinition weaponDefinition)
         {
             if (weaponDefinition.ModelSetId != ModelSetId

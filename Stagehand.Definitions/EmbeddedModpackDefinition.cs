@@ -37,17 +37,4 @@ public class EmbeddedModpackDefinition
     /// A mapping from replaced game paths to the file bytes to replace them with.
     /// </summary>
     public Dictionary<string, byte[]> FileReplacements { get; set; } = new();
-
-    /// <summary>
-    /// Computes a hash of the effects this modpack has, including file redirections and replacements.
-    /// </summary>
-    /// <remarks>
-    /// Does not include properties that do not effect the game, such as display name and penumbra info.
-    /// </remarks>
-    /// <returns></returns>
-    public string ComputeEffectiveHash()
-    {
-        // TODO: Implement
-        throw new NotImplementedException();
-    }
 }

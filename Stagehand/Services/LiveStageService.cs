@@ -73,17 +73,19 @@ internal static class LiveStageHelpers
 internal class LiveStageService : ILiveStageService, IDisposable
 {
     private readonly ILiveObjectService _liveObjectService;
+    private readonly IResourceRedirectionService _resourceRedirectionService;
 
     private readonly ConcurrentDictionary<string, LiveStage> _liveStages = new();
 
-    public LiveStageService(ILiveObjectService liveObjectService)
+    public LiveStageService(ILiveObjectService liveObjectService, IResourceRedirectionService resourceRedirectionService)
     {
         _liveObjectService = liveObjectService;
+        _resourceRedirectionService = resourceRedirectionService;
     }
 
     public LiveStage CreateOrUpdateLiveStage(string key, StageDefinition definition)
     {
-        return _liveStages.AddOrUpdate(key, k => new LiveStage(definition, _liveObjectService), (k, existing) =>
+        return _liveStages.AddOrUpdate(key, k => new LiveStage(definition, _liveObjectService, _resourceRedirectionService), (k, existing) =>
         {
             existing.Update(definition);
             return existing;

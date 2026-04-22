@@ -22,7 +22,7 @@ public interface ILiveObjectService
     /// </summary>
     /// <param name="shape">The light shape for the new light.</param>
     /// <returns>The new live light, or null if it could not be created.</returns>
-    ILiveObject? CreateLight(RenderLightShape shape);
+    ILiveObject? CreateLight(RenderLightShape shape, ILiveModpack? modpack);
 
     /// <summary>
     /// Creates a new live VFX object with the given VFX resource and transformation.
@@ -33,7 +33,7 @@ public interface ILiveObjectService
     /// <param name="scale">The world space scale to create the new VFX object with.</param>
     /// <param name="color">The tint to apply to the new VFX object, or <see cref="Vector4.One"/> to apply no tint.</param>
     /// <returns>The new live VFX object, or null if it could not be created.</returns>
-    ILiveObject? CreateVfx(string vfxResourceGamePath, Vector3 position, Quaternion rotation, Vector3 scale, Vector4 color);
+    ILiveObject? CreateVfx(string vfxResourceGamePath, Vector3 position, Quaternion rotation, Vector3 scale, Vector4 color, ILiveModpack? modpack);
 
     /// <summary>
     /// Creates a new live background object with the given model and transformation.
@@ -43,7 +43,7 @@ public interface ILiveObjectService
     /// <param name="rotation">The world space rotation to create the new background object at.</param>
     /// <param name="scale">The world space scale to create the new background object with.</param>
     /// <returns>The new live background object, or null if it could not be created.</returns>
-    ILiveObject? CreateBgObject(string modelGamePath, Vector3 position, Quaternion rotation, Vector3 scale);
+    ILiveObject? CreateBgObject(string modelGamePath, Vector3 position, Quaternion rotation, Vector3 scale, ILiveModpack? modpack);
 
     /// <summary>
     /// Creates a new live weapon object from the given model IDs, dye templates, and transformation.
@@ -57,14 +57,14 @@ public interface ILiveObjectService
     /// <param name="rotation">The world space rotation to create the new weapon object at.</param>
     /// <param name="scale">The world space scale to create the new weapon object with.</param>
     /// <returns>The new live weapon object, or null if it could not be created.</returns>
-    ILiveObject? CreateWeapon(ushort modelSetId, ushort secondaryId, ushort variant, byte stain0, byte stain1, Vector3 position, Quaternion rotation, Vector3 scale);
+    ILiveObject? CreateWeapon(ushort modelSetId, ushort secondaryId, ushort variant, byte stain0, byte stain1, Vector3 position, Quaternion rotation, Vector3 scale, ILiveModpack? modpack);
 
     /// <summary>
     /// Creates a new live object according to the given object definition.
     /// </summary>
     /// <param name="definition">The object definition specifying the object to create.</param>
     /// <returns>The new live object, or null if it could not be created.</returns>
-    ILiveObject? CreateObject(ObjectDefinition definition);
+    ILiveObject? CreateObject(ObjectDefinition definition, ILiveModpack? modpack);
 
     /// <summary>
     /// Updates the given live object with the given new definition, or disposes and creates a new live object if the new
@@ -74,21 +74,35 @@ public interface ILiveObjectService
     /// <param name="newDefinition">The object definition to apply.</param>
     /// <returns>Either the given live object if it was successfully created, a new live object if the given one was
     /// not compatible and destroyed, or null if a new live object could not be created.</returns>
-    ILiveObject? UpdateOrRecreateObject(ILiveObject obj, ObjectDefinition newDefinition);
+    ILiveObject? UpdateOrRecreateObject(ILiveObject obj, ObjectDefinition newDefinition, ILiveModpack? modpack);
 }
 
 internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposable
 {
     private readonly IFramework _framework;
     private readonly IDataManager _dataManager;
+    private readonly IResourceRedirectionService _resourceRedirectionService;
 
-    public LiveObjectService(IFramework framework, IDataManager dataManager)
+    public LiveObjectService(IFramework framework, IDataManager dataManager, IResourceRedirectionService resourceRedirectionService)
     {
         _framework = framework;
         _dataManager = dataManager;
+        _resourceRedirectionService = resourceRedirectionService;
     }
 
-    public ILiveObject? CreateLight(RenderLightShape shape)
+    private bool SafeResourceExists(string path)
+    {
+        try
+        {
+            return _dataManager.FileExists(path);
+        }
+        catch(Exception ex)
+        {
+            return false;
+        }
+    }
+
+    public ILiveObject? CreateLight(RenderLightShape shape, ILiveModpack? modpack)
     {
         SceneLight* light = null;
 
@@ -103,22 +117,30 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
             return null;
         }
 
-        var result = new LiveLight(_framework, light);
+        var result = new LiveLight(_framework, light, modpack);
 
         return result;
     }
 
-    public ILiveObject? CreateVfx(string vfxResourceGamePath, Vector3 position, Quaternion rotation, Vector3 scale, Vector4 color)
+    public ILiveObject? CreateVfx(string vfxResourceGamePath, Vector3 position, Quaternion rotation, Vector3 scale, Vector4 color, ILiveModpack? modpack)
     {
         VfxObject* vfxObject;
 
-        if (!_dataManager.GameData.FileExists(vfxResourceGamePath))
+        var finalPath = vfxResourceGamePath;
+        bool existsInModpack = false;
+        if (modpack != null)
+        {
+            existsInModpack = modpack.AllRedirections.ContainsKey(vfxResourceGamePath);
+            finalPath = _resourceRedirectionService.MakeModpackPath(vfxResourceGamePath, modpack);
+        }
+
+        if (!SafeResourceExists(finalPath) && !existsInModpack)
         {
             return null;
         }
 
-        Span<byte> pathBytes = stackalloc byte[Encoding.UTF8.GetByteCount(vfxResourceGamePath) + 1];
-        Encoding.UTF8.GetBytes(vfxResourceGamePath, pathBytes);
+        Span<byte> pathBytes = stackalloc byte[Encoding.UTF8.GetByteCount(finalPath) + 1];
+        Encoding.UTF8.GetBytes(finalPath, pathBytes);
         pathBytes[pathBytes.Length - 1] = 0;
 
         fixed (byte* pathBytesPtr = pathBytes)
@@ -135,7 +157,7 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
             return null;
         }
 
-        var result = new LiveVfxObject(vfxObject);
+        var result = new LiveVfxObject(vfxObject, modpack);
 
         result.Position = position;
         result.Rotation = rotation;
@@ -146,17 +168,25 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
         return result;
     }
 
-    public ILiveObject? CreateBgObject(string modelGamePath, Vector3 position, Quaternion rotation, Vector3 scale)
+    public ILiveObject? CreateBgObject(string modelGamePath, Vector3 position, Quaternion rotation, Vector3 scale, ILiveModpack? modpack)
     {
         BgObject* bgObject;
 
-        if (!_dataManager.GameData.FileExists(modelGamePath))
+        var finalPath = modelGamePath;
+        bool existsInModpack = false;
+        if (modpack != null)
+        {
+            existsInModpack = modpack.AllRedirections.ContainsKey(modelGamePath);
+            finalPath = _resourceRedirectionService.MakeModpackPath(modelGamePath, modpack);
+        }
+
+        if (!SafeResourceExists(finalPath) && !existsInModpack)
         {
             return null;
         }
 
-        Span<byte> pathBytes = stackalloc byte[Encoding.UTF8.GetByteCount(modelGamePath) + 1];
-        Encoding.UTF8.GetBytes(modelGamePath, pathBytes);
+        Span<byte> pathBytes = stackalloc byte[Encoding.UTF8.GetByteCount(finalPath) + 1];
+        Encoding.UTF8.GetBytes(finalPath, pathBytes);
         pathBytes[pathBytes.Length - 1] = 0;
 
         fixed (byte* pathBytesPtr = pathBytes)
@@ -182,13 +212,13 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
             bgObject->UpdateTransforms(false);
         }
 
-        var result = new LiveBgObject(bgObject);
+        var result = new LiveBgObject(bgObject, modpack);
 
 
         return result;
     }
 
-    public ILiveObject? CreateWeapon(ushort modelSetId, ushort secondaryId, ushort variant, byte stain0, byte stain1, Vector3 position, Quaternion rotation, Vector3 scale)
+    public ILiveObject? CreateWeapon(ushort modelSetId, ushort secondaryId, ushort variant, byte stain0, byte stain1, Vector3 position, Quaternion rotation, Vector3 scale, ILiveModpack? modpack)
     {
         Weapon* weapon;
 
@@ -218,7 +248,7 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
 
         weapon->UpdateTransforms(false);
 
-        return new LiveWeapon(weapon);
+        return new LiveWeapon(weapon, modpack);
     }
 
     public void Dispose()
@@ -226,56 +256,57 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
         // TODO: Emergency cleanup of any leftover live objects
     }
 
-    public ILiveObject? CreateObject(ObjectDefinition definition)
+    public ILiveObject? CreateObject(ObjectDefinition definition, ILiveModpack? modpack)
     {
         LiveObjectFactoryParams factoryParams = new()
         {
             LiveObjectService = this,
+            Modpack = modpack,
         };
         return definition.Visit<LiveObjectFactory, LiveObjectFactoryParams, ILiveObject?>(ref factoryParams);
     }
 
-    public ILiveObject? UpdateOrRecreateObject(ILiveObject obj, ObjectDefinition newDefinition)
+    public ILiveObject? UpdateOrRecreateObject(ILiveObject obj, ObjectDefinition newDefinition, ILiveModpack? modpack)
     {
         ILiveObject? result = obj;
-        if (!obj.TryUpdate(newDefinition))
+        if (!obj.TryUpdate(newDefinition, modpack))
         {
             obj.Dispose();
-            result = CreateObject(newDefinition);
+            result = CreateObject(newDefinition, modpack);
         }
 
         return result;
     }
 
-    private record struct LiveObjectFactoryParams(ILiveObjectService LiveObjectService);
+    private record struct LiveObjectFactoryParams(ILiveObjectService LiveObjectService, ILiveModpack? Modpack);
 
     private sealed class LiveObjectFactory : IObjectVisitor<LiveObjectFactoryParams, ILiveObject?>
     {
         public static ILiveObject? VisitBgObjectDefinition(BgObjectDefinition definition, ref LiveObjectFactoryParams param)
         {
-            var bgObject = param.LiveObjectService.CreateBgObject(definition.ModelGamePath, definition.Position, definition.RotationQuaternion, definition.Scale);
-            bgObject?.TryUpdate(definition);
+            var bgObject = param.LiveObjectService.CreateBgObject(definition.ModelGamePath, definition.Position, definition.RotationQuaternion, definition.Scale, param.Modpack);
+            bgObject?.TryUpdate(definition, param.Modpack);
             return bgObject;
         }
 
         public static ILiveObject? VisitLightDefinition(LightDefinition definition, ref LiveObjectFactoryParams param)
         {
-            var light = param.LiveObjectService.CreateLight(definition.Shape switch { LightShape.Ambient => RenderLightShape.WorldLight, LightShape.Point => RenderLightShape.PointLight, LightShape.Spot => RenderLightShape.SpotLight, LightShape.Flat => RenderLightShape.FlatLight, _ => RenderLightShape.PointLight });
-            light?.TryUpdate(definition);
+            var light = param.LiveObjectService.CreateLight(definition.Shape switch { LightShape.Ambient => RenderLightShape.WorldLight, LightShape.Point => RenderLightShape.PointLight, LightShape.Spot => RenderLightShape.SpotLight, LightShape.Flat => RenderLightShape.FlatLight, _ => RenderLightShape.PointLight }, param.Modpack);
+            light?.TryUpdate(definition, param.Modpack);
             return light;
         }
 
         public static ILiveObject? VisitVfxObjectDefinition(VfxObjectDefinition definition, ref LiveObjectFactoryParams param)
         {
-            var vfxObject = param.LiveObjectService.CreateVfx(definition.VfxGamePath, definition.Position, definition.RotationQuaternion, definition.Scale, definition.Color);
-            //vfxObject?.TryUpdate(definition);
+            var vfxObject = param.LiveObjectService.CreateVfx(definition.VfxGamePath, definition.Position, definition.RotationQuaternion, definition.Scale, definition.Color, param.Modpack);
+            //vfxObject?.TryUpdate(definition, param.Modpack);
             return vfxObject;
         }
 
         public static ILiveObject? VisitWeaponDefinition(WeaponDefinition definition, ref LiveObjectFactoryParams param)
         {
-            var weaponObject = param.LiveObjectService.CreateWeapon((ushort)definition.ModelSetId, (ushort)definition.SecondaryId, (ushort)definition.Variant, (byte)definition.PrimaryDye, (byte)definition.SecondaryDye, definition.Position, definition.RotationQuaternion, definition.Scale);
-            //weaponObject?.TryUpdate(definition);
+            var weaponObject = param.LiveObjectService.CreateWeapon((ushort)definition.ModelSetId, (ushort)definition.SecondaryId, (ushort)definition.Variant, (byte)definition.PrimaryDye, (byte)definition.SecondaryDye, definition.Position, definition.RotationQuaternion, definition.Scale, param.Modpack);
+            //weaponObject?.TryUpdate(definition, param.Modpack);
             return weaponObject;
         }
     }

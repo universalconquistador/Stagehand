@@ -511,7 +511,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
                 ImGuiHelpers.ScaledDummy(5.0f);
                 if (ImGui.Button("Add Point Light"))
                 {
-                    var newLight = _liveObjectService.CreateLight(FFXIVClientStructs.FFXIV.Client.Graphics.Render.LightShape.PointLight) as LiveLight;
+                    var newLight = _liveObjectService.CreateLight(FFXIVClientStructs.FFXIV.Client.Graphics.Render.LightShape.PointLight, modpack: null) as LiveLight;
                     if (newLight != null)
                     {
                         createdObjects.Add(newLight);
@@ -524,7 +524,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
                 ImGui.SameLine();
                 if (ImGui.Button("Add VFX"))
                 {
-                    var newVfx = _liveObjectService.CreateVfx("bg/ffxiv/fst_f1/common/vfx/eff/b0941trp1a_o.avfx", _objectTable.LocalPlayer?.Position ?? Vector3.Zero, Quaternion.Identity, Vector3.One, Vector4.One);
+                    var newVfx = _liveObjectService.CreateVfx("bg/ffxiv/fst_f1/common/vfx/eff/b0941trp1a_o.avfx", _objectTable.LocalPlayer?.Position ?? Vector3.Zero, Quaternion.Identity, Vector3.One, Vector4.One, modpack: null);
                     if (newVfx != null)
                     {
                         createdObjects.Add(newVfx);
@@ -534,7 +534,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
                 ImGui.SameLine();
                 if (ImGui.Button("Add BgObject"))
                 {
-                    var newObj = _liveObjectService.CreateBgObject("bgcommon/hou/indoor/general/0401/bgparts/fun_b0_m0401.mdl", _objectTable.LocalPlayer?.Position ?? Vector3.Zero, Quaternion.Identity, Vector3.One);
+                    var newObj = _liveObjectService.CreateBgObject("bgcommon/hou/indoor/general/0401/bgparts/fun_b0_m0401.mdl", _objectTable.LocalPlayer?.Position ?? Vector3.Zero, Quaternion.Identity, Vector3.One, modpack: null);
                     if (newObj != null)
                     {
                         createdObjects.Add(newObj);
@@ -544,7 +544,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
                 ImGui.SameLine();
                 if (ImGui.Button("Add Weapon"))
                 {
-                    var newWeapon = _liveObjectService.CreateWeapon(1801, 8, 1, 0, 0, (_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.UnitY, Quaternion.Identity, Vector3.One); // Storm Officer's Knives
+                    var newWeapon = _liveObjectService.CreateWeapon(1801, 8, 1, 0, 0, (_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.UnitY, Quaternion.Identity, Vector3.One, modpack: null); // Storm Officer's Knives
                     if (newWeapon != null)
                     {
                         createdObjects.Add(newWeapon);

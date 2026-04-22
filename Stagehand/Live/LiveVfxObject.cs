@@ -34,8 +34,8 @@ internal sealed unsafe class LiveVfxObject : LiveDrawObject
         set => VfxObjectPtr->Color = value;
     }
 
-    public LiveVfxObject(VfxObject* vfxObject)
-        : base((DrawObject*)vfxObject)
+    public LiveVfxObject(VfxObject* vfxObject, ILiveModpack? modpack)
+        : base((DrawObject*)vfxObject, modpack)
     {
         if (vfxObject == null)
             throw new ArgumentNullException(nameof(vfxObject));
@@ -80,8 +80,15 @@ internal sealed unsafe class LiveVfxObject : LiveDrawObject
         base.Dispose();
     }
 
-    public override bool TryUpdate(ObjectDefinition definition)
+    public override bool TryUpdate(ObjectDefinition definition, ILiveModpack? modpack)
     {
+        // If we are adding or removing a modpack or making a material change to the modpack, we can't update in place
+        if ((modpack == null) != (Modpack == null)
+            || (Modpack != null && modpack != null && Modpack.EffectsHash != modpack.EffectsHash))
+        {
+            return false;
+        }
+
         if (definition is VfxObjectDefinition vfxDefinition)
         {
             // For now, if a new vfx is requested, create a new LiveVfx

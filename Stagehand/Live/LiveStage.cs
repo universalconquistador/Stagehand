@@ -12,14 +12,17 @@ namespace Stagehand.Live;
 public class LiveStage : IDisposable
 {
     private readonly Dictionary<string, ILiveObject> _liveObjects = new();
+    private readonly Dictionary<string, ILiveModpack> _liveModpacks = new();
 
     private readonly ILiveObjectService _liveObjectService;
+    private readonly IResourceRedirectionService _resourceRedirectionService;
 
     private readonly object _modificationLock = new();
 
-    public LiveStage(StageDefinition definition, ILiveObjectService liveObjectService)
+    public LiveStage(StageDefinition definition, ILiveObjectService liveObjectService, IResourceRedirectionService resourceRedirectionService)
     {
         _liveObjectService = liveObjectService;
+        _resourceRedirectionService = resourceRedirectionService;
         Update(definition);
     }
 
@@ -27,6 +30,33 @@ public class LiveStage : IDisposable
     {
         lock (_modificationLock)
         {
+            // Remove any modpacks that are not in the new definition
+            foreach (var existingModpack in _liveModpacks)
+            {
+                if (!newDefinition.EmbeddedModpacks.ContainsKey(existingModpack.Key))
+                {
+                    _liveModpacks.Remove(existingModpack.Key);
+                    existingModpack.Value.Dispose();
+                }
+            }
+
+            foreach (var newModpack in newDefinition.EmbeddedModpacks)
+            {
+                if (_liveModpacks.TryGetValue(newModpack.Key, out var existingModpack))
+                {
+                    var newEffectsHash = ResourceRedirectionHelpers.HashModpackEffects(newModpack.Value.FileRedirections, newModpack.Value.FileReplacements);
+                    if (existingModpack.EffectsHash != newEffectsHash)
+                    {
+                        existingModpack.Dispose();
+                        _liveModpacks[newModpack.Key] = _resourceRedirectionService.CreateModpack($"LiveStage-{newDefinition.Info.Name}-{newModpack.Value.DisplayName}", newModpack.Value.FileRedirections, newModpack.Value.FileReplacements);
+                    }
+                }
+                else
+                {
+                    _liveModpacks.Add(newModpack.Key, _resourceRedirectionService.CreateModpack($"LiveStage-{newDefinition.Info.Name}-{newModpack.Value.DisplayName}", newModpack.Value.FileRedirections, newModpack.Value.FileReplacements));
+                }
+            }
+
             // Remove any objects that are not in the new definition
             foreach (var existingObject in _liveObjects)
             {
@@ -39,9 +69,14 @@ public class LiveStage : IDisposable
 
             foreach (var newObject in newDefinition.Objects)
             {
+                ILiveModpack? newModpack = null;
+                if (newObject.Value.ModpackId != string.Empty)
+                {
+                    _liveModpacks.TryGetValue(newObject.Value.ModpackId, out newModpack);
+                }
                 if (_liveObjects.TryGetValue(newObject.Key, out var existingObject))
                 {
-                    var obj = _liveObjectService.UpdateOrRecreateObject(existingObject, newObject.Value);
+                    var obj = _liveObjectService.UpdateOrRecreateObject(existingObject, newObject.Value, newModpack);
                     if (obj != null)
                     {
                         _liveObjects[newObject.Key] = obj;
@@ -53,7 +88,7 @@ public class LiveStage : IDisposable
                 }
                 else
                 {
-                    var obj = _liveObjectService.CreateObject(newObject.Value);
+                    var obj = _liveObjectService.CreateObject(newObject.Value, newModpack);
                     if (obj != null)
                     {
                         _liveObjects.Add(newObject.Key, obj);
@@ -72,6 +107,11 @@ public class LiveStage : IDisposable
                 obj.Value.Dispose();
             }
             _liveObjects.Clear();
+            foreach (var modpack in _liveModpacks)
+            {
+                modpack.Value.Dispose();
+            }
+            _liveModpacks.Clear();
         }
     }
 }

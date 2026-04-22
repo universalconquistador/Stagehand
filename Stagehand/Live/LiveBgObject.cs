@@ -32,8 +32,8 @@ internal sealed unsafe class LiveBgObject : LiveDrawObject
         }
     }
 
-    public LiveBgObject(BgObject* bgObject)
-        : base((DrawObject*)bgObject)
+    public LiveBgObject(BgObject* bgObject, ILiveModpack? modpack)
+        : base((DrawObject*)bgObject, modpack)
     {
         if (bgObject == null)
             throw new ArgumentNullException(nameof(bgObject));
@@ -56,8 +56,15 @@ internal sealed unsafe class LiveBgObject : LiveDrawObject
         base.Dispose();
     }
 
-    public override bool TryUpdate(ObjectDefinition definition)
+    public override bool TryUpdate(ObjectDefinition definition, ILiveModpack? modpack)
     {
+        // If we are adding or removing a modpack or making a material change to the modpack, we can't update in place
+        if ((modpack == null) != (Modpack == null)
+            || (Modpack != null && modpack != null && Modpack.EffectsHash != modpack.EffectsHash))
+        {
+            return false;
+        }
+
         if (definition is BgObjectDefinition bgObjectDefinition)
         {
             if (bgObjectDefinition.ModelGamePath != ModelResourceGamePath)
@@ -87,15 +94,17 @@ internal sealed unsafe class LiveBgObject : LiveDrawObject
     public override bool TryGetOrientedBounds(out FFXIVClientStructs.FFXIV.Common.Math.OrientedBounds orientedBounds)
     {
         // Attempting to query the bounds of a BgObject whose model is loading results in an access violation
-        if (BgObjectPtr->ModelResourceHandle == null || BgObjectPtr->ModelResourceHandle->LoadState < 7)
-        {
-            orientedBounds = default;
-            return false;
-        }
-        else
-        {
-            return base.TryGetOrientedBounds(out orientedBounds);
-        }
+        //if (BgObjectPtr->ModelResourceHandle == null || BgObjectPtr->ModelResourceHandle->LoadState < 7)
+        //{
+        //    orientedBounds = default;
+        //    return false;
+        //}
+        //else
+        //{
+        //    return base.TryGetOrientedBounds(out orientedBounds);
+        //}
+        orientedBounds = default;
+        return false;
     }
 }
 

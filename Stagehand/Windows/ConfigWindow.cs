@@ -54,6 +54,33 @@ public class ConfigWindow : Window, IConfigWindow, IDisposable
             _configuration.DefinitionLibraryPath = Encoding.UTF8.GetString(_definitionLibraryPathBuffer.AsSpan().Slice(0, _definitionLibraryPathBuffer.IndexOf((byte)0)));
             _configuration.Save();
         }
+
+        ImGui.Spacing();
+        ImGui.TextUnformatted("Debug Logging");
+        var logMemoryResourceUntouched = _configuration.LogMemoryResourceUntouched;
+        if (ImGui.Checkbox("Log Memory Resource Untouched", ref logMemoryResourceUntouched))
+        {
+            _configuration.LogMemoryResourceUntouched = logMemoryResourceUntouched;
+            _configuration.Save();
+        }
+        var logMemoryResourceHandled = _configuration.LogMemoryResourceHandled;
+        if (ImGui.Checkbox("Log Memory Resource Handled", ref logMemoryResourceHandled))
+        {
+            _configuration.LogMemoryResourceHandled = logMemoryResourceHandled;
+            _configuration.Save();
+        }
+        var logModpackResourceUntouched = _configuration.LogModpackResourceUntouched;
+        if (ImGui.Checkbox("Log Modpack Resource Untouched", ref logModpackResourceUntouched))
+        {
+            _configuration.LogModpackResourceUntouched = logModpackResourceUntouched;
+            _configuration.Save();
+        }
+        var logModpackResourceHandled = _configuration.LogModpackResourceHandled;
+        if (ImGui.Checkbox("Log Modpack Resource Handled", ref logModpackResourceHandled))
+        {
+            _configuration.LogModpackResourceHandled = logModpackResourceHandled;
+            _configuration.Save();
+        }
     }
 
     public Task StartAsync(CancellationToken cancellationToken)

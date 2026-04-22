@@ -39,6 +39,10 @@ public interface IObjectDefinitionEditor : IChildDefinitionEditor
     /// This object's scale in world space.
     /// </summary>
     Vector3 Scale { get; set; }
+
+    string ModpackId { get; set; }
+
+    void RefreshPreviewObject();
 }
 
 internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBase, IObjectDefinitionEditor
@@ -267,14 +271,31 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
 
     public virtual void AddedToStage()
     {
-        PreviewLiveObject = LiveObjectService.CreateObject(Definition);
+        PreviewLiveObject = LiveObjectService.CreateObject(Definition, GetPreviewModpack());
         OverlayService.DrawOverlays += DrawOverlays;
         IsInStage = true;
     }
 
     public virtual void RefreshPreviewObject()
     {
-        PreviewLiveObject = PreviewLiveObject != null ? LiveObjectService.UpdateOrRecreateObject(PreviewLiveObject, Definition) : LiveObjectService.CreateObject(Definition);
+        PreviewLiveObject = PreviewLiveObject != null ? LiveObjectService.UpdateOrRecreateObject(PreviewLiveObject, Definition, GetPreviewModpack()) : LiveObjectService.CreateObject(Definition, GetPreviewModpack());
+    }
+
+    private ILiveModpack? GetPreviewModpack()
+    {
+        if (ModpackId == string.Empty)
+        {
+            return null;
+        }
+
+        if (Stage.EmbeddedModpacks?.TryGetValue(ModpackId, out var modpackEditor) ?? false)
+        {
+            return modpackEditor.PreviewLiveModpack;
+        }
+        else
+        {
+            return null;
+        }
     }
 
     public virtual void RemovedFromStage()

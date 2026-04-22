@@ -35,8 +35,8 @@ internal sealed unsafe class LiveLight : LiveDrawObject
     public float ShadowPlaneFar { get => SceneLightPtr->RenderLight->ShadowPlaneFar; set => SceneLightPtr->RenderLight->ShadowPlaneFar = value; }
     public Vector2 FlatLightSkewAngleDegrees { get => SceneLightPtr->RenderLight->FlatLightSkewAngleDegrees * 180.0f / MathF.PI; set => SceneLightPtr->RenderLight->FlatLightSkewAngleDegrees = value * MathF.PI / 180.0f; }
 
-    public LiveLight(IFramework framework, SceneLight* sceneLight)
-        : base((DrawObject*)sceneLight)
+    public LiveLight(IFramework framework, SceneLight* sceneLight, ILiveModpack? modpack)
+        : base((DrawObject*)sceneLight, modpack)
     {
         if (sceneLight == null)
             throw new ArgumentNullException(nameof(sceneLight));
@@ -94,8 +94,15 @@ internal sealed unsafe class LiveLight : LiveDrawObject
         base.Dispose();
     }
 
-    public override bool TryUpdate(ObjectDefinition definition)
+    public override bool TryUpdate(ObjectDefinition definition, ILiveModpack? modpack)
     {
+        // If we are adding or removing a modpack or making a material change to the modpack, we can't update in place
+        if ((modpack == null) != (Modpack == null)
+            || (Modpack != null && modpack != null && Modpack.EffectsHash != modpack.EffectsHash))
+        {
+            return false;
+        }
+
         if (definition is LightDefinition lightDefinition)
         {
             LightFlags flags = default;

@@ -15,8 +15,8 @@ internal abstract unsafe class LiveDrawObject : LiveObject
     public bool IsVisible { get => DrawObjectPtr->IsVisible; set => DrawObjectPtr->IsVisible = value; }
     public bool IsCoveredFromRain { get => DrawObjectPtr->IsCoveredFromRain; set => DrawObjectPtr->IsCoveredFromRain = value; }
 
-    public LiveDrawObject(DrawObject* drawObjectPtr)
-        : base((Object*)drawObjectPtr)
+    public LiveDrawObject(DrawObject* drawObjectPtr, ILiveModpack? modpack)
+        : base((Object*)drawObjectPtr, modpack)
     { }
 
     public override bool TryGetOrientedBounds(out FFXIVClientStructs.FFXIV.Common.Math.OrientedBounds orientedBounds)

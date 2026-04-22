@@ -158,7 +158,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
 
     private EmbeddedModpackDefinitionEditor CreateEditorForEmbeddedModpackDefinition(EmbeddedModpackDefinition definition, string key)
     {
-        return new EmbeddedModpackDefinitionEditor(ServiceProvider, definition, key);
+        return new EmbeddedModpackDefinitionEditor(ServiceProvider, definition, this, key);
     }
 
     private IObjectDefinitionEditor CreateEditorForObjectDefinition(ObjectDefinition objectDefinition, string objectKey)

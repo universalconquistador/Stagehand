@@ -101,7 +101,7 @@ public record class MdlResourceAssetInfo(string DisplayName, AssetType Type, str
 {
     public override ILiveObject? CreatePreviewObject(ILiveObjectService liveObjectService, Vector3 location, Quaternion rotation)
     {
-        return liveObjectService.CreateBgObject(GamePath, location, rotation, Vector3.One);
+        return liveObjectService.CreateBgObject(GamePath, location, rotation, Vector3.One, modpack: null);
     }
 
     public override ObjectDefinition? CreateObjectDefinition(Vector3 location, Quaternion rotation)
@@ -123,7 +123,7 @@ public record class AvfxResourceAssetInfo(string DisplayName, AssetType Type, st
 {
     public override ILiveObject? CreatePreviewObject(ILiveObjectService liveObjectService, Vector3 location, Quaternion rotation)
     {
-        return liveObjectService.CreateVfx(GamePath, location, rotation, Vector3.One, Vector4.One);
+        return liveObjectService.CreateVfx(GamePath, location, rotation, Vector3.One, Vector4.One, modpack: null);
     }
 
     public override ObjectDefinition? CreateObjectDefinition(Vector3 location, Quaternion rotation)

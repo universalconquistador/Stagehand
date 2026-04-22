@@ -6,12 +6,14 @@ using Dalamud.Interface.Utility.Raii;
 using Microsoft.Extensions.DependencyInjection;
 using Stagehand.Definitions;
 using Stagehand.Editor.Services;
+using Stagehand.Live;
 using Stagehand.Utils;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace Stagehand.Editor.DefinitionEditors;
 
@@ -20,6 +22,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
     public static readonly DefinitionTypeInfo StaticTypeInfo = new DefinitionTypeInfo("Embedded Modpack", "A collection of game files to modify.", FontAwesomeIcon.Archive);
 
     private readonly ISelectionManager _selectionManager;
+    private readonly IResourceRedirectionService _resourceRedirectionService;
     private readonly FileDialogManager _fileDialogManager;
     
     private EmbeddedModpackDefinition Definition { get; }
@@ -29,6 +32,10 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
     
     public OutlinerNode OutlinerNode { get; }
 
+    public ILiveModpack? PreviewLiveModpack { get; private set; }
+    public bool IsInStage { get; private set; } = false;
+
+    public StageDefinitionEditor Stage { get; }
     public string Key { get; }
 
     public string PenumbraSourceModDirectory
@@ -43,17 +50,39 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
         set => SetPropertyValue(value => Definition.PenumbraSourceModVersion = value, value, Definition.PenumbraSourceModVersion);
     }
 
-    public EmbeddedModpackDefinitionEditor(IServiceProvider serviceProvider, EmbeddedModpackDefinition definition, string key)
+    public EmbeddedModpackDefinitionEditor(IServiceProvider serviceProvider, EmbeddedModpackDefinition definition, StageDefinitionEditor stage, string key)
         : base(serviceProvider)
     {
         Definition = definition;
+        Stage = stage;
         Key = key;
         _selectionManager = serviceProvider.GetRequiredService<ISelectionManager>();
+        _resourceRedirectionService = serviceProvider.GetRequiredService<IResourceRedirectionService>();
         _fileDialogManager = serviceProvider.GetRequiredService<FileDialogManager>();
 
         OutlinerNode = new OutlinerNode(DisplayName, Guid.NewGuid().ToString(), TypeInfo.Icon, TypeInfo.DisplayName, TypeInfo.Description);
         OutlinerNode.SortOrder = -1;
         OutlinerNode.Clicked += OnOutlinerNodeClicked;
+    }
+
+    private ILiveModpack CreatePreviewLiveModpack()
+    {
+        return _resourceRedirectionService.CreateModpack($"Editor-{Stage.Name}-{DisplayName}", Definition.FileRedirections, Definition.FileReplacements);
+    }
+
+    public void RefreshPreviewLiveModpack()
+    {
+        var currentHash = ResourceRedirectionHelpers.HashModpackEffects(Definition.FileRedirections, Definition.FileReplacements);
+
+        var old = PreviewLiveModpack;
+
+        if (old == null || old.EffectsHash != currentHash)
+        {
+            PreviewLiveModpack = CreatePreviewLiveModpack();
+            old?.Dispose();
+
+            RefreshDependantPreviewObjects();
+        }
     }
 
     private void OnOutlinerNodeClicked(OutlinerNode obj)
@@ -336,9 +365,11 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
         TransactionManager.DoTransaction(new DelegateTransaction($"Add redirection for {Path.GetFileName(gamePath)}", () =>
         {
             Definition.FileRedirections.Add(gamePath, destinationPath);
+            RefreshPreviewLiveModpack();
         }, () =>
         {
             Definition.FileRedirections.Remove(gamePath);
+            RefreshPreviewLiveModpack();
         }, affectsDataModel: true));
         return true;
     }
@@ -353,9 +384,11 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
         TransactionManager.DoTransaction(new DelegateTransaction($"Remove redirection for {Path.GetFileName(gamePath)}", () =>
         {
             Definition.FileRedirections.Remove(gamePath);
+            RefreshPreviewLiveModpack();
         }, () =>
         {
             Definition.FileRedirections.Add(gamePath, existingValue);
+            RefreshPreviewLiveModpack();
         }, affectsDataModel: true));
         return true;
     }
@@ -381,9 +414,11 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
             TransactionManager.DoTransaction(new DelegateTransaction($"Add replacement for {Path.GetFileName(gamePath)} from {Path.GetFileName(filePath)}", () =>
             {
                 Definition.FileReplacements.Add(gamePath, bytes);
+                RefreshPreviewLiveModpack();
             }, () =>
             {
                 Definition.FileReplacements.Remove(gamePath);
+                RefreshPreviewLiveModpack();
             }, affectsDataModel: true));
 
             return true;
@@ -408,9 +443,11 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
             TransactionManager.DoTransaction(new DelegateTransaction($"Update replacement for {Path.GetFileName(gamePath)} from {Path.GetFileName(filePath)}", () =>
             {
                 Definition.FileReplacements[gamePath] = newBytes;
+                RefreshPreviewLiveModpack();
             }, () =>
             {
                 Definition.FileReplacements[gamePath] = oldBytes;
+                RefreshPreviewLiveModpack();
             }, affectsDataModel: true));
 
             return true;
@@ -432,9 +469,11 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
         TransactionManager.DoTransaction(new DelegateTransaction($"Remove replacement for {Path.GetFileName(gamePath)}", () =>
         {
             Definition.FileReplacements.Remove(gamePath);
+            RefreshPreviewLiveModpack();
         }, () =>
         {
             Definition.FileReplacements.Add(gamePath, bytes);
+            RefreshPreviewLiveModpack();
         }, affectsDataModel: true));
         return true;
     }
@@ -460,13 +499,32 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
         OutlinerNode.IsSelected = false;
     }
 
+    public void RefreshDependantPreviewObjects()
+    {
+        // Refresh any objects using this modpack
+        foreach (var obj in Stage.Objects)
+        {
+            if (obj.Value.ModpackId == Key)
+            {
+                obj.Value.RefreshPreviewObject();
+            }
+        }
+    }
+
     public void AddedToStage()
     {
-        // TODO: Register with the redirection service!
+        IsInStage = true;
+        PreviewLiveModpack = CreatePreviewLiveModpack();
+
+        RefreshDependantPreviewObjects();
     }
 
     public void RemovedFromStage()
     {
-        // TODO: Unregister with the redirection service!
+        PreviewLiveModpack?.Dispose();
+        PreviewLiveModpack = null;
+        IsInStage = false;
+
+        RefreshDependantPreviewObjects();
     }
 }
