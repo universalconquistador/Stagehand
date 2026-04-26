@@ -94,17 +94,15 @@ internal sealed unsafe class LiveBgObject : LiveDrawObject
     public override bool TryGetOrientedBounds(out FFXIVClientStructs.FFXIV.Common.Math.OrientedBounds orientedBounds)
     {
         // Attempting to query the bounds of a BgObject whose model is loading results in an access violation
-        //if (BgObjectPtr->ModelResourceHandle == null || BgObjectPtr->ModelResourceHandle->LoadState < 7)
-        //{
-        //    orientedBounds = default;
-        //    return false;
-        //}
-        //else
-        //{
-        //    return base.TryGetOrientedBounds(out orientedBounds);
-        //}
-        orientedBounds = default;
-        return false;
+        if (BgObjectPtr->ModelResourceHandle == null || BgObjectPtr->ModelResourceHandle->LoadState < 7)
+        {
+            orientedBounds = default;
+            return false;
+        }
+        else
+        {
+            return base.TryGetOrientedBounds(out orientedBounds);
+        }
     }
 }
 
