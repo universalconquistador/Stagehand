@@ -167,53 +167,56 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
                                         continue;
                                     }
 
-                                    // Game path
-                                    ImGui.TableNextColumn();
-                                    ImGui.AlignTextToFramePadding();
-                                    ImGui.TextUnformatted(entry.Key);
-                                    if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
+                                    using (ImRaii.PushId(entry.Key))
                                     {
-                                        ImGui.SetClipboardText(entry.Key);
-                                    }
-                                    if (ImGui.IsItemHovered())
-                                    {
-                                        using (ImRaii.Tooltip())
+                                        // Game path
+                                        ImGui.TableNextColumn();
+                                        ImGui.AlignTextToFramePadding();
+                                        ImGui.TextUnformatted(entry.Key);
+                                        if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
                                         {
-                                            ImGui.TextUnformatted(entry.Key);
-                                            ImGui.Separator();
-                                            ImGui.TextDisabled("Click to copy");
+                                            ImGui.SetClipboardText(entry.Key);
                                         }
-                                    }
-
-                                    // Contents
-                                    ImGui.TableNextColumn();
-                                    ImGui.AlignTextToFramePadding();
-                                    ImGui.TextUnformatted(entry.Value.Length == 0 ? "(empty)" : ImGuiExtensions.ByteSizeToString(entry.Value.LongLength));
-
-                                    // Delete button
-                                    ImGui.TableNextColumn();
-                                    if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash, new(ImGui.GetFrameHeight())))
-                                    {
-                                        TryRemoveReplacement(entry.Key);
-                                    }
-
-                                    // Replace button
-                                    ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
-                                    if (ImGuiComponents.IconButton(FontAwesomeIcon.Upload, new(ImGui.GetFrameHeight())))
-                                    {
-                                        _fileDialogManager.OpenFileDialog($"Replace mod data for {Path.GetFileName(entry.Key)}", Path.GetExtension(entry.Key), (accepted, path) =>
+                                        if (ImGui.IsItemHovered())
                                         {
-                                            if (accepted)
+                                            using (ImRaii.Tooltip())
                                             {
-                                                TryUpdateReplacement(entry.Key, path);
+                                                ImGui.TextUnformatted(entry.Key);
+                                                ImGui.Separator();
+                                                ImGui.TextDisabled("Click to copy");
                                             }
-                                        });
-                                    }
-                                    if (ImGui.IsItemHovered())
-                                    {
-                                        using (ImRaii.Tooltip())
+                                        }
+
+                                        // Contents
+                                        ImGui.TableNextColumn();
+                                        ImGui.AlignTextToFramePadding();
+                                        ImGui.TextUnformatted(entry.Value.Length == 0 ? "(empty)" : ImGuiExtensions.ByteSizeToString(entry.Value.LongLength));
+
+                                        // Delete button
+                                        ImGui.TableNextColumn();
+                                        if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash, new(ImGui.GetFrameHeight())))
                                         {
-                                            ImGui.TextUnformatted("Replace data");
+                                            TryRemoveReplacement(entry.Key);
+                                        }
+
+                                        // Replace button
+                                        ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
+                                        if (ImGuiComponents.IconButton(FontAwesomeIcon.Upload, new(ImGui.GetFrameHeight())))
+                                        {
+                                            _fileDialogManager.OpenFileDialog($"Replace mod data for {Path.GetFileName(entry.Key)}", Path.GetExtension(entry.Key), (accepted, path) =>
+                                            {
+                                                if (accepted)
+                                                {
+                                                    TryUpdateReplacement(entry.Key, path);
+                                                }
+                                            });
+                                        }
+                                        if (ImGui.IsItemHovered())
+                                        {
+                                            using (ImRaii.Tooltip())
+                                            {
+                                                ImGui.TextUnformatted("Replace data");
+                                            }
                                         }
                                     }
                                 }
@@ -274,47 +277,50 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
                                         continue;
                                     }
 
-                                    // Game path
-                                    ImGui.TableNextColumn();
-                                    ImGui.AlignTextToFramePadding();
-                                    ImGui.TextUnformatted(entry.Key);
-                                    if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
+                                    using (ImRaii.PushId(entry.Key))
                                     {
-                                        ImGui.SetClipboardText(entry.Key);
-                                    }
-                                    if (ImGui.IsItemHovered())
-                                    {
-                                        using (ImRaii.Tooltip())
+                                        // Game path
+                                        ImGui.TableNextColumn();
+                                        ImGui.AlignTextToFramePadding();
+                                        ImGui.TextUnformatted(entry.Key);
+                                        if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
                                         {
-                                            ImGui.TextUnformatted(entry.Key);
-                                            ImGui.Separator();
-                                            ImGui.TextDisabled("Click to copy");
+                                            ImGui.SetClipboardText(entry.Key);
                                         }
-                                    }
-
-                                    // Destination path
-                                    ImGui.TableNextColumn();
-                                    ImGui.AlignTextToFramePadding();
-                                    ImGui.TextUnformatted(entry.Value);
-                                    if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
-                                    {
-                                        ImGui.SetClipboardText(entry.Value);
-                                    }
-                                    if (ImGui.IsItemHovered())
-                                    {
-                                        using (ImRaii.Tooltip())
+                                        if (ImGui.IsItemHovered())
                                         {
-                                            ImGui.TextUnformatted(entry.Value);
-                                            ImGui.Separator();
-                                            ImGui.TextDisabled("Click to copy");
+                                            using (ImRaii.Tooltip())
+                                            {
+                                                ImGui.TextUnformatted(entry.Key);
+                                                ImGui.Separator();
+                                                ImGui.TextDisabled("Click to copy");
+                                            }
                                         }
-                                    }
 
-                                    // Delete button
-                                    ImGui.TableNextColumn();
-                                    if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash, new(ImGui.GetFrameHeight())))
-                                    {
-                                        TryRemoveRedirection(entry.Key);
+                                        // Destination path
+                                        ImGui.TableNextColumn();
+                                        ImGui.AlignTextToFramePadding();
+                                        ImGui.TextUnformatted(entry.Value);
+                                        if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
+                                        {
+                                            ImGui.SetClipboardText(entry.Value);
+                                        }
+                                        if (ImGui.IsItemHovered())
+                                        {
+                                            using (ImRaii.Tooltip())
+                                            {
+                                                ImGui.TextUnformatted(entry.Value);
+                                                ImGui.Separator();
+                                                ImGui.TextDisabled("Click to copy");
+                                            }
+                                        }
+
+                                        // Delete button
+                                        ImGui.TableNextColumn();
+                                        if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash, new(ImGui.GetFrameHeight())))
+                                        {
+                                            TryRemoveRedirection(entry.Key);
+                                        }
                                     }
                                 }
 
