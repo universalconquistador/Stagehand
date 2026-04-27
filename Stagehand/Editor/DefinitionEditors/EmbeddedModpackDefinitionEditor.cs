@@ -63,6 +63,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
         OutlinerNode = new OutlinerNode(DisplayName, Guid.NewGuid().ToString(), TypeInfo.Icon, TypeInfo.DisplayName, TypeInfo.Description);
         OutlinerNode.SortOrder = -1;
         OutlinerNode.Clicked += OnOutlinerNodeClicked;
+        OutlinerNode.ContextMenuItems = GenerateContextMenuItems();
     }
 
     private ILiveModpack CreatePreviewLiveModpack()
@@ -99,6 +100,31 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
     {
         Definition.DisplayName = displayName;
         OutlinerNode.DisplayName = displayName;
+    }
+
+    private IEnumerable<OutlinerContextMenuItem> GenerateContextMenuItems()
+    {
+        yield return new OutlinerContextMenuItem("Delete", $"Removes this {TypeInfo.DisplayName} from the stage.", _ =>
+        {
+            Delete();
+        });
+    }
+
+    public void Delete()
+    {
+        using (var transactionGroup = TransactionManager.BeginTransactionGroup($"Delete {DisplayName}"))
+        {
+            // Clear out any object definition references to this modpack
+            foreach (var objectEditor in Stage.Objects.Values)
+            {
+                if (objectEditor.ModpackId == Key)
+                {
+                    objectEditor.ModpackId = string.Empty;
+                }
+            }
+
+            Stage.EmbeddedModpacks.Remove(this);
+        }
     }
 
     private string _filterText = "";
