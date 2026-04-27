@@ -422,6 +422,10 @@ internal class TransactionManager : ITransactionManager, IDisposable
 
                 TransactionDone?.Invoke(group);
             }
+            else
+            {
+                group.OuterGroup.AddTransaction(group);
+            }
         }
     }
 
