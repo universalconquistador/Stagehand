@@ -25,10 +25,10 @@ Get or create some Stages and set their automatic show conditions to fill your j
 Stagehand is made up of several C# projects:
 
 **`Stagehand.Definitions`**: The object model for Stage `.json` files and the serialized strings used in IPC.  
-[![NuGet Version](https://img.shields.io/nuget/v/Stagehand.Api)](https://www.nuget.org/packages/Stagehand.Api/)
+[![NuGet Version](https://img.shields.io/nuget/v/Stagehand.Definitions)](https://www.nuget.org/packages/Stagehand.Definitions/)
 
 **`Stagehand.Api`**: A library for other plugins to interact with the Stagehand plugin via Dalamud IPC.  
-[![NuGet Version](https://img.shields.io/nuget/v/Stagehand.Definitions)](https://www.nuget.org/packages/Stagehand.Definitions/)
+[![NuGet Version](https://img.shields.io/nuget/v/Stagehand.Api)](https://www.nuget.org/packages/Stagehand.Api/)
 
 
 **`Stagehand`**: The Stagehand FFXIV plugin itself, including (but not limited to):
