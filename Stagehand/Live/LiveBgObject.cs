@@ -146,7 +146,7 @@ internal sealed unsafe class LiveBgObject : LiveDrawObject
         if (definition is BgObjectDefinition bgObjectDefinition)
         {
             var finalGamePath = bgObjectDefinition.ModelGamePath;
-            if (modpack != null && modpack.AllRedirections.ContainsKey(finalGamePath))
+            if (modpack != null)
             {
                 finalGamePath = ResourceRedirectionHelpers.MakeModpackPath(finalGamePath, modpack);
             }

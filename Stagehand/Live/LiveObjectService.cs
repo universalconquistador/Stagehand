@@ -128,14 +128,22 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
         VfxObject* vfxObject;
 
         var finalPath = vfxResourceGamePath;
-        bool existsInModpack = false;
+        bool exists = false;
         if (modpack != null)
         {
-            existsInModpack = modpack.AllRedirections.ContainsKey(vfxResourceGamePath);
+            exists = modpack.AllRedirections.ContainsKey(vfxResourceGamePath);
+            if (!exists)
+            {
+                exists = SafeResourceExists(vfxResourceGamePath);
+            }
             finalPath = ResourceRedirectionHelpers.MakeModpackPath(vfxResourceGamePath, modpack);
         }
+        else
+        {
+            exists = SafeResourceExists(finalPath);
+        }
 
-        if (!SafeResourceExists(finalPath) && !existsInModpack)
+        if (!exists)
         {
             return null;
         }
@@ -174,14 +182,22 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
         BgObject* bgObject;
 
         var finalPath = modelGamePath;
-        bool existsInModpack = false;
+        bool exists = false;
         if (modpack != null)
         {
-            existsInModpack = modpack.AllRedirections.ContainsKey(modelGamePath);
+            exists = modpack.AllRedirections.ContainsKey(modelGamePath);
+            if (!exists)
+            {
+                exists = SafeResourceExists(modelGamePath);
+            }
             finalPath = ResourceRedirectionHelpers.MakeModpackPath(modelGamePath, modpack);
         }
+        else
+        {
+            exists = SafeResourceExists(finalPath);
+        }
 
-        if (!SafeResourceExists(finalPath) && !existsInModpack)
+        if (!exists)
         {
             return null;
         }

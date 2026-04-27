@@ -69,7 +69,7 @@ internal sealed unsafe class LiveVfxObject : LiveDrawObject
         {
             // For now, if a new vfx is requested, create a new LiveVfx
             var finalGamePath = vfxDefinition.VfxGamePath;
-            if (modpack != null && modpack.AllRedirections.ContainsKey(finalGamePath))
+            if (modpack != null)
             {
                 finalGamePath = ResourceRedirectionHelpers.MakeModpackPath(finalGamePath, modpack);
             }
