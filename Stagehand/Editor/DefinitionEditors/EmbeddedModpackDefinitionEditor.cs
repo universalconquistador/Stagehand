@@ -3,8 +3,10 @@ using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Utility.Raii;
+using Dalamud.Plugin.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Stagehand.Definitions;
+using Stagehand.Definitions.Objects;
 using Stagehand.Editor.Services;
 using Stagehand.Live;
 using Stagehand.Utils;
@@ -12,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading;
 
@@ -21,6 +24,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
 {
     public static readonly DefinitionTypeInfo StaticTypeInfo = new DefinitionTypeInfo("Embedded Modpack", "A collection of game files to modify.", FontAwesomeIcon.Archive);
 
+    private readonly IObjectTable _objectTable;
     private readonly ISelectionManager _selectionManager;
     private readonly IResourceRedirectionService _resourceRedirectionService;
     private readonly FileDialogManager _fileDialogManager;
@@ -56,6 +60,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
         Definition = definition;
         Stage = stage;
         Key = key;
+        _objectTable = serviceProvider.GetRequiredService<IObjectTable>();
         _selectionManager = serviceProvider.GetRequiredService<ISelectionManager>();
         _resourceRedirectionService = serviceProvider.GetRequiredService<IResourceRedirectionService>();
         _fileDialogManager = serviceProvider.GetRequiredService<FileDialogManager>();
@@ -175,10 +180,11 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
                     if (replacementsTab.Success)
                     {
                         ImGuiExtensions.FilterBox("Filter", ref _filterText);
-                        using (var table = ImRaii.Table("###Replacements", 3, ImGuiTableFlags.PadOuterX | ImGuiTableFlags.ScrollY, ImGui.GetContentRegionAvail()))
+                        using (var table = ImRaii.Table("###Replacements", 4, ImGuiTableFlags.PadOuterX | ImGuiTableFlags.ScrollY, ImGui.GetContentRegionAvail()))
                         {
                             if (table.Success)
                             {
+                                ImGui.TableSetupColumn("###CreateButton", ImGuiTableColumnFlags.WidthFixed, ImGui.GetFrameHeight());
                                 ImGui.TableSetupColumn("Game Path", ImGuiTableColumnFlags.WidthStretch, 1.0f);
                                 ImGui.TableSetupColumn("Contents", ImGuiTableColumnFlags.WidthStretch, 1.0f);
                                 ImGui.TableSetupColumn("###Commands", ImGuiTableColumnFlags.WidthFixed, ImGui.GetFrameHeight() * 2.0f + ImGui.GetStyle().ItemInnerSpacing.X + ImGui.GetStyle().CellPadding.X * 2.0f);
@@ -195,6 +201,35 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
 
                                     using (ImRaii.PushId(entry.Key))
                                     {
+                                        ImGui.TableNextColumn();
+                                        bool isModelResource = entry.Key.EndsWith(".mdl", StringComparison.OrdinalIgnoreCase);
+                                        bool isVfxResource = entry.Key.EndsWith(".avfx", StringComparison.OrdinalIgnoreCase);
+                                        if (isModelResource || isVfxResource)
+                                        {
+                                            if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus, new Vector2(ImGui.GetFrameHeight())))
+                                            {
+                                                var rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, _objectTable.LocalPlayer?.Rotation ?? 0.0f);
+                                                ObjectDefinition? newDefinition = null;
+                                                if (isModelResource)
+                                                {
+                                                    newDefinition = new BgObjectDefinition() { ModelGamePath = entry.Key };
+                                                }
+                                                else if (isVfxResource)
+                                                {
+                                                    newDefinition = new VfxObjectDefinition() { VfxGamePath = entry.Key };
+                                                }
+
+                                                if (newDefinition != null)
+                                                {
+                                                    newDefinition.DisplayName = Path.GetFileNameWithoutExtension(entry.Key);
+                                                    newDefinition.ModpackId = Key;
+                                                    newDefinition.Position = (_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.Transform(Vector3.UnitZ, rotation) * 2.0f;
+                                                    newDefinition.RotationQuaternion = rotation;
+                                                    Stage.Objects.Add(newDefinition);
+                                                }
+                                            }
+                                        }
+
                                         // Game path
                                         ImGui.TableNextColumn();
                                         ImGui.AlignTextToFramePadding();
@@ -248,6 +283,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
                                 }
 
                                 ImGui.TableNextColumn();
+                                ImGui.TableNextColumn();
                                 ImGui.SetNextItemWidth(-1.0f);
                                 ImGui.InputTextWithHint("###NewRedirectionGamePath", "Game path", ref _newReplacementGamePath, 512, ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll);
 
@@ -285,10 +321,11 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
                     if (redirectionsTab.Success)
                     {
                         ImGuiExtensions.FilterBox("Filter", ref _filterText);
-                        using (var table = ImRaii.Table("###Redirections", 3, ImGuiTableFlags.PadOuterX | ImGuiTableFlags.ScrollY, ImGui.GetContentRegionAvail()))
+                        using (var table = ImRaii.Table("###Redirections", 4, ImGuiTableFlags.PadOuterX | ImGuiTableFlags.ScrollY, ImGui.GetContentRegionAvail()))
                         {
                             if (table.Success)
                             {
+                                ImGui.TableSetupColumn("###CreateButton", ImGuiTableColumnFlags.WidthFixed, ImGui.GetFrameHeight());
                                 ImGui.TableSetupColumn("Game Path", ImGuiTableColumnFlags.WidthStretch, 1.0f);
                                 ImGui.TableSetupColumn("Destination Path", ImGuiTableColumnFlags.WidthStretch, 1.0f);
                                 ImGui.TableSetupColumn("###Commands", ImGuiTableColumnFlags.WidthFixed, ImGui.GetFrameHeight() * 2.0f + ImGui.GetStyle().ItemInnerSpacing.X + ImGui.GetStyle().CellPadding.X * 2.0f);
@@ -305,6 +342,35 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
 
                                     using (ImRaii.PushId(entry.Key))
                                     {
+                                        ImGui.TableNextColumn();
+                                        bool isModelResource = entry.Key.EndsWith(".mdl", StringComparison.OrdinalIgnoreCase);
+                                        bool isVfxResource = entry.Key.EndsWith(".avfx", StringComparison.OrdinalIgnoreCase);
+                                        if (isModelResource || isVfxResource)
+                                        {
+                                            if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus, new Vector2(ImGui.GetFrameHeight())))
+                                            {
+                                                var rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, _objectTable.LocalPlayer?.Rotation ?? 0.0f);
+                                                ObjectDefinition? newDefinition = null;
+                                                if (isModelResource)
+                                                {
+                                                    newDefinition = new BgObjectDefinition() { ModelGamePath = entry.Key };
+                                                }
+                                                else if (isVfxResource)
+                                                {
+                                                    newDefinition = new VfxObjectDefinition() { VfxGamePath = entry.Key };
+                                                }
+
+                                                if (newDefinition != null)
+                                                {
+                                                    newDefinition.DisplayName = Path.GetFileNameWithoutExtension(entry.Key);
+                                                    newDefinition.ModpackId = Key;
+                                                    newDefinition.Position = (_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.Transform(Vector3.UnitZ, rotation) * 2.0f;
+                                                    newDefinition.RotationQuaternion = rotation;
+                                                    Stage.Objects.Add(newDefinition);
+                                                }
+                                            }
+                                        }
+
                                         // Game path
                                         ImGui.TableNextColumn();
                                         ImGui.AlignTextToFramePadding();
@@ -350,6 +416,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
                                     }
                                 }
 
+                                ImGui.TableNextColumn();
                                 ImGui.TableNextColumn();
                                 ImGui.SetNextItemWidth(-1.0f);
                                 ImGui.InputTextWithHint("###NewRedirectionGamePath", "Game path", ref _newRedirectionGamePath, 512, ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll);
