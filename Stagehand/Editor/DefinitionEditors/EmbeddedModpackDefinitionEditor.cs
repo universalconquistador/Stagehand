@@ -507,12 +507,17 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
 
     public void RefreshDependantPreviewObjects()
     {
-        // Refresh any objects using this modpack
-        foreach (var obj in Stage.Objects)
+        // Refresh any objects using this modpack.
+        // Stage.Objects *can* be null during the Stage constructor, at which point there aren't any objects
+        // that could possibly need their previews refreshed.
+        if (Stage.Objects != null)
         {
-            if (obj.Value.ModpackId == Key)
+            foreach (var obj in Stage.Objects)
             {
-                obj.Value.RefreshPreviewObject();
+                if (obj.Value.ModpackId == Key)
+                {
+                    obj.Value.RefreshPreviewObject();
+                }
             }
         }
     }

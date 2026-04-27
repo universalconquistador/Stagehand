@@ -74,8 +74,10 @@ public class StageDefinitionEditor : DefinitionEditorBase
         OutlinerNode = new OutlinerNode(DisplayName, Guid.NewGuid().ToString(), TypeInfo.Icon, TypeInfo.DisplayName, TypeInfo.Description);
         OutlinerNode.Clicked += OnOutlinerNodeClicked;
 
-        Objects = new(definition.Objects, OutlinerNode, CreateEditorForObjectDefinition, TransactionManager, _selectionManager);
+        // NOTE: We need to load the modpacks before the object because the objects need to be able to find the modpacks when creating their live preview objects.
+        // Maybe not the most theoretically elegant, but does the job.
         EmbeddedModpacks = new(definition.EmbeddedModpacks, OutlinerNode, CreateEditorForEmbeddedModpackDefinition, TransactionManager, _selectionManager);
+        Objects = new(definition.Objects, OutlinerNode, CreateEditorForObjectDefinition, TransactionManager, _selectionManager);
     }
 
     private void OnOutlinerNodeClicked(OutlinerNode obj)
