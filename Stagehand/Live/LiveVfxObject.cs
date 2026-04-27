@@ -92,28 +92,36 @@ internal sealed unsafe class LiveVfxObject : LiveDrawObject
         if (definition is VfxObjectDefinition vfxDefinition)
         {
             // For now, if a new vfx is requested, create a new LiveVfx
-            if (vfxDefinition.VfxGamePath != VfxResourceGamePath)
+            var finalGamePath = vfxDefinition.VfxGamePath;
+            if (modpack != null && modpack.AllRedirections.TryGetValue(finalGamePath, out var redirection))
+            {
+                finalGamePath = ResourceRedirectionHelpers.MakeModpackPath(redirection.NewPath, modpack);
+            }
+
+            if (finalGamePath != VfxResourceGamePath)
             {
                 return false;
             }
-
-            bool transformChanged = !vfxDefinition.Position.Equals(Position)
-                || !vfxDefinition.RotationQuaternion.Equals(Rotation)
-                || !vfxDefinition.Scale.Equals(Scale);
-
-            Position = vfxDefinition.Position;
-            Rotation = vfxDefinition.RotationQuaternion;
-            Scale = vfxDefinition.Scale;
-            Color = vfxDefinition.Color;
-
-            if (transformChanged)
+            else
             {
-                // Often, .avfx need to be totally restarted to pick up their new transform
-                //VfxObjectPtr->UpdateTransforms(false);
-                VfxObjectPtr->Update(0.0f);
-            }
+                bool transformChanged = !vfxDefinition.Position.Equals(Position)
+                    || !vfxDefinition.RotationQuaternion.Equals(Rotation)
+                    || !vfxDefinition.Scale.Equals(Scale);
 
-            return true;
+                Position = vfxDefinition.Position;
+                Rotation = vfxDefinition.RotationQuaternion;
+                Scale = vfxDefinition.Scale;
+                Color = vfxDefinition.Color;
+
+                if (transformChanged)
+                {
+                    // Often, .avfx need to be totally restarted to pick up their new transform
+                    //VfxObjectPtr->UpdateTransforms(false);
+                    VfxObjectPtr->Update(0.0f);
+                }
+
+                return true;
+            }
         }
         else
         {
