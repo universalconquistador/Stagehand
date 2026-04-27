@@ -5,6 +5,7 @@ using Stagehand.Definitions.Objects;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Numerics;
 using System.Text;
 using RenderLightShape = FFXIVClientStructs.FFXIV.Client.Graphics.Render.LightShape;
@@ -157,7 +158,7 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
             return null;
         }
 
-        var result = new LiveVfxObject(vfxObject, modpack);
+        var result = new LiveVfxObject(vfxObject, finalPath, modpack);
 
         result.Position = position;
         result.Rotation = rotation;
@@ -212,7 +213,7 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
             bgObject->UpdateTransforms(false);
         }
 
-        var result = new LiveBgObject(bgObject, modpack);
+        var result = new LiveBgObject(_framework, bgObject, finalPath, modpack);
 
 
         return result;
@@ -285,14 +286,14 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
         public static ILiveObject? VisitBgObjectDefinition(BgObjectDefinition definition, ref LiveObjectFactoryParams param)
         {
             var bgObject = param.LiveObjectService.CreateBgObject(definition.ModelGamePath, definition.Position, definition.RotationQuaternion, definition.Scale, param.Modpack);
-            bgObject?.TryUpdate(definition, param.Modpack);
+            Debug.Assert(bgObject?.TryUpdate(definition, param.Modpack) ?? false);
             return bgObject;
         }
 
         public static ILiveObject? VisitLightDefinition(LightDefinition definition, ref LiveObjectFactoryParams param)
         {
             var light = param.LiveObjectService.CreateLight(definition.Shape switch { LightShape.Ambient => RenderLightShape.WorldLight, LightShape.Point => RenderLightShape.PointLight, LightShape.Spot => RenderLightShape.SpotLight, LightShape.Flat => RenderLightShape.FlatLight, _ => RenderLightShape.PointLight }, param.Modpack);
-            light?.TryUpdate(definition, param.Modpack);
+            Debug.Assert(light?.TryUpdate(definition, param.Modpack) ?? false);
             return light;
         }
 

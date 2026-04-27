@@ -34,37 +34,13 @@ internal sealed unsafe class LiveVfxObject : LiveDrawObject
         set => VfxObjectPtr->Color = value;
     }
 
-    public LiveVfxObject(VfxObject* vfxObject, ILiveModpack? modpack)
+    public LiveVfxObject(VfxObject* vfxObject, string vfxResourceGamePath, ILiveModpack? modpack)
         : base((DrawObject*)vfxObject, modpack)
     {
         if (vfxObject == null)
             throw new ArgumentNullException(nameof(vfxObject));
 
-        var vfxResource = (VfxResourceInstance__Internal*)vfxObject->VfxResourceInstance;
-        if (vfxResource != null)
-        {
-            var resourceUnk = vfxResource->VfxResourceUnk;
-            if (resourceUnk != null)
-            {
-                var apricotResourceHandle = resourceUnk->ApricotResourceHandle;
-                if (apricotResourceHandle != null)
-                {
-                    VfxResourceGamePath = apricotResourceHandle->FileName.ToString();
-                }
-                else
-                {
-                    VfxResourceGamePath = string.Empty;
-                }
-            }
-            else
-            {
-                VfxResourceGamePath = string.Empty;
-            }
-        }
-        else
-        {
-            VfxResourceGamePath = string.Empty;
-        }
+        VfxResourceGamePath = vfxResourceGamePath;
 
         // Remove flag that sometimes causes vfx to not appear?
         VfxObjectPtr->SomeFlags &= 0xF7;
@@ -93,9 +69,9 @@ internal sealed unsafe class LiveVfxObject : LiveDrawObject
         {
             // For now, if a new vfx is requested, create a new LiveVfx
             var finalGamePath = vfxDefinition.VfxGamePath;
-            if (modpack != null && modpack.AllRedirections.TryGetValue(finalGamePath, out var redirection))
+            if (modpack != null && modpack.AllRedirections.ContainsKey(finalGamePath))
             {
-                finalGamePath = ResourceRedirectionHelpers.MakeModpackPath(redirection.NewPath, modpack);
+                finalGamePath = ResourceRedirectionHelpers.MakeModpackPath(finalGamePath, modpack);
             }
 
             if (finalGamePath != VfxResourceGamePath)
