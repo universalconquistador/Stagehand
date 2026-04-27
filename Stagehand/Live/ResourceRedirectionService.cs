@@ -26,19 +26,40 @@ using System.Threading;
 
 namespace Stagehand.Live;
 
+public record struct Redirection(string NewPath, ResourceCategory Category);
+
 public interface ILiveModpack : IDisposable
 {
     string ID { get; }
     string DebugName { get; }
     uint EffectsHash { get; }
-    IReadOnlyDictionary<string, string> AllRedirections { get; }
+    IReadOnlyDictionary<string, Redirection> AllRedirections { get; }
+}
+
+public readonly struct ModpackReadScope : IDisposable
+{
+    private readonly IResourceRedirectionService _resourceRedirectionService;
+
+    public readonly ILiveModpack? PriorModpack;
+
+    public ModpackReadScope(IResourceRedirectionService resourceRedirectionService, ILiveModpack? priorModpack)
+    {
+        _resourceRedirectionService = resourceRedirectionService;
+        PriorModpack = priorModpack;
+    }
+
+    public void Dispose()
+    {
+        _resourceRedirectionService.SetCurrentModpack(PriorModpack);
+    }
 }
 
 public interface IResourceRedirectionService
 {
-
     ILiveModpack CreateModpack(string debugName, Dictionary<string, string> fileRedirections, Dictionary<string, byte[]> fileReplacements);
-    string MakeModpackPath(string gamePath, ILiveModpack modpack);
+    bool TryParseModpackPath(string modpackPath, [NotNullWhen(true)] out ILiveModpack? modpack, [NotNullWhen(true)] out string? gamePath);
+
+    ILiveModpack? SetCurrentModpack(ILiveModpack? modpack);
 }
 
 public static class ResourceRedirectionHelpers
@@ -69,11 +90,21 @@ public static class ResourceRedirectionHelpers
 
         return hasher.Value;
     }
+
+    public static ModpackReadScope OpenModpackScope(this IResourceRedirectionService resourceRedirectionService, ILiveModpack? modpack)
+    {
+        return new ModpackReadScope(resourceRedirectionService, resourceRedirectionService.SetCurrentModpack(modpack));
+    }
+
+    public static string MakeModpackPath(string gamePath, ILiveModpack modpack)
+    {
+        return $"{ResourceRedirectionService.StagehandPathIdentifier}{modpack.ID}/{gamePath}";
+    }
 }
 
 internal unsafe class ResourceRedirectionService : IResourceRedirectionService, IDisposable
 {
-    private record class LiveModpack(string ID, string DebugName, uint EffectsHash, IReadOnlyDictionary<string, string> AllRedirections, IReadOnlyList<string> MemoryResourceKeys, ResourceRedirectionService ResourceRedirectionService) : ILiveModpack
+    private record class LiveModpack(string ID, string DebugName, uint EffectsHash, IReadOnlyDictionary<string, Redirection> AllRedirections, IReadOnlyList<string> MemoryResourceKeys, ResourceRedirectionService ResourceRedirectionService) : ILiveModpack
     {
         public void Dispose()
         {
@@ -96,48 +127,6 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
 
         public bool IsPartialRead
             => SegmentLength != 0;
-    }
-    // This contains all the info for an I/O request. It seems to be a union at some point, because certain FileModes
-    // use the FileName bytes off the end very strangely.
-    [StructLayout(LayoutKind.Explicit)]
-    public unsafe struct SeFileDescriptor
-    {
-        [FieldOffset(0x00)]
-        public FileMode FileMode;
-        [FieldOffset(0x08)]
-        public byte* DataBuffer;
-        [FieldOffset(0x10)]
-        public ulong AmountToRead;
-        [FieldOffset(0x18)]
-        public ulong StartOffset;
-
-        [FieldOffset(0x28)]
-        public FileHandleHandle FileHandleHandle;
-
-        [FieldOffset(0x30)]
-        public PlatformFile* FileDescriptor;
-        [FieldOffset(0x38)]
-        public ulong AllocationAlignment; // The alignment for the allocation to make if DataBuffer is null.
-
-        [FieldOffset(0x48)]
-        public IMemorySpace* AllocationMemorySpace; // If DataBuffer is null, this space will be used to allocate the result buffer, or the default space if null.
-
-        [FieldOffset(0x50)]
-        public ResourceHandle* ResourceHandle;
-
-        [FieldOffset(0x70)]
-        public char Utf16FileName;
-
-        public string FileName
-        {
-            get
-            {
-                fixed (char* ptr = &Utf16FileName)
-                {
-                    return MemoryMarshal.CreateReadOnlySpanFromNullTerminated(ptr).ToString();
-                }
-            }
-        }
     }
 
     private enum ResourceType : uint
@@ -206,12 +195,22 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
 
 
     // This is chosen so that it parses into one of the existing resource categories (shader, by starting with 'sh')
-    private const string StagehandPathIdentifier = "shnd://";
+    internal const string StagehandPathIdentifier = "shnd://";
 
     private readonly ILogger _logger;
     private readonly IGameInteropProvider _gameInteropProvider;
     private readonly IMemoryResourceService _memoryResourceService;
     private readonly StagehandConfiguration _config;
+
+    // We need to load a unique copy of these per modpack, in case their dependencies differ even though they themselves might not.
+    // In the future it might be good to try to do a more advanced computation for how to share a single copy of a resource based on whether
+    // its dependencies are the same between given modpacks, like a dependencies hash or something.
+    private static readonly ResourceType[] ResourcesWithDependencies =
+    [
+        ResourceType.Mdl, // Depends on mtrls
+        ResourceType.Mtrl, // Depends on shpks and texs
+        ResourceType.Avfx, // Depends on atexs and scds
+    ];
 
     // Lovingly yoinked from Penumbra
     private delegate ResourceHandle* GetResourceSyncPrototype(ResourceManager* resourceManager, ResourceCategory* pCategoryId,
@@ -230,6 +229,9 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
     [Signature("E8 ?? ?? ?? ?? 4D 8B 04 3E")]
     private readonly delegate* unmanaged<ResourceCategory*, byte*, ResourceCategory*> _getResourceCategory = null!;
 
+    [Signature("E8 ?? ?? ?? ?? 84 C0 75 12 B0 F6", DetourName = nameof(ModelResourceHandleLoadMaterialsDetour))]
+    private readonly Hook<ModelResourceHandle.Delegates.LoadMaterials> _modelResourceHandleLoadMaterialsHook = null!;
+
     private readonly ConcurrentDictionary<string, LiveModpack> _liveModpacks = new();
 
     private readonly ThreadLocal<ILiveModpack?> _currentThreadModpack = new();
@@ -241,21 +243,68 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
         _memoryResourceService = memoryResourceService;
         _config = config;
 
+        memoryResourceService.ResourceRedirectionService = this; // MASSIVE HACK PENDING REFACTOR
+
         _gameInteropProvider.InitializeFromAttributes(this);
+        _modelResourceHandleLoadMaterialsHook.Enable();
         _getResourceSyncHook?.Enable();
         _getResourceAsyncHook?.Enable();
     }
 
+    private bool ModelResourceHandleLoadMaterialsDetour(ModelResourceHandle* modelResourceHandle)
+    {
+        var originalModpack = _currentThreadModpack.Value;
+
+        // We strip the shnd and mem prefixes when reading the resource. However, sometimes this is called outside that.
+
+        // If this path is already a modpack path, use the modpack to resolve the final path
+        if (Utf8StringStartsWith(modelResourceHandle->FileName.BasicString.First, StagehandPathIdentifier) && TryParseModpackPath(modelResourceHandle->FileName.ToString(), out var modpack, out var gamePath))
+        {
+            _currentThreadModpack.Value = modpack;
+            _logger.LogDebug("Using modpack {pack} for materials of {path}", modpack.DebugName, modelResourceHandle->FileName.ToString());
+        }
+        else
+        {
+            _logger.LogDebug("Using already-set modpack {name} for materials of {path}", originalModpack?.DebugName ?? "(null)", modelResourceHandle->FileName.ToString());
+        }
+
+        var result = _modelResourceHandleLoadMaterialsHook.Original.Invoke(modelResourceHandle);
+        _currentThreadModpack.Value = originalModpack;
+        return result;
+    }
+
+    private ulong nextModpackId = 1;
     public ILiveModpack CreateModpack(string debugName, Dictionary<string, string> fileRedirections, Dictionary<string, byte[]> fileReplacements)
     {
-        var newId = Guid.NewGuid().ToString();
-        Dictionary<string, string> allRedirections = new(fileRedirections);
+        var newId = Interlocked.Increment(ref nextModpackId).ToString();
+        Dictionary<string, Redirection> allRedirections = new(fileRedirections.Count + fileReplacements.Count);
+        Span<byte> filename = stackalloc byte[1024];
+        foreach (var redirection in fileRedirections)
+        {
+            // The category of a redirection comes from the destination game path
+            ResourceCategory category = ResourceCategory.BgCommon;
+            Encoding.UTF8.GetBytes(redirection.Value + "\0", filename);
+
+            fixed (byte* filenamePointer = filename)
+            {
+                _getResourceCategory(&category, filenamePointer);
+            }
+            allRedirections[redirection.Key] = new Redirection(redirection.Value, category);
+        }
         List<string> memoryResourceKeys = new(fileReplacements.Count);
         foreach (var replacement in fileReplacements)
         {
             var path = _memoryResourceService.RegisterMemoryResource(replacement.Value, replacement.Key);
             memoryResourceKeys.Add(path);
-            allRedirections[replacement.Key] = path;
+            // The category of a replacement comes from the source game path (and doesn't really matter as no data is fetched from the category itself)
+            ResourceCategory category = ResourceCategory.BgCommon;
+            Encoding.UTF8.GetBytes(replacement.Key + "\0", filename);
+
+            fixed (byte* filenamePointer = filename)
+            {
+                _getResourceCategory(&category, filenamePointer);
+            }
+            allRedirections[replacement.Key] = new(path, category);
         }
 
         var newModpack = new LiveModpack(newId, debugName, ResourceRedirectionHelpers.HashModpackEffects(fileRedirections, fileReplacements), allRedirections, memoryResourceKeys, this);
@@ -263,12 +312,7 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
         return newModpack;
     }
 
-    public string MakeModpackPath(string gamePath, ILiveModpack modpack)
-    {
-        return $"{StagehandPathIdentifier}{modpack.ID}/{gamePath}";
-    }
-
-    private bool TryParseModpackPath(string modpackPath, [NotNullWhen(true)] out ILiveModpack? modpack, [NotNullWhen(true)] out string? gamePath)
+    public bool TryParseModpackPath(string modpackPath, [NotNullWhen(true)] out ILiveModpack? modpack, [NotNullWhen(true)] out string? gamePath)
     {
         if (!modpackPath.StartsWith(StagehandPathIdentifier))
         {
@@ -318,38 +362,54 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
             Span<byte> newPathBuffer = stackalloc byte[1024];
             if (modpack.AllRedirections.TryGetValue(gamePath, out var redirectedPath))
             {
+                // If this resource type can have dependencies, we need to pipe the modpack ID through (which means we load a unique copy per modpack) so dependency paths can be resolved
+                if (ResourcesWithDependencies.Contains(*resourceType))
+                {
+                    redirectedPath.NewPath = ResourceRedirectionHelpers.MakeModpackPath(redirectedPath.NewPath, modpack);
+                }
+
                 if (_config.LogModpackResourceHandled)
                 {
                     _logger.LogDebug("  and was redirected to {newPath}.", redirectedPath);
                 }
+                *categoryId = redirectedPath.Category;
 
-                RedirectToPath(ref *categoryId, ref *resourceType, ref *resourceHash, path, pGetResParams, newPathBuffer, redirectedPath);
+                RedirectToPath(ref *categoryId, ref *resourceType, ref *resourceHash, path, pGetResParams, newPathBuffer, redirectedPath.NewPath);
             }
             else
             {
+                Span<byte> gamePathBytes = stackalloc byte[1024];
+
+                // Fix up the category
+                Encoding.UTF8.GetBytes(gamePath, gamePathBytes);
+                fixed (byte* gamePathBytesPtr = gamePathBytes)
+                {
+                    *categoryId = *_getResourceCategory(categoryId, gamePathBytesPtr);
+                }
+
+                // If this resource type can have dependencies, we need to pipe the modpack ID through (which means we load a unique copy per modpack) so dependency paths can be resolved
+                if (ResourcesWithDependencies.Contains(*resourceType))
+                {
+                    gamePath = ResourceRedirectionHelpers.MakeModpackPath(gamePath, modpack);
+                }
+
                 if (_config.LogModpackResourceHandled)
                 {
                     _logger.LogDebug("  but isn't redirected, just using {path}.", gamePath);
                 }
-
                 RedirectToPath(ref *categoryId, ref *resourceType, ref *resourceHash, path, pGetResParams, newPathBuffer, gamePath);
-            }
-
-            Span<byte> gamePathBytes = stackalloc byte[1024];
-            Encoding.UTF8.GetBytes(gamePath, gamePathBytes);
-            fixed (byte* gamePathBytesPtr = gamePathBytes)
-            {
-                *categoryId = *_getResourceCategory(categoryId, gamePathBytesPtr);
             }
 
             var priorModpack = _currentThreadModpack.Value;
             _currentThreadModpack.Value = modpack;
+            _logger.LogDebug("Setting current modpack to {pack}", modpack.DebugName);
             ResourceHandle* result;
             fixed (byte* newPathBufferPointer = newPathBuffer)
             {
                 result = GetGameResource(isSync, resourceManager, categoryId, resourceType, resourceHash, newPathBufferPointer, pGetResParams, hasHandleLock, file, line);
             }
             _currentThreadModpack.Value = priorModpack;
+            _logger.LogDebug("Restored modpack to {pack}", priorModpack?.DebugName ?? "null");
             return result;
         }
         // If this path isn't a modpack one but we're recursed inside another modpack's sync resource query, use that modpack
@@ -363,12 +423,19 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
             Span<byte> newPathBuffer = stackalloc byte[1024];
             if (outerModpack.AllRedirections.TryGetValue(pathString, out var redirectedPath))
             {
+                // If this resource type can have dependencies, we need to pipe the modpack ID through (which means we load a unique copy per modpack) so dependency paths can be resolved
+                if (ResourcesWithDependencies.Contains(*resourceType))
+                {
+                    redirectedPath.NewPath = ResourceRedirectionHelpers.MakeModpackPath(redirectedPath.NewPath, outerModpack);
+                }
+
                 if (_config.LogModpackResourceHandled)
                 {
                     _logger.LogDebug("  and was redirected to {newPath}.", redirectedPath);
                 }
 
-                RedirectToPath(ref *categoryId, ref *resourceType, ref *resourceHash, path, pGetResParams, newPathBuffer, redirectedPath);
+                *categoryId = redirectedPath.Category;
+                RedirectToPath(ref *categoryId, ref *resourceType, ref *resourceHash, path, pGetResParams, newPathBuffer, redirectedPath.NewPath);
                 fixed (byte* newPathBufferPointer = newPathBuffer)
                 {
                     return GetGameResource(isSync, resourceManager, categoryId, resourceType, resourceHash, newPathBufferPointer, pGetResParams, hasHandleLock, file, line);
@@ -376,11 +443,23 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
             }
             else
             {
+                var newPath = pathString;
+
+                // If this resource type can have dependencies, we need to pipe the modpack ID through (which means we load a unique copy per modpack) so dependency paths can be resolved
+                if (ResourcesWithDependencies.Contains(*resourceType))
+                {
+                    newPath = ResourceRedirectionHelpers.MakeModpackPath(newPath, outerModpack);
+                }
+
                 if (_config.LogModpackResourceHandled)
                 {
-                    _logger.LogDebug("  but isn't redirected, not touching {path}.", pathString);
+                    _logger.LogDebug("  but isn't redirected, sending to {path}.", newPath);
                 }
-                return GetGameResource(isSync, resourceManager, categoryId, resourceType, resourceHash, path, pGetResParams, hasHandleLock, file, line);
+                RedirectToPath(ref *categoryId, ref *resourceType, ref *resourceHash, path, pGetResParams, newPathBuffer, newPath);
+                fixed (byte* newPathBufferPointer = newPathBuffer)
+                {
+                    return GetGameResource(isSync, resourceManager, categoryId, resourceType, resourceHash, newPathBufferPointer, pGetResParams, hasHandleLock, file, line);
+                }
             }
         }
         else
@@ -397,7 +476,7 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
     private void RedirectToPath(ref ResourceCategory category, ref ResourceType type, ref int hash, byte* pathBuffer, GetResourceParameters* getResourceParameters, Span<byte> newPathBuffer, string newPath)
     {
         var pathByteCount = Encoding.ASCII.GetBytes(newPath, newPathBuffer);
-        pathBuffer[pathByteCount] = 0;
+        newPathBuffer[pathByteCount] = 0;
         pathBuffer = newPathBuffer.GetPointer(0);
         hash = ComputeHash(pathBuffer, getResourceParameters);
     }
@@ -453,9 +532,20 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
         return Encoding.UTF8.GetString(str, i);
     }
 
+    public ILiveModpack? SetCurrentModpack(ILiveModpack? modpack)
+    {
+        // We don't need to do Interlocked or anything as this is a thread local, which by definition will not be accessed concurrently
+        var current = _currentThreadModpack.Value;
+        _currentThreadModpack.Value = modpack;
+
+        _logger.LogDebug("Modpack for thread {thread} set to {new} from {old}", Thread.CurrentThread.Name ?? Thread.CurrentThread.ManagedThreadId.ToString(), modpack?.DebugName ?? "(null)", current?.DebugName ?? "(null)"); ;
+        return current;
+    }
+
     public void Dispose()
     {
         _getResourceSyncHook?.Dispose();
         _getResourceAsyncHook?.Dispose();
+        _modelResourceHandleLoadMaterialsHook.Dispose();
     }
 }

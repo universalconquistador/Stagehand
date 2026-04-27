@@ -1,5 +1,6 @@
 using Dalamud.Hooking;
 using Dalamud.Utility.Signatures;
+using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using FFXIVClientStructs.FFXIV.Client.System.File;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using Lumina;
@@ -24,7 +25,7 @@ internal unsafe partial class MemoryResourceService
     private void EnableResourceHandleHooks()
     {
         _textureResourceHandleReadHook.Enable();
-        _modelResourceHandleReadInternalHook.Enable();
+        _modelResourceHandleReadExternalHook.Enable();
         _modelResourceHandleReadHook.Enable();
         _soundResourceHandleReadHook.Enable();
     }
@@ -33,14 +34,17 @@ internal unsafe partial class MemoryResourceService
     {
         _soundResourceHandleReadHook.Dispose();
         _modelResourceHandleReadHook.Dispose();
-        _modelResourceHandleReadInternalHook.Dispose();
+        _modelResourceHandleReadExternalHook.Dispose();
         _textureResourceHandleReadHook.Dispose();
     }
+
+    [Signature("E8 ?? ?? ?? ?? 44 8B 8D ?? ?? ?? ?? 33 FF")]
+    private readonly delegate* unmanaged<byte*, ulong> _computeSplitHash = null!;
 
     #region TextureResourceHandle
 
     [Signature("48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 48 89 7C 24 ?? 41 56 48 83 EC ?? 49 8B E8 44 88 4C 24")]
-    private readonly delegate* unmanaged<TextureResourceHandle*, int, SeFileDescriptor*, bool, byte> _textureResourceHandleReadUnpacked = null!;
+    private readonly delegate* unmanaged<TextureResourceHandle*, int, FileDescriptor*, bool, byte> _textureResourceHandleReadUnpacked = null!;
 
     [Signature("40 53 55 41 54 41 55 41 56 41 57 48 81 EC ?? ?? ?? ?? 48 8B D9", DetourName = nameof(TextureResourceHandleReadDetour))]
     private readonly Hook<TextureResourceHandle.Delegates.Read> _textureResourceHandleReadHook = null!;
@@ -60,12 +64,10 @@ internal unsafe partial class MemoryResourceService
         return 0;
     }
 
-    private byte TextureResourceHandleReadDetour(TextureResourceHandle* textureResourceHandle, void* descriptor, bool failedToOpen)
+    private byte TextureResourceHandleReadDetour(TextureResourceHandle* textureResourceHandle, FileDescriptor* descriptor, bool failedToOpen)
     {
-        var fileDescriptor = (SeFileDescriptor*)descriptor;
-
         // If this is a memory resource, use the unpacked load function
-        if (fileDescriptor->FileMode == (FileMode)LoadMemoryResourceFileMode)
+        if (descriptor->FileMode == (FileMode)LoadMemoryResourceFileMode)
         {
             if (_config.LogMemoryResourceHandled)
             {
@@ -74,7 +76,7 @@ internal unsafe partial class MemoryResourceService
 
             // The tex file header has 3 LOD offsets corresponding to the 3 selectable texture quality levels.
             int lodOffsetIndex = GetLodOffsetIndex(textureResourceHandle);
-            return _textureResourceHandleReadUnpacked(textureResourceHandle, lodOffsetIndex, fileDescriptor, failedToOpen);
+            return _textureResourceHandleReadUnpacked(textureResourceHandle, lodOffsetIndex, descriptor, failedToOpen);
         }
         else
         {
@@ -92,46 +94,58 @@ internal unsafe partial class MemoryResourceService
     #region ModelResourceHandle
 
     [Signature("48 89 5C 24 ?? 55 56 57 41 54 41 55 41 56 41 57 48 8D 6C 24 ?? 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 ?? 48 8B 72 ?? 4C 8B EA")]
-    private readonly delegate* unmanaged<ModelResourceHandle*, SeFileDescriptor*, bool, byte> _modelResourceHandleReadUnpacked = null!;
+    private readonly delegate* unmanaged<ModelResourceHandle*, FileDescriptor*, bool, byte> _modelResourceHandleReadUnpacked = null!;
 
-    private delegate byte ModelResourceHandleReadExternal(ModelResourceHandle* modelResourceHandle, void* descriptor, bool failedToOpen, void* rsfEntry);
+    private delegate byte ModelResourceHandleReadExternal(ModelResourceHandle* modelResourceHandle, FileDescriptor* descriptor, bool failedToOpen, void* rsfEntry);
 
     //[Signature("E8 ?? ?? ?? ?? EB 02 B0 F1", DetourName = nameof(ModelResourceHandleReadDetour))]
-    private readonly Hook<ModelResourceHandleReadExternal> _modelResourceHandleReadHook = null!;
+    private readonly Hook<ModelResourceHandleReadExternal> _modelResourceHandleReadExternalHook = null!;
 
-    private byte ModelResourceHandleReadDetour(ModelResourceHandle* modelResourceHandle, void* descriptor, bool failedToOpen, void* rsfEntry)
+    private byte ModelResourceHandleReadExternalDetour(ModelResourceHandle* modelResourceHandle, FileDescriptor* descriptor, bool failedToOpen, void* rsfEntry)
     {
-        var fileDescriptor = (SeFileDescriptor*)descriptor;
-
         // If this is a memory resource, use the unpacked load function
-        if (fileDescriptor->FileMode == (FileMode)LoadMemoryResourceFileMode)
+        if (descriptor->FileMode == (FileMode)LoadMemoryResourceFileMode)
         {
+            failedToOpen = false;
+            var result = _modelResourceHandleReadUnpacked(modelResourceHandle, descriptor, failedToOpen);
             if (_config.LogMemoryResourceHandled)
             {
-                _logger.LogDebug("[{fileName}] ModelResourceHandleReadDetour handled!", modelResourceHandle->ResourceHandle.FileName.ToString());
+                _logger.LogDebug("[{fileName}] ModelResourceHandleReadExternalDetour handled! ({result}, {failed})", modelResourceHandle->ResourceHandle.FileName.ToString(), result, failedToOpen ? "Failed" : "Not Failed");
             }
 
-            return _modelResourceHandleReadUnpacked(modelResourceHandle, fileDescriptor, failedToOpen);
+            return result;
         }
         else
         {
             if (_config.LogMemoryResourceUntouched)
             {
-                _logger.LogDebug("[{fileName}] ModelResourceHandleReadDetour untouched!", modelResourceHandle->ResourceHandle.FileName.ToString());
+                _logger.LogDebug("[{fileName}] ModelResourceHandleReadExternalDetour untouched!", modelResourceHandle->ResourceHandle.FileName.ToString());
             }
 
-            return _modelResourceHandleReadHook.Original.Invoke(modelResourceHandle, descriptor, failedToOpen, rsfEntry);
+            return _modelResourceHandleReadExternalHook.Original.Invoke(modelResourceHandle, descriptor, failedToOpen, rsfEntry);
         }
     }
 
-    // TEMP: Hook the internal read so we can confirm when they are getting through!
-    private delegate byte ModelResourceHandleReadInternal(ModelResourceHandle* handle, void* descriptor, bool failedToOpen);
-    [Signature("48 89 5C 24 ?? 55 56 57 41 54 41 55 41 56 41 57 48 8D 6C 24 ?? 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 45 ?? 48 8B 72 ?? 4C 8B EA", DetourName = nameof(ModelResourcehandleReadInternalDetour))]
-    private readonly Hook<ModelResourceHandleReadInternal> _modelResourceHandleReadInternalHook = null!;
-    private byte ModelResourcehandleReadInternalDetour(ModelResourceHandle* handle, void* descriptor, bool failedToOpen)
+    // Hook the vfunc so that we can test things
+    private delegate byte ModelResourceHandleRead(ModelResourceHandle* handle, FileDescriptor* descriptor, bool failedToOpen);
+    [Signature("48 89 5C 24 ?? 48 89 6C 24 ?? 57 48 83 EC 20 80 3A 0B", DetourName = nameof(ModelResourceHandleReadDetour))]
+    private readonly Hook<ModelResourceHandleRead> _modelResourceHandleReadHook = null!;
+    private byte ModelResourceHandleReadDetour(ModelResourceHandle* handle, FileDescriptor* descriptor, bool failedToOpen)
     {
-        _logger.LogDebug("INTERNAL MODEL LOAD!");
-        return _modelResourceHandleReadInternalHook.Original.Invoke(handle, descriptor, failedToOpen);
+        if (descriptor->FileMode == (FileMode)LoadMemoryResourceFileMode)
+        {
+            failedToOpen = false;
+            var result = _modelResourceHandleReadUnpacked(handle, descriptor, failedToOpen);
+            if (_config.LogMemoryResourceHandled)
+            {
+                _logger.LogDebug("[{fileName}] ModelResourceHandleReadDetour handled! ({result}, {failed})", handle->ResourceHandle.FileName.ToString(), result, failedToOpen ? "Failed" : "Not Failed");
+            }
+            return result;
+        }
+        else
+        {
+            return _modelResourceHandleReadHook.Original.Invoke(handle, descriptor, failedToOpen);
+        }
     }
 
     #endregion
@@ -139,24 +153,22 @@ internal unsafe partial class MemoryResourceService
     #region SoundResourceHandle
 
     [Signature("48 89 5C 24 ?? 48 89 74 24 ?? 57 48 83 EC 30 8B 79 ?? 48 8B DA 8B D7")]
-    private readonly delegate* unmanaged<SoundResourceHandle*, SeFileDescriptor*, bool, byte> _soundResourceHandleReadUnpacked = null!;
+    private readonly delegate* unmanaged<SoundResourceHandle*, FileDescriptor*, bool, byte> _soundResourceHandleReadUnpacked = null!;
 
     [Signature("40 56 57 41 54 48 81 EC ?? ?? ?? ?? 80 3A ?? 45 0F B6 E0 48 8B F2 48 8B F9 75 ?? 83 BA ?? ?? ?? ?? ?? 72 ?? 48 8B 01 FF 90 ?? ?? ?? ?? 3C", DetourName = nameof(SoundResourceHandleReadDetour))]
     private readonly Hook<SoundResourceHandle.Delegates.Read> _soundResourceHandleReadHook = null!;
 
-    private byte SoundResourceHandleReadDetour(SoundResourceHandle* soundResourceHandle, void* descriptor, bool failedToOpen)
+    private byte SoundResourceHandleReadDetour(SoundResourceHandle* soundResourceHandle, FileDescriptor* descriptor, bool failedToOpen)
     {
-        var fileDescriptor = (SeFileDescriptor*)descriptor;
-
         // If this is a memory resource, use the unpacked read function
-        if (fileDescriptor->FileMode == (FileMode)LoadMemoryResourceFileMode)
+        if (descriptor->FileMode == (FileMode)LoadMemoryResourceFileMode)
         {
             if (_config.LogMemoryResourceHandled)
             {
                 _logger.LogDebug("[{fileName}] SoundResourceHandleReadDetour handled!", soundResourceHandle->ResourceHandle.FileName.ToString());
             }
 
-            return _soundResourceHandleReadUnpacked(soundResourceHandle, fileDescriptor, failedToOpen);
+            return _soundResourceHandleReadUnpacked(soundResourceHandle, descriptor, failedToOpen);
         }
         else
         {

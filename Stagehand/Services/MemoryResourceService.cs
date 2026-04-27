@@ -4,6 +4,7 @@ using Dalamud.Utility.Signatures;
 using FFXIVClientStructs.FFXIV.Client.System.File;
 using FFXIVClientStructs.FFXIV.Client.System.Resource;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
+using Stagehand.Live;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -25,6 +26,10 @@ namespace Stagehand.Services;
 /// </remarks>
 public interface IMemoryResourceService
 {
+    // MASSIVE HACK TO WORK AROUND CIRCULAR DEPENDENCIES
+    // NEEDS BIG REFACTOR
+    IResourceRedirectionService? ResourceRedirectionService { get; set; }
+
     string RegisterMemoryResource(byte[] data, string gamePath);
     bool TryUnregisterMemoryResource(string memoryResourcePath);
 }
@@ -50,21 +55,10 @@ internal unsafe partial class MemoryResourceService : IMemoryResourceService, ID
 
     private const string MemoryResourcePrefix = "mem://";
 
-    //private delegate byte ReadFileProtype(ResourceManager* resourceManager, Live.ResourceRedirectionService.SeFileDescriptor* fileDescriptor, int priority, bool isSync);
-    //[Signature("41 56 48 83 EC 28 0F BE 02"/*, DetourName = nameof(ReadResourceDetour)*/)]
-    //private readonly Hook<ReadFileProtype> _readResourceHook = null!;
+    public IResourceRedirectionService? ResourceRedirectionService { get; set; }
 
-    private delegate byte ReadSqPackPrototype(ResourceManager* resourceManager, Live.ResourceRedirectionService.SeFileDescriptor* fileDescriptor, int priority, bool isSync);
-    [Signature("40 56 41 56 48 83 EC ?? 0F BE 02", DetourName = nameof(ReadSqPackDetour))]
-    private readonly Hook<ReadSqPackPrototype> _readSqPackHook = null!;
-
-    private delegate byte PostLoadResourcePrototype(ResourceHandle* resourceHandle, Live.ResourceRedirectionService.SeFileDescriptor* fileDescriptor, byte lastIoResult, byte flag);
-    [Signature("E8 ?? ?? ?? ?? 80 3F 0B 75 28")]
-    private readonly PostLoadResourcePrototype _postLoadResource = null!;
-
-    private delegate byte FileDescriptorRead(Live.ResourceRedirectionService.SeFileDescriptor* fileDescriptor, byte* outputBuffer, ulong length, ulong start, bool failedToOpen);
-    [Signature("E8 ?? ?? ?? ?? 8B 45 C7 89 83 ?? ?? ?? ??", DetourName = nameof(FileDescriptorReadDetour))]
-    private readonly Hook<FileDescriptorRead> _fileDescriptorReadHook = null!;
+    private readonly Hook<ResourceManager.Delegates.ReadSqPack> _readSqPackHook;
+    private readonly Hook<FileDescriptor.Delegates.Read> _fileDescriptorReadHook;
 
     private readonly ILogger _logger;
     private readonly IGameInteropProvider _gameInteropProvider;
@@ -79,12 +73,13 @@ internal unsafe partial class MemoryResourceService : IMemoryResourceService, ID
         _gameInteropProvider = gameInteropProvider;
         _config = config;
 
-        _modelResourceHandleReadHook = gameInteropProvider.HookFromSignature<ModelResourceHandleReadExternal>("E8 ?? ?? ?? ?? EB 02 B0 F1", ModelResourceHandleReadDetour, IGameInteropProvider.HookBackend.Reloaded);
+        _modelResourceHandleReadExternalHook = gameInteropProvider.HookFromSignature<ModelResourceHandleReadExternal>("E8 ?? ?? ?? ?? EB 02 B0 F1", ModelResourceHandleReadExternalDetour, IGameInteropProvider.HookBackend.Reloaded);
 
         _gameInteropProvider.InitializeFromAttributes(this);
+        _fileDescriptorReadHook = gameInteropProvider.HookFromAddress<FileDescriptor.Delegates.Read>(FileDescriptor.Addresses.Read.Value, FileDescriptorReadDetour);
         _fileDescriptorReadHook.Enable();
         EnableResourceHandleHooks();
-        //_readResourceHook.Enable();
+        _readSqPackHook = _gameInteropProvider.HookFromAddress<ResourceManager.Delegates.ReadSqPack>(ResourceManager.Addresses.ReadSqPack.Value, ReadSqPackDetour);
         _readSqPackHook.Enable();
     }
 
@@ -128,18 +123,35 @@ internal unsafe partial class MemoryResourceService : IMemoryResourceService, ID
         return false;
     }
 
-    //private byte ReadResourceDetour(ResourceManager* resourceManager, Live.ResourceRedirectionService.SeFileDescriptor* fileDescriptor, int priority, bool isSync)
-    private byte ReadSqPackDetour(ResourceManager* resourceManager, Live.ResourceRedirectionService.SeFileDescriptor* fileDescriptor, int priority, bool isSync)
+    [StructLayout(LayoutKind.Explicit)]
+    private struct MemoryFileInterface
+    {
+        [FieldOffset(0x00)] public FileInterface FileInterface;
+
+        // The wide path chars start at 0x21, so we'll reuse that to store the fake 'position'
+        // of where we are in the file, to emulate OS file APIs
+        [FieldOffset(0x21)] public ulong Position;
+    }
+
+    private byte ReadSqPackDetour(ResourceManager* resourceManager, FileDescriptor* fileDescriptor, int priority, bool isSync)
     {
         // Look for packed resource requests with our special prefix
-        string fileName = "";
+        string resourcePath = "";
+        ILiveModpack? modpack = null;
         if (fileDescriptor->ResourceHandle != null)
         {
-            fileName = fileDescriptor->ResourceHandle->FileName.ToString() ?? "";
+            resourcePath = fileDescriptor->ResourceHandle->FileName.ToString() ?? "";
+
+            if (ResourceRedirectionService?.TryParseModpackPath(resourcePath, out modpack, out var subPath) ?? false)
+            {
+                resourcePath = subPath;
+            }
         }
+
         if (fileDescriptor->ResourceHandle != null
             && fileDescriptor->FileMode == FileMode.LoadSqPackResource
-            && TryParseMemoryResourcePath(fileName, out var memoryResourceId, out var gamePath))
+            && TryParseMemoryResourcePath(resourcePath, out var memoryResourceId, out var gamePath)
+            && ResourceRedirectionService != null)
         {
 
             // Switch the mode to our custom mode
@@ -148,7 +160,7 @@ internal unsafe partial class MemoryResourceService : IMemoryResourceService, ID
             var resourceBytes = _memoryResources.GetValueOrDefault(memoryResourceId);
             if (_config.LogMemoryResourceHandled)
             {
-                _logger.LogDebug("[{fileName}] ReadResourceDetour handled! Id = {id}, gamePath = {gamePath}, found = {found}", fileName, memoryResourceId, gamePath, resourceBytes != null ? "True" : "False");
+                _logger.LogDebug("[{fileName}] ReadResourceDetour handled as memory resource! Id = {id}, gamePath = {gamePath}, found = {found}", resourcePath, memoryResourceId, gamePath, resourceBytes != null ? "True" : "False");
             }
             fixed (byte* filenameBytesPointer = filenameBytes)
             fixed (byte* resourceBytesPointer = resourceBytes)
@@ -158,21 +170,55 @@ internal unsafe partial class MemoryResourceService : IMemoryResourceService, ID
 
                 fileDescriptor->FileMode = (FileMode)LoadMemoryResourceFileMode;
 
-                var oldFileDescriptor = fileDescriptor->FileDescriptor;
+                var oldFileInterface = fileDescriptor->FileInterface;
 
-                PlatformFile tempDescriptor = new()
+                MemoryFileInterface tempDescriptor = new()
                 {
-
+                    Position = 0,
                 };
-                fileDescriptor->FileDescriptor = &tempDescriptor;
-                var result = ReadFileImpostor(resourceManager, fileDescriptor, priority, isSync, resourceBytesPointer, (ulong)(resourceBytes?.LongLength ?? 0));
+                fileDescriptor->FileInterface = &tempDescriptor.FileInterface;
+
+                byte result;
+                using (var modpackScope = ResourceRedirectionService.OpenModpackScope(modpack))
+                {
+                    result = ReadFileImpostor(resourceManager, fileDescriptor, priority, isSync, resourceBytesPointer, (ulong)(resourceBytes?.LongLength ?? 0));
+                }
 
                 // Restore everything we changed
                 fileDescriptor->ResourceHandle->FileName = originalResourceFilename;
                 fileDescriptor->FileMode = FileMode.LoadSqPackResource;
 
-                fileDescriptor->FileDescriptor = oldFileDescriptor;
+                fileDescriptor->FileInterface = oldFileInterface;
 
+                return result;
+            }
+        }
+        else if (fileDescriptor->ResourceHandle != null && modpack != null && ResourceRedirectionService != null)
+        {
+            if (_config.LogMemoryResourceHandled)
+            {
+                _logger.LogDebug("[{fileName}] ReadResourceDetour handled as redirected resource! gamePath = {gamePath}", resourcePath, resourcePath);
+            }
+
+            // Switch to the actual path temporarily
+            var originalResourceFilename = fileDescriptor->ResourceHandle->FileName;
+
+            Span<byte> newFilenameBytes = stackalloc byte[Encoding.UTF8.GetByteCount(resourcePath) + 1];
+            Encoding.UTF8.GetBytes(resourcePath, newFilenameBytes);
+            newFilenameBytes[newFilenameBytes.Length - 1] = 0;
+
+            fixed (byte* newFilenamePointer = newFilenameBytes)
+            {
+                fileDescriptor->ResourceHandle->FileName.BufferPtr = newFilenamePointer;
+                fileDescriptor->ResourceHandle->FileName.Length = (ulong)(newFilenameBytes.Length - 1);
+
+                byte result;
+                using (var modpackScope = ResourceRedirectionService.OpenModpackScope(modpack))
+                {
+                    result = _readSqPackHook.OriginalDisposeSafe.Invoke(resourceManager, fileDescriptor, priority, isSync);
+                }
+
+                fileDescriptor->ResourceHandle->FileName = originalResourceFilename;
                 return result;
             }
         }
@@ -180,34 +226,32 @@ internal unsafe partial class MemoryResourceService : IMemoryResourceService, ID
         {
             if (_config.LogMemoryResourceUntouched)
             {
-                _logger.LogDebug("[{fileName}] ReadResourceDetour untouched!", fileName);
+                _logger.LogDebug("[{fileName}] ReadResourceDetour untouched!", resourcePath);
             }
 
-            //throw new NotImplementedException();
-            //return _readResourceHook.OriginalDisposeSafe.Invoke(resourceManager, fileDescriptor, priority, isSync);
             return _readSqPackHook.OriginalDisposeSafe.Invoke(resourceManager, fileDescriptor, priority, isSync);
         }
     }
 
-    private byte ReadFileImpostor(ResourceManager* resourceManager, Live.ResourceRedirectionService.SeFileDescriptor* fileDescriptor, int priority, bool isSync, byte* resourceBytes, ulong resourceLength)
+    private byte ReadFileImpostor(ResourceManager* resourceManager, FileDescriptor* fileDescriptor, int priority, bool isSync, byte* resourceBytes, ulong resourceLength)
     {
         var fileHandleManager = FileHandleManager.Instance();
-        var fileHandle = fileHandleManager->GetFileHandle(fileDescriptor->FileHandleHandle);
+        ref var fileHandle = ref fileHandleManager->GetFileHandle(fileDescriptor->FileHandleIndex);
         byte state2;
         using (var managerLock = fileHandleManager->Lock.Acquire())
         {
-            state2 = fileHandle->State2;
+            state2 = fileHandle.State2;
         }
         byte platformIOResult = 1;
         if (state2 == 0)
         {
-            if (!fileDescriptor->FileDescriptor->IsOpen)
+            if (!fileDescriptor->FileInterface->IsFileOpen)
             {
                 // "Try opening" the file (analogue of func_14045C6E0_open_os_file)
                 if (resourceBytes != null)
                 {
-                    fileDescriptor->FileDescriptor->PlatformHandle = (nint)resourceBytes;
-                    fileDescriptor->FileDescriptor->IsOpen = true;
+                    fileDescriptor->FileInterface->PlatformHandle = (nint)resourceBytes;
+                    fileDescriptor->FileInterface->IsFileOpen = true;
 
                     platformIOResult = 1; // Fake that we just opened the file
                 }
@@ -220,13 +264,13 @@ internal unsafe partial class MemoryResourceService : IMemoryResourceService, ID
                         // -1: File/path not found
                     }
                 }
-                fileDescriptor->FileDescriptor->FileSize = resourceLength;
+                fileDescriptor->FileInterface->CachedFileSize = resourceLength;
             }
 
             // Check the file handle's state2 again
             using (var managerLock = fileHandleManager->Lock.Acquire())
             {
-                state2 = fileHandle->State2;
+                state2 = fileHandle.State2;
             }
             if (state2 == 0 && resourceBytes != null)
             {
@@ -239,13 +283,13 @@ internal unsafe partial class MemoryResourceService : IMemoryResourceService, ID
 
             if (resourceBytes != null)
             {
-                fileDescriptor->FileDescriptor->IsOpen = false;
+                fileDescriptor->FileInterface->IsFileOpen = false;
             }
 
             // Check the file handle's state2 again again
             using (var managerLock = fileHandleManager->Lock.Acquire())
             {
-                state2 = fileHandle->State2;
+                state2 = fileHandle.State2;
             }
             if (state2 != 0)
             {
@@ -258,20 +302,20 @@ internal unsafe partial class MemoryResourceService : IMemoryResourceService, ID
         }
         using (var managerLock = fileHandleManager->Lock.Acquire())
         {
-            fileHandle->AllocatedBuffer = null; // Only FileMode 1 allocates a buffer
-            fileHandle->ResultLength = fileDescriptor->AmountToRead; // FileMode 1 makes sure the file handle size doesn't exceed the actual file size, but not FileMode 0, which instead puts the capped size in the resource handle.
+            fileHandle.AllocatedBuffer = null; // Only FileMode 1 allocates a buffer
+            fileHandle.ResultLength = fileDescriptor->Length; // FileMode 1 makes sure the file handle size doesn't exceed the actual file size, but not FileMode 0, which instead puts the capped size in the resource handle.
         }
         using (var managerLock = fileHandleManager->Lock.Acquire())
         {
-            fileHandle->Reset(platformIOResult);
+            fileHandle.Reset(platformIOResult);
         }
-        
-        // This calls vf40 or vf35 or vf33 (load)
-        return _postLoadResource.Invoke(fileDescriptor->ResourceHandle, fileDescriptor, platformIOResult, (byte)0);
+
+        fileDescriptor->ResourceHandle->FinishLoad(fileDescriptor, platformIOResult, 0);
+        return 1;
     }
 
     // func_1402EEDC0_read_unpacked_resource
-    private byte ReadFileResourceImpostor(ResourceHandle* resourceHandle, Live.ResourceRedirectionService.SeFileDescriptor* fileDescriptor, bool fileLoadFailed)
+    private byte ReadFileResourceImpostor(ResourceHandle* resourceHandle, FileDescriptor* fileDescriptor, bool fileLoadFailed)
     {
         // Manipulate magic numbers and interlocked bytes to advance the load state of the resource
         if (InterlockedRead(ref resourceHandle->ReadState) == 3)
@@ -292,14 +336,14 @@ internal unsafe partial class MemoryResourceService : IMemoryResourceService, ID
         }
 
         // Store the file sizes in the resource handle
-        resourceHandle->FileSize2 = (uint)fileDescriptor->FileDescriptor->FileSize;
+        resourceHandle->FileSize2 = (uint)fileDescriptor->FileInterface->CachedFileSize;
 
         // Cap the amount to read by the actual end of the memory resource
         var startOffset = fileDescriptor->StartOffset;
-        var amountToRead = (uint)fileDescriptor->FileDescriptor->FileSize - startOffset;
-        if (fileDescriptor->AmountToRead > 0)
+        var amountToRead = (uint)fileDescriptor->FileInterface->CachedFileSize - startOffset;
+        if (fileDescriptor->Length > 0)
         {
-            amountToRead = Math.Min((uint)amountToRead, fileDescriptor->AmountToRead);
+            amountToRead = Math.Min((uint)amountToRead, fileDescriptor->Length);
         }
         resourceHandle->FileSize = (uint)amountToRead;
         if (amountToRead == 0)
@@ -318,22 +362,29 @@ internal unsafe partial class MemoryResourceService : IMemoryResourceService, ID
         }
     }
 
-    private byte FileDescriptorReadDetour(Live.ResourceRedirectionService.SeFileDescriptor* fileDescriptor, byte* outputBuffer, ulong length, ulong start, bool failedToOpen)
+    private byte FileDescriptorReadDetour(FileDescriptor* fileDescriptor, byte* outputBuffer, ulong length, ulong start, bool resetPosition)
     {
         if (fileDescriptor->FileMode == (FileMode)LoadMemoryResourceFileMode)
         {
+            var memoryFile = (MemoryFileInterface*)fileDescriptor->FileInterface;
+
             if (_config.LogMemoryResourceHandled)
             {
-                _logger.LogDebug("[{path}] FileDescriptorRead handled!", fileDescriptor->ResourceHandle->FileName.ToString() ?? "");
+                _logger.LogDebug("[{path}] FileDescriptorRead handled! (0x{start:X}+0x{length:X})", fileDescriptor->ResourceHandle->FileName.ToString() ?? "", start, length);
             }
 
-            var totalSize = fileDescriptor->FileDescriptor->FileSize;
+            var totalSize = memoryFile->FileInterface.CachedFileSize;
             if (length == 0)
             {
                 length = totalSize - start;
             }
 
-            if (fileDescriptor->FileDescriptor->PlatformHandle == 0 || start + length > totalSize)
+            if (length == 0)
+            {
+                return 1;
+            }
+
+            if (memoryFile->FileInterface.PlatformHandle == 0 || start + length > totalSize)
             {
                 unchecked
                 {
@@ -342,19 +393,32 @@ internal unsafe partial class MemoryResourceService : IMemoryResourceService, ID
             }
             else
             {
-                NativeMemory.Copy((void*)fileDescriptor->FileDescriptor->PlatformHandle, outputBuffer, (nuint)length);
+                if (start != 0 || resetPosition)
+                {
+                    memoryFile->Position = start;
+                }
+
+                start = memoryFile->Position;
+                ReadOnlySpan<byte> sourceBuffer = new ReadOnlySpan<byte>((void*)memoryFile->FileInterface.PlatformHandle, (int)memoryFile->FileInterface.CachedFileSize);
+                var portion = sourceBuffer.Slice((int)start, (int)length);
+                Span<byte> destinationBuffer = new Span<byte>(outputBuffer, (int)length);
+                portion.CopyTo(destinationBuffer);
+
+                memoryFile->Position += length;
                 return 1;
             }
-            // TODO: Technically, we are supposed to call fileDescriptor->ResourceHandle->vf44, but those are all nullsubs. Perhaps compiled out of release builds?
+            // Technically, we are supposed to call fileDescriptor->ResourceHandle->vf44 here, but those are all nullsubs. Perhaps compiled out of release builds?
         }
         else
         {
             if (_config.LogMemoryResourceUntouched)
             {
-                _logger.LogDebug("FileDescriptorRead untouched!");
+                _logger.LogDebug("[{path}] FileDescriptorRead untouched! (0x{start:X}+0x{length:X})", fileDescriptor->ResourceHandle->FileName.ToString() ?? "", start, length);
             }
 
-            return _fileDescriptorReadHook.Original.Invoke(fileDescriptor, outputBuffer, length, start, failedToOpen);
+            var result = _fileDescriptorReadHook.Original.Invoke(fileDescriptor, outputBuffer, length, start, resetPosition);
+
+            return result;
         }
     }
 
@@ -368,7 +432,6 @@ internal unsafe partial class MemoryResourceService : IMemoryResourceService, ID
     public void Dispose()
     {
         _readSqPackHook.Dispose();
-        //_readResourceHook.Dispose();
         DisposeResourceHandleHooks();
         _fileDescriptorReadHook.Dispose();
     }

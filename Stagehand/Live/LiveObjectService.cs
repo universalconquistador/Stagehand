@@ -131,7 +131,7 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
         if (modpack != null)
         {
             existsInModpack = modpack.AllRedirections.ContainsKey(vfxResourceGamePath);
-            finalPath = _resourceRedirectionService.MakeModpackPath(vfxResourceGamePath, modpack);
+            finalPath = ResourceRedirectionHelpers.MakeModpackPath(vfxResourceGamePath, modpack);
         }
 
         if (!SafeResourceExists(finalPath) && !existsInModpack)
@@ -177,7 +177,7 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
         if (modpack != null)
         {
             existsInModpack = modpack.AllRedirections.ContainsKey(modelGamePath);
-            finalPath = _resourceRedirectionService.MakeModpackPath(modelGamePath, modpack);
+            finalPath = ResourceRedirectionHelpers.MakeModpackPath(modelGamePath, modpack);
         }
 
         if (!SafeResourceExists(finalPath) && !existsInModpack)
