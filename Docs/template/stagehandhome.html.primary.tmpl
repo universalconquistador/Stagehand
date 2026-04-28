@@ -56,11 +56,13 @@
         html {
           --install-display: none;
           --install-visibility: hidden;
+          --install-opacity: 0;
         }
 
         html[data-url-hash="#install"] {
           --install-display: block;
           --install-visibility: visible;
+          --install-opacity: 1;
         }
 
         .navbar #navbar {
@@ -92,7 +94,7 @@
         <div style="display: block;">
           <div class="container">
             <div class="d-flex">
-              <a class="navbar-brand" style="display: inline-block; width: 30%;" href="{{_appLogoUrl}}{{^_appLogoUrl}}{{_rel}}{{/_appLogoUrl}}">
+              <a class="navbar-brand" style="display: inline-block; width: 30%;" href="{{_appLogoUrl}}{{^_appLogoUrl}}{{_rel}}#{{/_appLogoUrl}}">
                 <img id="icon" class="img-fluid" src="Stagehand Icon Full.png" width="1024" height="1024" alt="{{_appName}} Logo">
               </a>
               <div style="width: 70%; margin-top: 10%;">
@@ -118,7 +120,7 @@
                 </nav>
                 {{/_disableNavbar}}
 
-                <div class="mt-5 container pe-3" style="/*display: var(--install-display);*/ visibility: var(--install-visibility);">
+                <div class="mt-5 container pe-3" style="/*display: var(--install-display);*/ visibility: var(--install-visibility); opacity: var(--install-opacity); transition: visibility 0.2s, opacity 0.2s;">
                   <p>
                     Install Stagehand from its Dalamud plugin repository:
                   </p>
