@@ -57,7 +57,7 @@ internal unsafe partial class MemoryResourceService : IMemoryResourceService, ID
 
     public IResourceRedirectionService? ResourceRedirectionService { get; set; }
 
-    private readonly Hook<ResourceManager.Delegates.ReadSqPack> _readSqPackHook;
+    private readonly Hook<FileThread.Delegates.DoFileJob> _doFileJobHook;
     private readonly Hook<FileDescriptor.Delegates.Read> _fileDescriptorReadHook;
 
     private readonly ILogger _logger;
@@ -79,8 +79,8 @@ internal unsafe partial class MemoryResourceService : IMemoryResourceService, ID
         _fileDescriptorReadHook = gameInteropProvider.HookFromAddress<FileDescriptor.Delegates.Read>(FileDescriptor.Addresses.Read.Value, FileDescriptorReadDetour);
         _fileDescriptorReadHook.Enable();
         EnableResourceHandleHooks();
-        _readSqPackHook = _gameInteropProvider.HookFromAddress<ResourceManager.Delegates.ReadSqPack>(ResourceManager.Addresses.ReadSqPack.Value, ReadSqPackDetour);
-        _readSqPackHook.Enable();
+        _doFileJobHook = _gameInteropProvider.HookFromAddress<FileThread.Delegates.DoFileJob>(FileThread.Addresses.DoFileJob.Value, DoFileJobDetour);
+        _doFileJobHook.Enable();
     }
 
     public string RegisterMemoryResource(byte[] data, string gamePath)
@@ -133,7 +133,7 @@ internal unsafe partial class MemoryResourceService : IMemoryResourceService, ID
         [FieldOffset(0x21)] public ulong Position;
     }
 
-    private byte ReadSqPackDetour(ResourceManager* resourceManager, FileDescriptor* fileDescriptor, int priority, bool isSync)
+    private byte DoFileJobDetour(FileThread* fileThread, FileDescriptor* fileDescriptor, int priority, bool isSync)
     {
         // Look for packed resource requests with our special prefix
         string resourcePath = "";
@@ -181,7 +181,7 @@ internal unsafe partial class MemoryResourceService : IMemoryResourceService, ID
                 byte result;
                 using (var modpackScope = ResourceRedirectionService.OpenModpackScope(modpack))
                 {
-                    result = ReadFileImpostor(resourceManager, fileDescriptor, priority, isSync, resourceBytesPointer, (ulong)(resourceBytes?.LongLength ?? 0));
+                    result = ReadFileImpostor(fileThread, fileDescriptor, priority, isSync, resourceBytesPointer, (ulong)(resourceBytes?.LongLength ?? 0));
                 }
 
                 // Restore everything we changed
@@ -215,7 +215,7 @@ internal unsafe partial class MemoryResourceService : IMemoryResourceService, ID
                 byte result;
                 using (var modpackScope = ResourceRedirectionService.OpenModpackScope(modpack))
                 {
-                    result = _readSqPackHook.OriginalDisposeSafe.Invoke(resourceManager, fileDescriptor, priority, isSync);
+                    result = _doFileJobHook.OriginalDisposeSafe.Invoke(fileThread, fileDescriptor, priority, isSync);
                 }
 
                 fileDescriptor->ResourceHandle->FileName = originalResourceFilename;
@@ -229,11 +229,11 @@ internal unsafe partial class MemoryResourceService : IMemoryResourceService, ID
                 _logger.LogDebug("[{fileName}] ReadResourceDetour untouched!", resourcePath);
             }
 
-            return _readSqPackHook.OriginalDisposeSafe.Invoke(resourceManager, fileDescriptor, priority, isSync);
+            return _doFileJobHook.OriginalDisposeSafe.Invoke(fileThread, fileDescriptor, priority, isSync);
         }
     }
 
-    private byte ReadFileImpostor(ResourceManager* resourceManager, FileDescriptor* fileDescriptor, int priority, bool isSync, byte* resourceBytes, ulong resourceLength)
+    private byte ReadFileImpostor(FileThread* fileThread, FileDescriptor* fileDescriptor, int priority, bool isSync, byte* resourceBytes, ulong resourceLength)
     {
         var fileHandleManager = FileHandleManager.Instance();
         ref var fileHandle = ref fileHandleManager->GetFileHandle(fileDescriptor->FileHandleIndex);
@@ -431,7 +431,7 @@ internal unsafe partial class MemoryResourceService : IMemoryResourceService, ID
 
     public void Dispose()
     {
-        _readSqPackHook.Dispose();
+        _doFileJobHook.Dispose();
         DisposeResourceHandleHooks();
         _fileDescriptorReadHook.Dispose();
     }
