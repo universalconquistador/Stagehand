@@ -103,6 +103,12 @@
                   <div class="container-xxl flex-nowrap">
                     <div id="navpanel" class="collapse navbar-collapse">
                       <div id="navbar">
+                        <!-- The nav items are created via JavaScript after the page renders, resulting in layout shift. Add a zero width item to make the height not shift when the real items are added. -->
+                        <div class="navbar-nav" style="max-width: 0px;">
+                          <li class="nav-item">
+                            <a class="nav-link">&nbsp;</a>
+                          </li>
+                        </div>
                       </div>
                       <span class="text-secondary flex-fill text-end">
                         A Dalamud plugin for Final Fantasy XIV
