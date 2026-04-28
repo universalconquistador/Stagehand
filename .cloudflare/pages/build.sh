@@ -4,6 +4,7 @@ chmod +x dotnet-install.sh
 ./dotnet-install.sh -c 10.0 -InstallDir ./dotnet
 ./dotnet/dotnet --version
 #./dotnet/dotnet publish -c Release -o output
+echo "Creating dotnet tool manifest..."
 ./dotnet/dotnet new tool-manifest
 ./dotnet/dotnet tool update docfx
 
