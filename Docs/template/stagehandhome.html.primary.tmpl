@@ -46,6 +46,10 @@
 
       <script>
         document.documentElement.setAttribute('data-url-hash', window.location.hash);
+
+        window.addEventListener("hashchange", () => {
+          document.documentElement.setAttribute('data-url-hash', window.location.hash);
+        });
       </script>
 
       <style>
