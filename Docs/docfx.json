@@ -1,0 +1,61 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dotnet/docfx/main/schemas/docfx.schema.json",
+  "metadata": [
+    {
+      "src": [
+        {
+          "src": "../Stagehand.Definitions",
+          "files": [
+            "Stagehand.Definitions.csproj"
+          ]
+        },
+        {
+          "src": "../Stagehand.Api/",
+          "files": [
+            "Stagehand.Api.csproj"
+          ]
+        }
+      ],
+      "dest": "api"
+    }
+  ],
+  "build": {
+    "content": [
+      {
+        "files": [
+          "**/*.{md,yml}"
+        ],
+        "exclude": [
+          "out/**"
+        ]
+      }
+    ],
+    "resource": [
+      {
+        "files": [
+          "Docs/images/**",
+          "icon.ico",
+          "Stagehand Logo.svg",
+          "Stagehand Logotype.svg",
+          "Stagehand Icon Full.png"
+        ],
+        "src": "../"
+      }
+    ],
+    "output": "out",
+    "template": [
+      "default",
+      "modern",
+      "template/"
+    ],
+    "globalMetadata": {
+      "_appName": "",
+      "_appTitle": "Stagehand",
+      "_appFooter": "Made with ♥️ by UniversalConquistador",
+      "_enableSearch": true,
+      "_appFaviconPath": "icon.ico",
+      "_appLogoPath": "Stagehand Logo.svg",
+      "pdf": false
+    }
+  }
+}
