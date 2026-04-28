@@ -1,0 +1,8 @@
+- name: Install
+  href: /#install
+- name: About
+  href: about.md
+- name: Guides
+  href: guides/
+- name: API Reference
+  href: api/

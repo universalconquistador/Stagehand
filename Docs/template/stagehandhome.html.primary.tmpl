@@ -1,0 +1,153 @@
+{{!include(/^public/.*/)}}
+{{!include(favicon.ico)}}
+{{!include(logo.svg)}}
+<!DOCTYPE html>
+<html {{#_lang}}lang="{{_lang}}"{{/_lang}}>
+  <head>
+    <meta charset="utf-8">
+    {{#redirect_url}}
+      <meta http-equiv="refresh" content="0;URL='{{redirect_url}}'">
+    {{/redirect_url}}
+    {{^redirect_url}}
+      <title>{{#title}}{{title}}{{/title}}{{^title}}{{>partials/title}}{{/title}}</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="{{#title}}{{title}}{{/title}}{{^title}}{{>partials/title}}{{/title}}">
+      {{#_description}}<meta name="description" content="{{_description}}">{{/_description}}
+      {{#description}}<meta name="description" content="{{description}}">{{/description}}
+      <link rel="icon" href="{{_rel}}{{{_appFaviconPath}}}{{^_appFaviconPath}}favicon.ico{{/_appFaviconPath}}">
+      <link rel="stylesheet" href="{{_rel}}public/docfx.min.css">
+      <link rel="stylesheet" href="{{_rel}}public/main.css">
+      <meta name="docfx:navrel" content="{{_navRel}}">
+      <meta name="docfx:tocrel" content="{{_tocRel}}">
+      {{#_noindex}}<meta name="searchOption" content="noindex">{{/_noindex}}
+      {{#_enableSearch}}<meta name="docfx:rel" content="{{_rel}}">{{/_enableSearch}}
+      {{#_disableNewTab}}<meta name="docfx:disablenewtab" content="true">{{/_disableNewTab}}
+      {{#_disableTocFilter}}<meta name="docfx:disabletocfilter" content="true">{{/_disableTocFilter}}
+      {{#docurl}}<meta name="docfx:docurl" content="{{docurl}}">{{/docurl}}
+      <meta name="loc:inThisArticle" content="{{__global.inThisArticle}}">
+      <meta name="loc:searchResultsCount" content="{{__global.searchResultsCount}}">
+      <meta name="loc:searchNoResults" content="{{__global.searchNoResults}}">
+      <meta name="loc:tocFilter" content="{{__global.tocFilter}}">
+      <meta name="loc:nextArticle" content="{{__global.nextArticle}}">
+      <meta name="loc:prevArticle" content="{{__global.prevArticle}}">
+      <meta name="loc:themeLight" content="{{__global.themeLight}}">
+      <meta name="loc:themeDark" content="{{__global.themeDark}}">
+      <meta name="loc:themeAuto" content="{{__global.themeAuto}}">
+      <meta name="loc:changeTheme" content="{{__global.changeTheme}}">
+      <meta name="loc:copy" content="{{__global.copy}}">
+      <meta name="loc:downloadPdf" content="{{__global.downloadPdf}}">
+
+      <script type="module" src="./{{_rel}}public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+      <script>
+        document.documentElement.setAttribute('data-url-hash', window.location.hash);
+      </script>
+
+      <style>
+        html {
+          --install-display: none;
+          --install-visibility: hidden;
+        }
+
+        html[data-url-hash="#install"] {
+          --install-display: block;
+          --install-visibility: visible;
+        }
+
+        .navbar #navbar {
+          flex: unset;
+        }
+
+        /*::view-transition-group(root) {
+          animation: none;
+        }*/
+      </style>
+
+      {{#_googleAnalyticsTagId}}
+      <script async src="https://www.googletagmanager.com/gtag/js?id={{_googleAnalyticsTagId}}"></script>
+      <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', '{{_googleAnalyticsTagId}}');
+      </script>
+      {{/_googleAnalyticsTagId}}
+    {{/redirect_url}}
+  </head>
+
+  {{^redirect_url}}
+  <body class="tex2jax_ignore" data-layout="{{_layout}}{{layout}}" data-yaml-mime="{{yamlmime}}">
+
+    <main class="container-xxl" style="display: flex;">
+      <div class="content row align-items-center" style="flex-direction: row; margin: 0 3rem;">
+        <div style="display: block;">
+          <div class="container">
+            <div class="d-flex">
+              <a class="navbar-brand" style="display: inline-block; width: 30%;" href="{{_appLogoUrl}}{{^_appLogoUrl}}{{_rel}}index.html{{/_appLogoUrl}}">
+                <img id="icon" class="img-fluid" src="Stagehand Icon Full.png" alt="{{_appName}} Logo">
+              </a>
+              <div style="width: 70%; margin-top: 10%;">
+                <img id="logotype" class="img-fluid" style="width: 100%;" src="Stagehand Logotype.svg" alt="{{_appName}} Title">
+                <!--<p class="text-secondary text-end mr-5 mb-3">
+                  A Dalamud plugin for Final Fantasy XIV
+                </p>-->
+
+                {{^_disableNavbar}}
+                <nav class="navbar navbar-expand mt-2 me-4" role="navigation">
+                  <div class="container-xxl flex-nowrap">
+                    <div id="navpanel" class="collapse navbar-collapse">
+                      <div id="navbar">
+                        <!--{{#_enableSearch}}
+                        <form class="search" role="search" id="search">
+                          <i class="bi bi-search"></i>
+                          <input class="form-control" id="search-query" type="search" disabled placeholder="{{__global.search}}" autocomplete="off" aria-label="Search">
+                        </form>
+                        {{/_enableSearch}}-->
+
+                      </div>
+                      <span class="text-secondary flex-fill text-end">
+                        A Dalamud plugin for Final Fantasy XIV
+                      </span>
+                    </div>
+                  </div>
+                </nav>
+                {{/_disableNavbar}}
+
+                <div class="mt-5 container pe-3" style="/*display: var(--install-display);*/ visibility: var(--install-visibility);">
+                  <p>
+                    Install Stagehand by adding its plugin repository to Dalamud:
+                  </p>
+                  <pre class="rounded px-3 py-2" style="background: var(--bs-secondary-bg);">https://github.com/universalconquistador/Stagehand/releases/latest/download/repo.json</pre>
+                  <p>
+                    For more details, see the <a href="guides/getting-started/set-up-stagehand.html">setup guide</a>.
+                  </p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+          
+
+        </div>
+
+        {{#_enableSearch}}
+        <div class="container-xxl search-results" id="search-results"></div>
+        {{/_enableSearch}}
+      </div>
+    </main>
+
+    <footer class="text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          {{{_appFooter}}}
+        </div>
+      </div>
+    </footer>
+  </body>
+  {{/redirect_url}}
+</html>
