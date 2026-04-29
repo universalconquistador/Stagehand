@@ -125,7 +125,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - ImGui.GetFrameHeight());
         if (ImGuiComponents.IconButton("###UseCurrentLocation", FontAwesomeIcon.LocationCrosshairs, new Vector2(ImGui.GetFrameHeight(), ImGui.GetFrameHeight())))
         {
-            IntendedTerritoryType = _clientState.TerritoryType;
+            IntendedTerritoryType = (int)_clientState.TerritoryType;
         }
         if (ImGui.IsItemHovered())
         {

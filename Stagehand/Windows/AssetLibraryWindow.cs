@@ -658,7 +658,7 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
                                 _selectedAssetInfo = resourceNodeSelect.Resource;
                             }
 
-                            using (ImRaii.DefaultFont())
+                            using (ImRaii.PushFont(UiBuilder.DefaultFont))
                             {
                                 if (ImGui.IsItemHovered() && node is ResourceTreeNode resourceNodeHover)
                                 {

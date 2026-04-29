@@ -10,7 +10,7 @@ namespace Stagehand.Api;
 /// Identifies a distinct place that stages can be assigned to.
 /// </summary>
 /// <remarks>
-/// This includes the world, the territory, the housing ward & division, and the house & room. This does <em>not</em> include the instance for instanced zones.
+/// This includes the world, the territory, the housing ward &amp; division, and the house &amp; room. This does <em>not</em> include the instance for instanced zones.
 /// </remarks>
 /// <param name="WorldId">The world row ID as found in the <see cref="Lumina.Excel.Sheets.World"/> sheet.</param>
 /// <param name="TerritoryId">The territory row ID as found in in the <see cref="Lumina.Excel.Sheets.TerritoryType"/> sheet.</param>
@@ -25,7 +25,7 @@ public record struct StageLocation(uint WorldId, ushort TerritoryId, int WardId,
         if (clientState.IsLoggedIn)
         {
             location = new StageLocation();
-            location.TerritoryId = clientState.TerritoryType;
+            location.TerritoryId = (ushort)clientState.TerritoryType;
             location.WorldId = playerState.CurrentWorld.RowId;
 
             var housingManager = HousingManager.Instance();

@@ -100,7 +100,7 @@ internal static class ImGuiExtensions
 
         var result = false;
         var selectedSecondaryDye = (dyeIndex >= 0 && dyeIndex < _allDyeOptions.Length) ? _allDyeOptions[dyeIndex] : null;
-        IEndObject? secondaryDyeCombo;
+        ComboDisposable secondaryDyeCombo;
         using (ImRaii.PushColor(ImGuiCol.FrameBg, ImGui.ColorConvertFloat4ToU32(selectedSecondaryDye?.Color ?? Vector4.Zero), selectedSecondaryDye != null))
         using (ImRaii.PushColor(ImGuiCol.Button, ImGui.ColorConvertFloat4ToU32(selectedSecondaryDye?.Color ?? Vector4.Zero), selectedSecondaryDye != null))
         using (ImRaii.PushColor(ImGuiCol.FrameBgActive, ImGui.ColorConvertFloat4ToU32(Vector4.Lerp(selectedSecondaryDye?.Color ?? Vector4.Zero, Vector4.UnitW, 0.2f)), selectedSecondaryDye != null))
@@ -201,7 +201,7 @@ internal static class ImGuiExtensions
         }
     }
 
-    public static ImRaii.IEndObject DropdownButton(ImU8String id, ImU8String label)
+    public static ImRaii.ComboDisposable DropdownButton(ImU8String id, ImU8String label)
     {
         using (ImRaii.PushColor(ImGuiCol.FrameBg, ImGui.GetStyle().Colors[(int)ImGuiCol.Button]))
         using (ImRaii.PushColor(ImGuiCol.FrameBgActive, ImGui.GetStyle().Colors[(int)ImGuiCol.ButtonActive]))
