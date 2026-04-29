@@ -33,7 +33,7 @@ jobs:
       run: 'dotnet version -f Common.targets minor -m "CI: Bumps minor version for release $newVer."'
 
     - name: Download Dalamud
-      run: curl --output latest.zip -L "https://goatcorp.github.io/dalamud-distrib/latest.zip"
+      run: curl --output latest.zip -L "https://goatcorp.github.io/dalamud-distrib/stg/latest.zip"
 
     - name: Extract Dalamud
       run: unzip latest.zip -d /home/runner/dalamud-distrib
