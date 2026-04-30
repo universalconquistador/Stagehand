@@ -87,3 +87,8 @@ Later down the road:
  - Small polish items on the auto load condition UI.
  - The Stage is now selected by default when opening the editor.
  - Fixed a bug displaying folders in the Stage library.
+
+## 0.3.9
+
+ - Updates to Dalamud API 15
+ - Minor bugfixes and refactoring
