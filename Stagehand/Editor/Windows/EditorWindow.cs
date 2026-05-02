@@ -1,5 +1,6 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
@@ -72,6 +73,9 @@ internal class EditorWindow : Window, IDisposable
         _transactionManager.TransactionUndone += OnTransactionDoneOrUndone;
         _assetLibraryWindow.CreateObject += OnAssetLibraryCreateObject;
         _autosaveTimer = new Timer(OnAutosaveTimerElapsed, null, _autosaveInterval, _autosaveInterval);
+
+        ShowCloseButton = false;
+        RespectCloseHotkey = false;
     }
 
     private void OnTransactionDoneOrUndone(ITransaction transaction)
@@ -185,6 +189,34 @@ internal class EditorWindow : Window, IDisposable
                 else
                 {
                     ImGui.TextUnformatted("Nothing to redo");
+                }
+            }
+        }
+        ImGui.SameLine();
+        if (ImGui.GetCursorPosX() < ImGui.GetContentRegionMax().X - buttonSize)
+        {
+            ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - buttonSize);
+        }
+        using (ImRaii.Disabled(_hasUnsavedChanges && !ImGui.IsKeyDown(ImGuiKey.LeftCtrl)))
+        {
+            if (ImGuiComponents.IconButton("###Close", FontAwesomeIcon.Times, new Vector2(buttonSize, buttonSize)))
+            {
+                IsOpen = false;
+            }
+        }
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+        {
+            using (ImRaii.Tooltip())
+            {
+                if (!_hasUnsavedChanges)
+                {
+                    ImGui.TextUnformatted("Close editor (all saved)");
+                }
+                else
+                {
+                    ImGui.TextUnformatted("Close editor (discard unsaved changes)");
+                    ImGui.Separator();
+                    ImGui.TextColored(ImGuiColors.DPSRed, "Hold CTRL to enable.");
                 }
             }
         }
