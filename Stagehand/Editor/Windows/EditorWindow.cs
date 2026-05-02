@@ -4,6 +4,7 @@ using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
+using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Stagehand.Definitions;
@@ -18,18 +19,24 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Text;
+using System.Threading;
 
 namespace Stagehand.Editor.Windows;
 
 internal class EditorWindow : Window, IDisposable
 {
+    private static readonly TimeSpan _autosaveInterval = TimeSpan.FromSeconds(30.0f);
+
     private readonly IServiceScope _serviceScope;
+    private readonly IDalamudPluginInterface _pluginInterface;
+    private readonly IFramework _framework;
     private readonly IToolManager _toolManager;
     private readonly IOutliner _outliner;
     private readonly ISelectionManager _selectionManager;
     private readonly ITransactionManager _transactionManager;
     private readonly IObjectTable _objectTable;
     private readonly IAssetLibraryWindow _assetLibraryWindow;
+    private readonly StagehandConfiguration _stagehandConfiguration;
 
     public event Action? Closed;
 
@@ -39,17 +46,21 @@ internal class EditorWindow : Window, IDisposable
     private readonly string _definitionFilename;
     private readonly StageDefinition _definition;
     private readonly StageDefinitionEditor _definitionEditor;
+    private readonly Timer _autosaveTimer;
 
     public EditorWindow(IServiceScope serviceScope, string definitionFilename, StageDefinition definition)
         : base($"{Path.GetFileName(definitionFilename)} - Stagehand Editor###StagehandEditor")
     {
         _serviceScope = serviceScope;
+        _framework = _serviceScope.ServiceProvider.GetRequiredService<IFramework>();
+        _pluginInterface = _serviceScope.ServiceProvider.GetRequiredService<IDalamudPluginInterface>();
         _toolManager = _serviceScope.ServiceProvider.GetRequiredService<IToolManager>();
         _outliner = _serviceScope.ServiceProvider.GetRequiredService<IOutliner>();
         _selectionManager = _serviceScope.ServiceProvider.GetRequiredService<ISelectionManager>();
         _transactionManager = _serviceScope.ServiceProvider.GetRequiredService<ITransactionManager>();
         _objectTable = _serviceScope.ServiceProvider.GetRequiredService<IObjectTable>();
         _assetLibraryWindow = _serviceScope.ServiceProvider.GetRequiredService<IAssetLibraryWindow>();
+        _stagehandConfiguration = _serviceScope.ServiceProvider.GetRequiredService<StagehandConfiguration>();
 
         _definitionFilename = definitionFilename;
         _definition = definition;
@@ -57,7 +68,18 @@ internal class EditorWindow : Window, IDisposable
         _outliner.RootNode = _definitionEditor.OutlinerNode;
         _selectionManager.SelectedEditor = _definitionEditor;
         _transactionManager.ClearHistory();
+        _transactionManager.TransactionDone += OnTransactionDoneOrUndone;
+        _transactionManager.TransactionUndone += OnTransactionDoneOrUndone;
         _assetLibraryWindow.CreateObject += OnAssetLibraryCreateObject;
+        _autosaveTimer = new Timer(OnAutosaveTimerElapsed, null, _autosaveInterval, _autosaveInterval);
+    }
+
+    private void OnTransactionDoneOrUndone(ITransaction transaction)
+    {
+        if (transaction.AffectsDataModel)
+        {
+            _hasUnsavedChanges = true;
+        }
     }
 
     private void OnAssetLibraryCreateObject(ObjectDefinition newObjectDefinition)
@@ -65,20 +87,49 @@ internal class EditorWindow : Window, IDisposable
         _definitionEditor.Objects.Add(newObjectDefinition);
     }
 
+    private void OnAutosaveTimerElapsed(object? _)
+    {
+        // Running on the main thread is a scuffed way of synchronization
+        _framework.Run(() =>
+        {
+            if (_hasUnsavedChanges)
+            {
+                var autosaveRoot = _stagehandConfiguration.FinalAutosavePath;
+                var autosavePath = Path.Combine(autosaveRoot, _definitionFilename.Substring(_stagehandConfiguration.DefinitionLibraryPath.Length + 1));
+
+                var autosaveDirectory = Path.GetDirectoryName(autosavePath);
+                if (autosaveDirectory != null)
+                {
+                    Directory.CreateDirectory(autosaveDirectory);
+                }
+
+                TryWriteDefinition(autosavePath);
+            }
+        });
+    }
+
     private void SaveDefinition()
+    {
+        if (TryWriteDefinition(_definitionFilename))
+        {
+            _hasUnsavedChanges = false;
+        }
+    }
+
+    private bool TryWriteDefinition(string filename)
     {
         try
         {
-            using (var stream = new FileStream(_definitionFilename, FileMode.Create, FileAccess.Write))
+            using (var stream = new FileStream(filename, FileMode.Create, FileAccess.Write))
             {
                 _definition.WriteToJSONStream(stream);
             }
-
-            _hasUnsavedChanges = false;
+            return true;
         }
         catch (Exception ex)
         {
             // TODO: Log failure!
+            return false;
         }
     }
 
@@ -419,6 +470,9 @@ internal class EditorWindow : Window, IDisposable
 
     public void Dispose()
     {
+        _autosaveTimer.Dispose();
+        _transactionManager.TransactionUndone -= OnTransactionDoneOrUndone;
+        _transactionManager.TransactionDone -= OnTransactionDoneOrUndone;
         _assetLibraryWindow.CreateObject -= OnAssetLibraryCreateObject;
         _definitionEditor.Dispose();
         _serviceScope.Dispose();

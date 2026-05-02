@@ -2,6 +2,7 @@ using Dalamud.Configuration;
 using Stagehand.Services;
 using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace Stagehand;
 
@@ -15,12 +16,27 @@ public enum HoverPreviewMode
 [Serializable]
 public class StagehandConfiguration : IPluginConfiguration
 {
+    private const string AutosaveFolderName = "autosave";
+
     public int Version { get; set; } = 0;
 
     /// <summary>
     /// The full path, not ending in a slash, to the directory to store the player's local Stage definitions in.
     /// </summary>
     public string DefinitionLibraryPath { get; set; } = "";
+
+    /// <summary>
+    /// The given path to the directory to periodically autosave Stage definitions into while they are being edited.
+    /// </summary>
+    /// <remarks>
+    /// Set to the empty string to use the default value.
+    /// </remarks>
+    public string AutosavePath { get; set; } = "";
+
+    /// <summary>
+    /// The absolute path to the definition autosave directory.
+    /// </summary>
+    public string FinalAutosavePath => AutosavePath != "" ? AutosavePath : Path.Combine(Plugin.PluginInterface.GetPluginConfigDirectory(), AutosaveFolderName);
 
     /// <summary>
     /// A mapping from the full path of a local definition .json file to the conditions under which it should
