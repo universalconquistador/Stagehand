@@ -1,4 +1,4 @@
-﻿<Project Sdk="Dalamud.NET.Sdk/14.0.1">
+﻿<Project Sdk="Dalamud.NET.Sdk/15.0.0">
     <Import Project="../Common.targets" />
 
     <PropertyGroup>
@@ -39,6 +39,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="HQIPC" Version="1.1.0" PrivateAssets="all" />
+        <PackageReference Include="HQIPC" Version="1.1.1" PrivateAssets="all" />
     </ItemGroup>
 </Project>

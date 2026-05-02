@@ -1,0 +1,13 @@
+- name: Getting Started
+- name: Set Up Stagehand
+  href: getting-started/set-up-stagehand.md
+- name: Create a Stage
+  href: getting-started/create-a-stage.md
+- name: Find Assets
+  href: getting-started/find-assets.md
+
+- name: How To
+- name: Add Clutter
+  href: how-to/add-clutter.md
+- name: Add Lighting
+  href: how-to/add-lighting.md

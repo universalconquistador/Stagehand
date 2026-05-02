@@ -316,7 +316,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                                         }
 
                                         ImGui.SameLine();
-                                        using (ImRaii.DefaultFont())
+                                        using (ImRaii.PushFont(UiBuilder.DefaultFont))
                                         using (ImRaii.Disabled(localDefinition.Value.Info.IntendedTerritoryType == 0 || localDefinition.Value.Info.IntendedTerritoryType != playerTerritory))
                                         {
                                             ImGui.TextUnformatted($"  {Path.GetFileName(localDefinition.Key)}");

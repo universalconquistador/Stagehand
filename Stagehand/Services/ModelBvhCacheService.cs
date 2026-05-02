@@ -166,7 +166,7 @@ internal class ModelBvhCacheService : IModelBvhCacheService, IDisposable
         clientState.TerritoryChanged += OnTerritoryChanged;
     }
 
-    private void OnTerritoryChanged(ushort obj)
+    private void OnTerritoryChanged(uint obj)
     {
         _logger.LogDebug("Starting fresh BVH cache...");
         var oldCache = Interlocked.Exchange(ref _bvhCache, new ConcurrentDictionary<string, CachedStaticBvh>());

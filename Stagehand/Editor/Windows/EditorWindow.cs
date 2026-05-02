@@ -337,7 +337,7 @@ internal class EditorWindow : Window, IDisposable
         }
 
         bool hovered = false;
-        ImRaii.IEndObject? treeNode;
+        ImRaii.TreeNodeDisposable treeNode;
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             treeNode = ImRaii.TreeNode($"{node.Icon.ToIconString()}###{node.DisplayName}", flags);
@@ -398,7 +398,7 @@ internal class EditorWindow : Window, IDisposable
         {
             using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, originalItemSpacing))
             using (ImRaii.Tooltip())
-            using (ImRaii.DefaultFont())
+            using (ImRaii.PushFont(UiBuilder.DefaultFont))
             using (ImRaii.TextWrapPos(250.0f * ImGuiHelpers.GlobalScale))
             {
                 ImGui.TextWrapped(node.TooltipPrimary);

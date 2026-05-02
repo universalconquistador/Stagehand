@@ -6,3 +6,5 @@ bin/
 Stagehand/ThreadLocalHelper.*
 !Stagehand/ThreadLocalHelper.dll
 ThreadLocalHelper/x64
+/Docs/out
+/Docs/api

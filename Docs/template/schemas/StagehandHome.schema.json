@@ -1,0 +1,10 @@
+{
+    "title": "StagehandHome",
+    "version": "1.0.0",
+    "description": "Schema for Stagehand Homepage",
+    "id": "stagehandhome",
+    "type": "object",
+    "properties": {
+        
+    }
+}

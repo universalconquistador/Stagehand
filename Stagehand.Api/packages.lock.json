@@ -10,9 +10,9 @@
       },
       "HQIPC": {
         "type": "Direct",
-        "requested": "[1.1.0, )",
-        "resolved": "1.1.0",
-        "contentHash": "SeF9w0FZyCgMzKOAKJZ7ehvNaMoilkGMLBYzr2zoKZtDKyGvKqFh2x/zaeV++LWnZvXob5cBvxz5P5Nf0QdczQ=="
+        "requested": "[1.1.1, )",
+        "resolved": "1.1.1",
+        "contentHash": "dgoeo070Wz2MmbX6KzR4/vexjh8xdLYybN3yccLFvjhm3JkGMaNS22KByOWme6yYp84eVAFEH3R8TuDpnGuCdw=="
       }
     }
   }
