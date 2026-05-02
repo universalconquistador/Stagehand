@@ -33,13 +33,17 @@
     "resource": [
       {
         "files": [
-          "Docs/images/**",
           "icon.ico",
           "Stagehand Logo.svg",
           "Stagehand Logotype.svg",
           "Stagehand Icon Full.png"
         ],
         "src": "../"
+      },
+      {
+        "files": [
+          "media/**"
+        ]
       }
     ],
     "output": "out",
