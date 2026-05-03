@@ -92,3 +92,9 @@ Later down the road:
 
  - Updates to Dalamud API 15
  - Minor bugfixes and refactoring
+
+## 0.3.10
+
+ - Adds periodic autosave while the editor is open with unsaved changes (every 30 seconds). By default these are saved to `AppData\Roaming\XIVLauncher\pluginConfigs\Stagehand\autosave\`, but you can select any folder in the Stagehand settings.
+ - Reworks the editor's close button so that you don't accidentally discard your changes without saving.
+ 

@@ -63,5 +63,5 @@ With Stagehand you place models, VFX, lights, and weapons in arrangements called
  - You can place any background model and any background VFX present in the game files, not just housing items. If a player tries to load a Stage with models from an expansion that they do not own, those models will simply not display.
  - You can place objects with any position, any rotation, and any scale as you see fit.
  - You can place your Stages in any location, not just player housing. If you are sharing your Stage manually or via PlayerSync, please keep in mind community norms and expectations.
- - You can show and hide your Stages automatically manually or when you enter a location, whichever works best for that Stage.
+ - You can show and hide your Stages manually or automatically when you enter a location, whichever works best for that Stage.
  
