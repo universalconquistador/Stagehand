@@ -60,9 +60,9 @@ public class EmbeddedModResourceDefinition : ModResourceDefinition
             {
                 using (var zlibStream = new ZLibStream(compressedStream, CompressionLevel.SmallestSize))
                 {
-                    zlibStream.Write(data); // data: 0x34c38
+                    zlibStream.Write(data);
                 }
-                return compressedStream.ToArray(); // a785
+                return compressedStream.ToArray();
             }
         }
         else
@@ -90,9 +90,9 @@ public class EmbeddedModResourceDefinition : ModResourceDefinition
             {
                 using (var zlibStream = new ZLibStream(stream, CompressionMode.Decompress))
                 {
-                    zlibStream.CopyTo(outputStream); // a785
+                    zlibStream.CopyTo(outputStream);
                 }
-                return outputStream.ToArray(); // 2e18f
+                return outputStream.ToArray();
             }
         }
         else
