@@ -63,6 +63,7 @@ public class WeaponDefinition : ObjectDefinition
         }
     }
 
+    /// <inheritdoc/>
     public override TResult Visit<TVisitor, TParam, TResult>(ref TParam param)
     {
         return TVisitor.VisitWeaponDefinition(this, ref param);

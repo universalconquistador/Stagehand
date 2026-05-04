@@ -46,6 +46,7 @@ public class BgObjectDefinition : ObjectDefinition
         }
     }
 
+    /// <inheritdoc/>
     public override TResult Visit<TVisitor, TParam, TResult>(ref TParam param)
     {
         return TVisitor.VisitBgObjectDefinition(this, ref param);

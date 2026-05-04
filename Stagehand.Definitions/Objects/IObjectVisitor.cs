@@ -16,8 +16,35 @@ namespace Stagehand.Definitions.Objects;
 /// <typeparam name="TResult">The type of value being returned from the visitor.</typeparam>
 public interface IObjectVisitor<TParam, TResult>
 {
+    /// <summary>
+    /// Visits a <see cref="BgObjectDefinition"/>.
+    /// </summary>
+    /// <param name="definition">The background object definition to visit.</param>
+    /// <param name="param">The parameter passed to the visitor.</param>
+    /// <returns>The result of visiting the background object definition.</returns>
     static abstract TResult VisitBgObjectDefinition(BgObjectDefinition definition, ref TParam param);
+
+    /// <summary>
+    /// Visits a <see cref="LightDefinition"/>.
+    /// </summary>
+    /// <param name="definition">The light definition to visit.</param>
+    /// <param name="param">The parameter passed to the visitor.</param>
+    /// <returns>The result of visiting the light definition.</returns>
     static abstract TResult VisitLightDefinition(LightDefinition definition, ref TParam param);
+
+    /// <summary>
+    /// Visits a <see cref="VfxObjectDefinition"/>.
+    /// </summary>
+    /// <param name="definition">The VFX object definition to visit.</param>
+    /// <param name="param">The parameter passed to the visitor.</param>
+    /// <returns>The result of visiting the VFX object definition.</returns>
     static abstract TResult VisitVfxObjectDefinition(VfxObjectDefinition definition, ref TParam param);
+
+    /// <summary>
+    /// Visits a <see cref="WeaponDefinition"/>.
+    /// </summary>
+    /// <param name="definition">The weapon definition to visit.</param>
+    /// <param name="param">The parameter passed to the visitor.</param>
+    /// <returns>The result of visiting the weapon definition.</returns>
     static abstract TResult VisitWeaponDefinition(WeaponDefinition definition, ref TParam param);
 }

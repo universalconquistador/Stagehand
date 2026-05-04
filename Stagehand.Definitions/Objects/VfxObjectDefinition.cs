@@ -43,6 +43,7 @@ public class VfxObjectDefinition : ObjectDefinition
         }
     }
 
+    /// <inheritdoc/>
     public override TResult Visit<TVisitor, TParam, TResult>(ref TParam param)
     {
         return TVisitor.VisitVfxObjectDefinition(this, ref param);

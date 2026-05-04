@@ -83,6 +83,15 @@ public abstract class ObjectDefinition
         other.ModpackId = ModpackId;
     }
 
+    /// <summary>
+    /// Visits this object definition with the given visitor type by invoking the corresponding
+    /// <c>Visit???Definition</c> function on it.
+    /// </summary>
+    /// <typeparam name="TVisitor">The visitor type to visit this object definition with.</typeparam>
+    /// <typeparam name="TParam">The type of parameter <typeparamref name="TVisitor"/> accepts.</typeparam>
+    /// <typeparam name="TResult">The type of result <typeparamref name="TVisitor"/></typeparam>
+    /// <param name="param">The parameter to pass to the visitor type by reference.</param>
+    /// <returns>The result produced by the given visitor type visiting this object definition.</returns>
     public abstract TResult Visit<TVisitor, TParam, TResult>(ref TParam param)
         where TVisitor : IObjectVisitor<TParam, TResult>;
 

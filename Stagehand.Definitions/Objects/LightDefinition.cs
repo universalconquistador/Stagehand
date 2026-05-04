@@ -191,6 +191,7 @@ public class LightDefinition : ObjectDefinition
         }
     }
 
+    /// <inheritdoc/>
     public override TResult Visit<TVisitor, TParam, TResult>(ref TParam param)
     {
         return TVisitor.VisitLightDefinition(this, ref param);
