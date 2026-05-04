@@ -44,16 +44,16 @@ public class LiveStage : IDisposable
             {
                 if (_liveModpacks.TryGetValue(newModpack.Key, out var existingModpack))
                 {
-                    var newEffectsHash = ResourceRedirectionHelpers.HashModpackEffects(newModpack.Value.FileRedirections, newModpack.Value.FileReplacements);
+                    var newEffectsHash = ResourceRedirectionHelpers.HashModpackEffects(newModpack.Value.ModdedResources);
                     if (existingModpack.EffectsHash != newEffectsHash)
                     {
                         existingModpack.Dispose();
-                        _liveModpacks[newModpack.Key] = _resourceRedirectionService.CreateModpack($"LiveStage-{newDefinition.Info.Name}-{newModpack.Value.DisplayName}", newModpack.Value.FileRedirections, newModpack.Value.FileReplacements);
+                        _liveModpacks[newModpack.Key] = _resourceRedirectionService.CreateModpack($"LiveStage-{newDefinition.Info.Name}-{newModpack.Value.DisplayName}", newModpack.Value.ModdedResources);
                     }
                 }
                 else
                 {
-                    _liveModpacks.Add(newModpack.Key, _resourceRedirectionService.CreateModpack($"LiveStage-{newDefinition.Info.Name}-{newModpack.Value.DisplayName}", newModpack.Value.FileRedirections, newModpack.Value.FileReplacements));
+                    _liveModpacks.Add(newModpack.Key, _resourceRedirectionService.CreateModpack($"LiveStage-{newDefinition.Info.Name}-{newModpack.Value.DisplayName}", newModpack.Value.ModdedResources));
                 }
             }
 

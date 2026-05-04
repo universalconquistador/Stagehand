@@ -1,3 +1,4 @@
+using Stagehand.Definitions.ModResources;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -29,12 +30,7 @@ public class EmbeddedModpackDefinition
     public string PenumbraSourceModVersion { get; set; } = string.Empty;
 
     /// <summary>
-    /// A mapping from redirected game paths to the game paths to redirect them to.
+    /// A mapping from modded game paths to the resource to use for them.
     /// </summary>
-    public Dictionary<string, string> FileRedirections { get; set; } = new();
-
-    /// <summary>
-    /// A mapping from replaced game paths to the file bytes to replace them with.
-    /// </summary>
-    public Dictionary<string, byte[]> FileReplacements { get; set; } = new();
+    public Dictionary<string, ModResourceDefinition> ModdedResources { get; set; } = new();
 }

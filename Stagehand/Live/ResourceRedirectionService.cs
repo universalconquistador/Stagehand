@@ -1,15 +1,10 @@
 using Dalamud.Hooking;
 using Dalamud.Plugin.Services;
 using Dalamud.Utility.Signatures;
-using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
-using FFXIVClientStructs.FFXIV.Client.System.File;
-using FFXIVClientStructs.FFXIV.Client.System.Memory;
 using FFXIVClientStructs.FFXIV.Client.System.Resource;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
-using FFXIVClientStructs.FFXIV.Common.Lua;
 using FFXIVClientStructs.Interop;
-using InteropGenerator.Runtime.Attributes;
-using Lumina.Data;
+using Stagehand.Definitions.ModResources;
 using Stagehand.Services;
 using Stagehand.Utils;
 using System;
@@ -17,9 +12,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -56,7 +50,7 @@ public readonly struct ModpackReadScope : IDisposable
 
 public interface IResourceRedirectionService
 {
-    ILiveModpack CreateModpack(string debugName, Dictionary<string, string> fileRedirections, Dictionary<string, byte[]> fileReplacements);
+    ILiveModpack CreateModpack(string debugName, IReadOnlyDictionary<string, ModResourceDefinition> moddedResources);
     bool TryParseModpackPath(string modpackPath, [NotNullWhen(true)] out ILiveModpack? modpack, [NotNullWhen(true)] out string? gamePath);
 
     ILiveModpack? SetCurrentModpack(ILiveModpack? modpack);
@@ -64,31 +58,25 @@ public interface IResourceRedirectionService
 
 public static class ResourceRedirectionHelpers
 {
-    public static uint HashModpackEffects(IReadOnlyDictionary<string, string> fileRedirections, IReadOnlyDictionary<string, byte[]> fileReplacements)
+    public static uint HashModpackEffects(IReadOnlyDictionary<string, ModResourceDefinition> moddedResources)
     {
-        var hasher = new Crc32Hasher();
+        var hashParams = new ModdedResourceHasherParams();
 
-        hasher.Advance(fileRedirections.Count);
-        foreach (var redirection in fileRedirections.OrderBy(pair => pair.Key))
+        Debug.WriteLine("Hashing (start: " + hashParams.Hasher.Value + ")");
+
+        hashParams.Hasher.Advance(moddedResources.Count);
+        foreach (var redirection in moddedResources.OrderBy(pair => pair.Key))
         {
-            hasher.Advance(redirection.Key.Length);
-            hasher.AdvanceASCII(redirection.Key);
+            Debug.WriteLine($"Hashing {redirection.Key} ({redirection.Value}) (starting value: {hashParams.Hasher.Value})");
+            hashParams.Hasher.Advance(redirection.Key.Length);
+            hashParams.Hasher.AdvanceASCII(redirection.Key);
 
-            hasher.Advance(redirection.Value.Length);
-            hasher.AdvanceASCII(redirection.Value);
+            redirection.Value.Visit<ModdedResourceHasher, ModdedResourceHasherParams, object?>(ref hashParams);
         }
 
-        hasher.Advance(fileRedirections.Count);
-        foreach (var replacement in fileReplacements.OrderBy(pair => pair.Key))
-        {
-            hasher.Advance(replacement.Key.Length);
-            hasher.AdvanceASCII(replacement.Key);
+        Debug.WriteLine($"Hashing done (result: {hashParams.Hasher.Value})");
 
-            hasher.Advance(replacement.Value.Length);
-            hasher.Advance(replacement.Value);
-        }
-
-        return hasher.Value;
+        return hashParams.Hasher.Value;
     }
 
     public static ModpackReadScope OpenModpackScope(this IResourceRedirectionService resourceRedirectionService, ILiveModpack? modpack)
@@ -99,6 +87,57 @@ public static class ResourceRedirectionHelpers
     public static string MakeModpackPath(string gamePath, ILiveModpack modpack)
     {
         return $"{ResourceRedirectionService.StagehandPathIdentifier}{modpack.ID}/{gamePath}";
+    }
+
+    private struct ModdedResourceHasherParams
+    {
+        public Crc32Hasher Hasher;
+
+        public ModdedResourceHasherParams()
+        {
+            Hasher = new();
+        }
+    }
+
+    private class ModdedResourceHasher : IModResourceDefinitionVisitor<ModdedResourceHasherParams, object?>
+    {
+        public static object? VisitDiskModResourceDefinition(DiskModResourceDefinition definition, ref ModdedResourceHasherParams param)
+        {
+            // Hash the disk path
+            param.Hasher.Advance(definition.SourceDiskPath.Length);
+            param.Hasher.AdvanceASCII(definition.SourceDiskPath);
+
+            // Hash the last modified date
+            // TODO: Is this perfy? Do we need to add quick, coarse hashing and then more fine-grained comparison?
+            DateTime lastModified = default;
+            try
+            {
+                lastModified = File.GetLastWriteTimeUtc(definition.SourceDiskPath);
+            }
+            catch (Exception)
+            { }
+            param.Hasher.Advance(lastModified);
+
+            return null;
+        }
+
+        public static object? VisitEmbeddedModResourceDefinition(EmbeddedModResourceDefinition definition, ref ModdedResourceHasherParams param)
+        {
+            param.Hasher.Advance(definition.CompressionScheme);
+            param.Hasher.Advance(definition.CompressedDataBytes.Length);
+            param.Hasher.Advance(definition.CompressedDataBytes);
+
+            return null;
+        }
+
+        public static object? VisitGameModResourceDefinition(GameModResourceDefinition definition, ref ModdedResourceHasherParams param)
+        {
+            // Hash the game path
+            param.Hasher.Advance(definition.SourceGamePath.Length);
+            param.Hasher.AdvanceASCII(definition.SourceGamePath);
+
+            return null;
+        }
     }
 }
 
@@ -274,12 +313,28 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
     }
 
     private ulong nextModpackId = 1;
-    public ILiveModpack CreateModpack(string debugName, Dictionary<string, string> fileRedirections, Dictionary<string, byte[]> fileReplacements)
+    public ILiveModpack CreateModpack(string debugName, IReadOnlyDictionary<string, ModResourceDefinition> moddedResources)
     {
+        var extractContext = new ExtractModResourcesParams()
+        {
+            DiskReplacements = new(),
+            Redirections = new(),
+            MemoryReplacements = new(),
+        };
+        foreach (var moddedResource in moddedResources)
+        {
+            extractContext.GamePath = moddedResource.Key;
+            moddedResource.Value.Visit<ModResourceExtractor, ExtractModResourcesParams, object?>(ref extractContext);
+        }
+
+        var redirections = extractContext.Redirections;
+        var memoryReplacements = extractContext.MemoryReplacements;
+        var fileReplacements = extractContext.DiskReplacements;
+
         var newId = Interlocked.Increment(ref nextModpackId).ToString();
-        Dictionary<string, Redirection> allRedirections = new(fileRedirections.Count + fileReplacements.Count);
+        Dictionary<string, Redirection> allRedirections = new(redirections.Count + memoryReplacements.Count + fileReplacements.Count);
         Span<byte> filename = stackalloc byte[1024];
-        foreach (var redirection in fileRedirections)
+        foreach (var redirection in redirections)
         {
             // The category of a redirection comes from the destination game path
             ResourceCategory category = ResourceCategory.BgCommon;
@@ -291,8 +346,8 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
             }
             allRedirections[redirection.Key] = new Redirection(redirection.Value, category);
         }
-        List<string> memoryResourceKeys = new(fileReplacements.Count);
-        foreach (var replacement in fileReplacements)
+        List<string> memoryResourceKeys = new(memoryReplacements.Count);
+        foreach (var replacement in memoryReplacements)
         {
             var path = _memoryResourceService.RegisterMemoryResource(replacement.Value, replacement.Key);
             memoryResourceKeys.Add(path);
@@ -306,10 +361,43 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
             }
             allRedirections[replacement.Key] = new(path, category);
         }
+        foreach (var replacement in fileReplacements)
+        {
+            // The category of a replacement comes from the source game path (and doesn't really matter as no data is fetched from the category itself)
+            ResourceCategory category = ResourceCategory.BgCommon;
+            Encoding.UTF8.GetBytes(replacement.Key + "\0", filename);
 
-        var newModpack = new LiveModpack(newId, debugName, ResourceRedirectionHelpers.HashModpackEffects(fileRedirections, fileReplacements), allRedirections, memoryResourceKeys, this);
+            fixed (byte* filenamePointer = filename)
+            {
+                _getResourceCategory(&category, filenamePointer);
+            }
+            allRedirections[replacement.Key] = new(replacement.Value, category);
+        }
+
+        var newModpack = new LiveModpack(newId, debugName, ResourceRedirectionHelpers.HashModpackEffects(moddedResources), allRedirections, memoryResourceKeys, this);
         Debug.Assert(_liveModpacks.TryAdd(newId, newModpack));
         return newModpack;
+    }
+    private record struct ExtractModResourcesParams(string GamePath, Dictionary<string, string> Redirections, Dictionary<string, byte[]> MemoryReplacements, Dictionary<string, string> DiskReplacements);
+    private class ModResourceExtractor : IModResourceDefinitionVisitor<ExtractModResourcesParams, object?>
+    {
+        public static object? VisitDiskModResourceDefinition(DiskModResourceDefinition definition, ref ExtractModResourcesParams param)
+        {
+            param.DiskReplacements.Add(param.GamePath, definition.SourceDiskPath);
+            return null;
+        }
+
+        public static object? VisitEmbeddedModResourceDefinition(EmbeddedModResourceDefinition definition, ref ExtractModResourcesParams param)
+        {
+            param.MemoryReplacements.Add(param.GamePath, EmbeddedModResourceDefinition.DecompressDataBytes(definition.CompressedDataBytes, definition.CompressionScheme));
+            return null;
+        }
+
+        public static object? VisitGameModResourceDefinition(GameModResourceDefinition definition, ref ExtractModResourcesParams param)
+        {
+            param.Redirections.Add(param.GamePath, definition.SourceGamePath);
+            return null;
+        }
     }
 
     public bool TryParseModpackPath(string modpackPath, [NotNullWhen(true)] out ILiveModpack? modpack, [NotNullWhen(true)] out string? gamePath)
