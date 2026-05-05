@@ -635,7 +635,10 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
         PreviewLiveModpack = null;
         IsInStage = false;
 
-        RefreshDependantPreviewObjects();
+        if (!Stage.IsDisposing)
+        {
+            RefreshDependantPreviewObjects();
+        }
     }
 
     private record struct ModResourceFilterParams(string FilterText);

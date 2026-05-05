@@ -32,6 +32,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
     public OutlinerNode OutlinerNode { get; }
     public DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor> Objects { get; }
     public DefinitionEditorDictionary<EmbeddedModpackDefinition, EmbeddedModpackDefinitionEditor> EmbeddedModpacks { get; }
+    public bool IsDisposing { get; private set; } = false;
 
     public string Name
     {
@@ -152,6 +153,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
 
     public override void Dispose()
     {
+        IsDisposing = true;
         EmbeddedModpacks.Dispose();
         Objects.Dispose();
 
