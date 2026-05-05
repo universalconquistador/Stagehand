@@ -196,38 +196,31 @@ internal class LocalStageService : IHostedService
 
         _manualVisibilitySettings.Clear();
 
-        // HACK: Very sensitive timed delay! Loading BgObjects while loading a zone causes their dye to be blank.
-        // Consider instead waiting for the screen to start fading in via RaptureAtkUnitManager.IsUiFading or AgentInterface.GameEvent.LoadingEnded.
-        _framework.RunOnTick(() =>
+        if (!StageLocation.TryGetLocation(_clientState, _playerState, out var location))
+            return;
+        foreach (var localDefinition in _localDefinitionService.LocalDefinitions)
         {
-            if (!StageLocation.TryGetLocation(_clientState, _playerState, out var location))
-                return;
-            foreach (var localDefinition in _localDefinitionService.LocalDefinitions)
+            if (localDefinition.Value.AutomaticShowConditions.Any(condition =>
+                condition.Evaluate(location)))
             {
-                if (localDefinition.Value.AutomaticShowConditions.Any(condition =>
-                    condition.Evaluate(location)))
+                _logger.LogDebug("Trying to auto show {file}!", localDefinition.Key);
+                try
                 {
-                    _logger.LogDebug("Trying to auto show {file}!", localDefinition.Key);
-                    try
+                    using (FileStream stream = new FileStream(localDefinition.Key, FileMode.Open, FileAccess.Read))
                     {
-                        using (FileStream stream = new FileStream(localDefinition.Key, FileMode.Open, FileAccess.Read))
+                        var definition = JsonSerializer.Deserialize<StageDefinition>(stream, StageDefinition.StandardSerializerOptions);
+                        if (definition != null)
                         {
-                            var definition = JsonSerializer.Deserialize<StageDefinition>(stream, StageDefinition.StandardSerializerOptions);
-                            if (definition != null)
-                            {
-                                _liveStageService.CreateOrUpdateLiveStage(LiveStageHelpers.MakeLocalStageKey(localDefinition.Key), definition);
-                            }
+                            _liveStageService.CreateOrUpdateLiveStage(LiveStageHelpers.MakeLocalStageKey(localDefinition.Key), definition);
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Exception loading {path} to instantiate!", localDefinition.Key);
-                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Exception loading {path} to instantiate!", localDefinition.Key);
                 }
             }
-
-        }, TimeSpan.FromSeconds(2.0f));
-
+        }
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
