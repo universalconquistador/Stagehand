@@ -98,3 +98,9 @@ Later down the road:
  - Adds periodic autosave while the editor is open with unsaved changes (every 30 seconds). By default these are saved to `AppData\Roaming\XIVLauncher\pluginConfigs\Stagehand\autosave\`, but you can select any folder in the Stagehand settings.
  - Reworks the editor's close button so that you don't accidentally discard your changes without saving.
  
+## 0.4.0
+
+ - Adds initial modding support! Background objects should work great, I haven't tested VFX yet.
+ - Modded files on disk are not fully implemented yet--use the embedded option instead.
+ - Needs some UX around reusing modpacks from one Stage to another.
+ - Modding support is by far the most tricky and fragile part of Stagehand (so far), so please PLEASE say something if you run into Stagehand crashes!
