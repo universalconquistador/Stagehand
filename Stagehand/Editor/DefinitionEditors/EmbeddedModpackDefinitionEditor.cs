@@ -1,5 +1,6 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Utility.Raii;
@@ -145,7 +146,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
     private string _newModResourceGamePath = "";
     private string _newModResourceDiskFilePath = "";
     private string _newModResourceRedirectionPath = "";
-    private NewModResourceType _newModResourceType = NewModResourceType.DiskResource;
+    private NewModResourceType _newModResourceType = NewModResourceType.EmbeddedResource;
     private bool _isAddingEmbed = false;
     protected override void OnDrawProperties()
     {
@@ -289,6 +290,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
                     }
                 }
                 ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
+                using (ImRaii.Disabled()) // TEMP: Until disk mod support is complete
                 using (ImRaii.PushColor(ImGuiCol.Button, ImGui.GetStyle().Colors[(int)ImGuiCol.ButtonActive], _newModResourceType == NewModResourceType.DiskResource))
                 {
                     if (ImGui.Button("File", size: new Vector2(resourceTypeButtonWidth, 0.0f)))
@@ -296,13 +298,15 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
                         _newModResourceType = NewModResourceType.DiskResource;
                     }
                 }
-                if (ImGui.IsItemHovered())
+                if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
                 {
                     using (ImRaii.Tooltip())
                     {
                         ImGui.TextUnformatted("The new resource will point to a file on disk.");
                         ImGui.Separator();
                         ImGui.TextDisabled("If you send this Stage file to someone, the modded resource will not be sent.");
+                        // TEMP: Until disk mod support is complete
+                        ImGui.TextColored(ImGuiColors.DPSRed, "Not yet implemented.");
                     }
                 }
                 ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
