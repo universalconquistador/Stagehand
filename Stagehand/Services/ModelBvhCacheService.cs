@@ -1,6 +1,7 @@
 using Dalamud.Plugin.Services;
 using Lumina.Data.Files;
 using Microsoft.Extensions.Logging;
+using Stagehand.Live;
 using Stagehand.Utils;
 using System;
 using System.Collections.Concurrent;
@@ -31,7 +32,7 @@ public interface IModelBvhCacheService
     /// True if the model was in the cache and was hit by the ray, false if the model
     /// is still being loaded or was not hit by the ray.
     /// </returns>
-    bool TryIntersectModel(string modelResourcePath, Vector3 rayStart, Vector3 rayDirection, out Vector3 intersectionPoint, out Vector3 intersectionNormal);
+    bool TryIntersectModel(string modelResourcePath, ILiveModpack? modpack, Vector3 rayStart, Vector3 rayDirection, out Vector3 intersectionPoint, out Vector3 intersectionNormal);
 
     /// <summary>
     /// Gets the axis-aligned bounds of the vertices in the .mdl resource with the given path if it has been
@@ -41,7 +42,7 @@ public interface IModelBvhCacheService
     /// <param name="boundsMin">The minimum corner of the model's bounding box, relative to the model..</param>
     /// <param name="boundsMax">The maximum corner of the model's bounding box, relative to the model.</param>
     /// <returns>True if the model had been loaded and the bounds were found, or false if the model has not been loaded.</returns>
-    bool TryGetBounds(string modelResourcePath, out Vector3 boundsMin, out Vector3 boundsMax);
+    bool TryGetBounds(string modelResourcePath, ILiveModpack? modpack, out Vector3 boundsMin, out Vector3 boundsMax);
 }
 
 internal class ModelBvhCacheService : IModelBvhCacheService, IDisposable
@@ -61,17 +62,17 @@ internal class ModelBvhCacheService : IModelBvhCacheService, IDisposable
         private Task _loadTask;
         private CancellationTokenSource _cts = new CancellationTokenSource();
 
-        public CachedStaticBvh(string filename, IDataManager dataManager, ILogger logger)
+        public CachedStaticBvh(string filename, ILiveModpack? modpack, IResourceRedirectionService dataManager, ILogger logger)
         {
-            _loadTask = Task.Run(() => LoadBvh(filename, dataManager, logger));
+            _loadTask = Task.Run(() => LoadBvh(filename, modpack, dataManager, logger));
         }
 
-        private async Task LoadBvh(string filename, IDataManager dataManager, ILogger logger)
+        private async Task LoadBvh(string filename, ILiveModpack? modpack, IResourceRedirectionService resourceRedirectionService, ILogger logger)
         {
             try
             {
-                var model = await dataManager.GetFileAsync<MdlFile>(filename, _cts.Token);
-                _bvh = new StaticBvh(model);
+                var model = resourceRedirectionService.GetFile<MdlFile>(filename, modpack);
+                _bvh = new StaticBvh(model!);
                 _bvh.GetBounds(out var boundsMin, out var boundsMax);
                 BoundsMin = boundsMin;
                 BoundsMax = boundsMax;
@@ -154,14 +155,16 @@ internal class ModelBvhCacheService : IModelBvhCacheService, IDisposable
     private readonly IDataManager _dataManager;
     private readonly ILogger _logger;
     private readonly IClientState _clientState;
+    private readonly IResourceRedirectionService _resourceRedirectionService;
 
     private ConcurrentDictionary<string, CachedStaticBvh> _bvhCache = new();
 
-    public ModelBvhCacheService(IDataManager dataManager, ILogger<ModelBvhCacheService> logger, IClientState clientState)
+    public ModelBvhCacheService(IDataManager dataManager, ILogger<ModelBvhCacheService> logger, IClientState clientState, IResourceRedirectionService resourceRedirectionService)
     {
         _dataManager = dataManager;
         _logger = logger;
         _clientState = clientState;
+        _resourceRedirectionService = resourceRedirectionService;
 
         clientState.TerritoryChanged += OnTerritoryChanged;
     }
@@ -182,9 +185,9 @@ internal class ModelBvhCacheService : IModelBvhCacheService, IDisposable
         });
     }
 
-    public bool TryIntersectModel(string modelResourcePath, Vector3 rayStart, Vector3 rayDirection, out Vector3 intersectionPoint, out Vector3 intersectionNormal)
+    public bool TryIntersectModel(string modelResourcePath, ILiveModpack? modpack, Vector3 rayStart, Vector3 rayDirection, out Vector3 intersectionPoint, out Vector3 intersectionNormal)
     {
-        if (!_dataManager.FileExists(modelResourcePath))
+        if (modpack?.ModdedResourceExists(modelResourcePath) != true && !_dataManager.FileExists(modelResourcePath))
         {
             _logger.LogInformation($"Model {modelResourcePath} does not exist.");
             intersectionPoint = rayStart;
@@ -193,13 +196,23 @@ internal class ModelBvhCacheService : IModelBvhCacheService, IDisposable
         }
         else
         {
-            var cachedBvh = _bvhCache.GetOrAdd(modelResourcePath, path => new CachedStaticBvh(path, _dataManager, _logger));
+            var finalPath = modelResourcePath;
+            if (modpack != null && modpack.AllRedirections.TryGetValue(modelResourcePath, out var redirection))
+            {
+                finalPath = redirection.NewPath;
+            }
+            var cachedBvh = _bvhCache.GetOrAdd(finalPath, path => new CachedStaticBvh(modelResourcePath, modpack, _resourceRedirectionService, _logger));
             return cachedBvh.IntersectsRay(rayStart, rayDirection, out intersectionPoint, out intersectionNormal);
         }
     }
 
-    public bool TryGetBounds(string modelResourcePath, out Vector3 boundsMin, out Vector3 boundsMax)
+    public bool TryGetBounds(string modelResourcePath, ILiveModpack? modpack, out Vector3 boundsMin, out Vector3 boundsMax)
     {
+        if (modpack != null && modpack.AllRedirections.TryGetValue(modelResourcePath, out var redirectedPath))
+        {
+            modelResourcePath = redirectedPath.NewPath;
+        }
+
         if (_bvhCache.TryGetValue(modelResourcePath, out var cachedBvh) && cachedBvh.HasBounds)
         {
             boundsMin = cachedBvh.BoundsMin;

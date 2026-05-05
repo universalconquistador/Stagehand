@@ -57,6 +57,7 @@ internal class BgObjectDefinitionEditor : ObjectDefinitionEditor<BgObjectDefinit
             Position = Position,
             Rotation = RotationQuaternion,
             Scale = Scale,
+            Modpack = GetPreviewModpack(),
         };
     }
 
@@ -104,6 +105,12 @@ internal class BgObjectDefinitionEditor : ObjectDefinitionEditor<BgObjectDefinit
         {
             _assetLibraryWindow.SetSelectionCallback(DisplayName, "Model Path", AssetType.MdlResource, () => IsInStage && IsSelected, asset => ModelGamePath = asset.GamePath);
         }
+    }
+
+    protected override void SetModpackIdInternal(string modpackId)
+    {
+        base.SetModpackIdInternal(modpackId);
+        _hitTestModel.Modpack = GetPreviewModpack();
     }
 
     public override void RemovedFromStage()

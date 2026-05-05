@@ -685,7 +685,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
                             var localSpaceStart = Vector3.Transform(mouseRay.Origin, inverseMatrix);
                             var localSpaceDirection = Vector3.TransformNormal(mouseRay.Direction, inverseMatrix);
 
-                            if (_modelBvhCacheService.TryIntersectModel(bgObject->ModelResourceHandle->FileName.ToString(), localSpaceStart, localSpaceDirection, out var intersectionPoint, out var intersectionNormal))
+                            if (_modelBvhCacheService.TryIntersectModel(bgObject->ModelResourceHandle->FileName.ToString(), modpack: null, localSpaceStart, localSpaceDirection, out var intersectionPoint, out var intersectionNormal))
                             {
                                 preciseHit = true;
                                 var worldSpaceIntersection = Vector3.Transform(intersectionPoint, matrix);

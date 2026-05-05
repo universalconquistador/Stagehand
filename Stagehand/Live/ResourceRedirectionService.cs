@@ -4,6 +4,7 @@ using Dalamud.Utility.Signatures;
 using FFXIVClientStructs.FFXIV.Client.System.Resource;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
+using Lumina.Data;
 using Stagehand.Definitions.ModResources;
 using Stagehand.Services;
 using Stagehand.Utils;
@@ -28,6 +29,7 @@ public interface ILiveModpack : IDisposable
     string DebugName { get; }
     uint EffectsHash { get; }
     IReadOnlyDictionary<string, Redirection> AllRedirections { get; }
+    bool ModdedResourceExists(string gamePath);
 }
 
 public readonly struct ModpackReadScope : IDisposable
@@ -52,6 +54,8 @@ public interface IResourceRedirectionService
 {
     ILiveModpack CreateModpack(string debugName, IReadOnlyDictionary<string, ModResourceDefinition> moddedResources);
     bool TryParseModpackPath(string modpackPath, [NotNullWhen(true)] out ILiveModpack? modpack, [NotNullWhen(true)] out string? gamePath);
+    T? GetFile<T>(string gamePath, ILiveModpack? liveModpack)
+        where T : FileResource;
 
     ILiveModpack? SetCurrentModpack(ILiveModpack? modpack);
 }
@@ -143,15 +147,22 @@ public static class ResourceRedirectionHelpers
 
 internal unsafe class ResourceRedirectionService : IResourceRedirectionService, IDisposable
 {
-    private record class LiveModpack(string ID, string DebugName, uint EffectsHash, IReadOnlyDictionary<string, Redirection> AllRedirections, IReadOnlyList<string> MemoryResourceKeys, ResourceRedirectionService ResourceRedirectionService) : ILiveModpack
+    private record struct LiveMemoryResource(string MemoryResourcePath, byte[] Data);
+
+    private record class LiveModpack(string ID, string DebugName, uint EffectsHash, IReadOnlyDictionary<string, Redirection> AllRedirections, IReadOnlyDictionary<string, LiveMemoryResource> MemoryResources, IReadOnlyDictionary<string, string> GameResources, IReadOnlyDictionary<string, string> DiskResources, ResourceRedirectionService ResourceRedirectionService) : ILiveModpack
     {
         public void Dispose()
         {
-            foreach (var path in MemoryResourceKeys)
+            foreach (var path in MemoryResources.Values)
             {
-                ResourceRedirectionService._memoryResourceService.TryUnregisterMemoryResource(path);
+                ResourceRedirectionService._memoryResourceService.TryUnregisterMemoryResource(path.MemoryResourcePath);
             }
             ResourceRedirectionService._liveModpacks.TryRemove(ID, out _);
+        }
+
+        public bool ModdedResourceExists(string gamePath)
+        {
+            return AllRedirections.ContainsKey(gamePath);
         }
     }
 
@@ -238,6 +249,7 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
 
     private readonly ILogger _logger;
     private readonly IGameInteropProvider _gameInteropProvider;
+    private readonly IDataManager _dataManager;
     private readonly IMemoryResourceService _memoryResourceService;
     private readonly StagehandConfiguration _config;
 
@@ -275,10 +287,11 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
 
     private readonly ThreadLocal<ILiveModpack?> _currentThreadModpack = new();
 
-    public ResourceRedirectionService(ILogger<ResourceRedirectionService> logger, IGameInteropProvider gameInteropProvider, IMemoryResourceService memoryResourceService, StagehandConfiguration config)
+    public ResourceRedirectionService(ILogger<ResourceRedirectionService> logger, IGameInteropProvider gameInteropProvider, IDataManager dataManager, IMemoryResourceService memoryResourceService, StagehandConfiguration config)
     {
         _logger = logger;
         _gameInteropProvider = gameInteropProvider;
+        _dataManager = dataManager;
         _memoryResourceService = memoryResourceService;
         _config = config;
 
@@ -346,11 +359,11 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
             }
             allRedirections[redirection.Key] = new Redirection(redirection.Value, category);
         }
-        List<string> memoryResourceKeys = new(memoryReplacements.Count);
+        Dictionary<string, LiveMemoryResource> memoryResources = new(memoryReplacements.Count);
         foreach (var replacement in memoryReplacements)
         {
             var path = _memoryResourceService.RegisterMemoryResource(replacement.Value, replacement.Key);
-            memoryResourceKeys.Add(path);
+            memoryResources.Add(replacement.Key, new(path, replacement.Value));
             // The category of a replacement comes from the source game path (and doesn't really matter as no data is fetched from the category itself)
             ResourceCategory category = ResourceCategory.BgCommon;
             Encoding.UTF8.GetBytes(replacement.Key + "\0", filename);
@@ -374,7 +387,7 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
             allRedirections[replacement.Key] = new(replacement.Value, category);
         }
 
-        var newModpack = new LiveModpack(newId, debugName, ResourceRedirectionHelpers.HashModpackEffects(moddedResources), allRedirections, memoryResourceKeys, this);
+        var newModpack = new LiveModpack(newId, debugName, ResourceRedirectionHelpers.HashModpackEffects(moddedResources), allRedirections, memoryResources, extractContext.Redirections, extractContext.DiskReplacements, this);
         Debug.Assert(_liveModpacks.TryAdd(newId, newModpack));
         return newModpack;
     }
@@ -423,6 +436,51 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
         var result = _liveModpacks.TryGetValue(modpackId, out var foundModpack);
         modpack = foundModpack;
         return result;
+    }
+
+    public T? GetFile<T>(string gamePath, ILiveModpack? liveModpack)
+        where T : FileResource
+    {
+        if (liveModpack != null && liveModpack is LiveModpack internalLiveModpack)
+        {
+            if (internalLiveModpack.MemoryResources.TryGetValue(gamePath, out var memoryResource))
+            {
+                return GetMemoryResource<T>(memoryResource.Data, gamePath);
+            }
+            else if (internalLiveModpack.GameResources.TryGetValue(gamePath, out var newGamePath))
+            {
+                return _dataManager.GetFile<T>(newGamePath);
+            }
+            else if (internalLiveModpack.DiskResources.TryGetValue(gamePath, out var diskPath))
+            {
+                return _dataManager.GameData.GetFileFromDisk<T>(diskPath, gamePath);
+            }
+        }
+
+        return _dataManager.GetFile<T>(gamePath);
+    }
+
+    private T GetMemoryResource<T>(byte[] data, string gamePath)
+        where T : FileResource
+    {
+        // TODO: A better way?
+        var file = Activator.CreateInstance<T>();
+
+        // file.Data = data;
+        var dataProperty = typeof(T).GetProperty(nameof(FileResource.Data), System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        dataProperty!.SetValue(file, data);
+
+        // file.FilePath = ParseFilePath(gamePath);
+        var filePathProperty = typeof(T).GetProperty(nameof(FileResource.FilePath), System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        filePathProperty!.SetValue(file, Lumina.GameData.ParseFilePath(gamePath));
+
+        // file.Reader = new LuminaBinaryReader(data, Options.CurrentPlatform);
+        var fileReaderProperty = typeof(T).GetProperty(nameof(FileResource.Reader), System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        fileReaderProperty!.SetValue(file, new LuminaBinaryReader(data));
+
+        file.LoadFile();
+
+        return file;
     }
 
     private ResourceHandle* GetResourceSyncDetour(ResourceManager* resourceManager, ResourceCategory* categoryId, ResourceType* resourceType,

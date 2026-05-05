@@ -281,7 +281,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         PreviewLiveObject = PreviewLiveObject != null ? LiveObjectService.UpdateOrRecreateObject(PreviewLiveObject, Definition, GetPreviewModpack()) : LiveObjectService.CreateObject(Definition, GetPreviewModpack());
     }
 
-    private ILiveModpack? GetPreviewModpack()
+    protected ILiveModpack? GetPreviewModpack()
     {
         if (ModpackId == string.Empty)
         {

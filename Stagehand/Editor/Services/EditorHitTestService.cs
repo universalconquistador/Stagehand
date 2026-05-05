@@ -2,6 +2,7 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics;
 using FFXIVClientStructs.FFXIV.Common.Math;
 using Stagehand.Editor.DefinitionEditors.Objects;
+using Stagehand.Live;
 using Stagehand.Services;
 using Stagehand.Utils;
 using System;
@@ -167,18 +168,37 @@ public class EditorHitTestModel : IEditorHitTestShape
             {
                 field = value;
 
-                _isLocalBoundsValid = false;
-                _isWorldBoundsValid = false;
-
-                _isModelResourcePathValid = !string.IsNullOrEmpty(ModelResourcePath)
-                    && _dataManager.FileExists(ModelResourcePath);
-
-                // Start loading the bvh immediately
-                if (_isModelResourcePathValid)
-                {
-                    _bvhCacheService.TryIntersectModel(ModelResourcePath, Vector3.Zero, Vector3.One, out _, out _);
-                }
+                ResetModelData();
             }
+        }
+    }
+
+    public ILiveModpack? Modpack
+    {
+        get;
+        set
+        {
+            if (field != value)
+            {
+                field = value;
+
+                ResetModelData();
+            }
+        }
+    }
+
+    private void ResetModelData()
+    {
+        _isLocalBoundsValid = false;
+        _isWorldBoundsValid = false;
+
+        _isModelResourcePathValid = !string.IsNullOrEmpty(ModelResourcePath)
+            && (Modpack?.ModdedResourceExists(ModelResourcePath) ?? false || _dataManager.FileExists(ModelResourcePath));
+
+        // Start loading the bvh immediately
+        if (_isModelResourcePathValid)
+        {
+            _bvhCacheService.TryIntersectModel(ModelResourcePath, Modpack, Vector3.Zero, Vector3.One, out _, out _);
         }
     }
 
@@ -203,7 +223,7 @@ public class EditorHitTestModel : IEditorHitTestShape
                     // Do we need to try querying the bounds again?
                     if (!_isLocalBoundsValid)
                     {
-                        if (_bvhCacheService.TryGetBounds(ModelResourcePath, out var boundsMin, out var boundsMax))
+                        if (_bvhCacheService.TryGetBounds(ModelResourcePath, Modpack, out var boundsMin, out var boundsMax))
                         {
                             LocalBoundsCenter = (boundsMin + boundsMax) * 0.5f;
                             LocalBoundsHalfExtents = (boundsMax - boundsMin) * 0.5f;
@@ -260,7 +280,7 @@ public class EditorHitTestModel : IEditorHitTestShape
             var localRayStart = Vector3.Transform(rayStart, InverseTransform);
             var localRayDirection = Vector3.TransformNormal(rayDirection, InverseTransform);
 
-            var result = _bvhCacheService.TryIntersectModel(ModelResourcePath, localRayStart, localRayDirection, out var localIntersectionPoint, out var localIntersectionNormal);
+            var result = _bvhCacheService.TryIntersectModel(ModelResourcePath, Modpack, localRayStart, localRayDirection, out var localIntersectionPoint, out var localIntersectionNormal);
 
             hitPosition = result ? Vector3.Transform(localIntersectionPoint, Transform) : rayStart;
             hitNormal = result ? Vector3.TransformNormal(localIntersectionNormal, Transform) : Vector3.Zero;

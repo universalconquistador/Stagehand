@@ -86,6 +86,7 @@ internal class WeaponDefinitionEditor : ObjectDefinitionEditor<WeaponDefinition>
             Position = Position,
             Rotation = RotationQuaternion,
             Scale = Scale,
+            Modpack = GetPreviewModpack(),
         };
         List<WeaponOption> weaponOptions = new List<WeaponOption>();
 
@@ -155,6 +156,12 @@ internal class WeaponDefinitionEditor : ObjectDefinitionEditor<WeaponDefinition>
     {
         Definition.SecondaryId = secondaryId;
         _hitTestModel.ModelResourcePath = MdlPathForWeapon((ushort)ModelSetId, (ushort)SecondaryId);
+    }
+
+    protected override void SetModpackIdInternal(string modpackId)
+    {
+        base.SetModpackIdInternal(modpackId);
+        _hitTestModel.Modpack = GetPreviewModpack();
     }
 
     public override void RemovedFromStage()
