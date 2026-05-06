@@ -230,6 +230,7 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
     private readonly ILogger _logger;
     private readonly ILiveObjectService _liveObjectService;
     private readonly IObjectTable _objectTable;
+    private readonly ITargetManager _targetManager;
     private readonly IOverlayService _overlayService;
     private readonly StagehandConfiguration _configuration;
     private readonly WindowSystem _windowSystem;
@@ -277,21 +278,28 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
                 field = value;
 
                 var localPlayer = _objectTable.LocalPlayer;
-                if (HoverPreviewMode == HoverPreviewMode.NearPlayer && value != null && localPlayer != null)
+                if ((HoverPreviewMode == HoverPreviewMode.NearPlayer || HoverPreviewMode == HoverPreviewMode.AtTarget) && value != null && localPlayer != null)
                 {
                     var rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, localPlayer.Rotation);
-                    _hoverPreviewObject = value.CreatePreviewObject(_liveObjectService, localPlayer.Position + Vector3.Transform(Vector3.UnitZ, rotation) * 2.0f, rotation);
+                    var position = localPlayer.Position + Vector3.Transform(Vector3.UnitZ, rotation) * 2.0f;
+                    if (HoverPreviewMode == HoverPreviewMode.AtTarget && _targetManager.Target != null)
+                    {
+                        rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, _targetManager.Target.Rotation);
+                        position = _targetManager.Target.Position;
+                    }
+                    _hoverPreviewObject = value.CreatePreviewObject(_liveObjectService, position, rotation);
                 }
             }
         }
     }
 
-    public AssetLibraryWindow(ILogger<AssetLibraryWindow> logger, ILiveObjectService liveObjectService, IObjectTable objectTable, IOverlayService overlayService, StagehandConfiguration configuration, WindowSystem windowSystem)
+    public AssetLibraryWindow(ILogger<AssetLibraryWindow> logger, ILiveObjectService liveObjectService, IObjectTable objectTable, ITargetManager targetManager, IOverlayService overlayService, StagehandConfiguration configuration, WindowSystem windowSystem)
         : base("Stagehand Asset Library")
     {
         _logger = logger;
         _liveObjectService = liveObjectService;
         _objectTable = objectTable;
+        _targetManager = targetManager;
         _overlayService = overlayService;
         _configuration = configuration;
         _windowSystem = windowSystem;
@@ -496,6 +504,17 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
                                         }
                                     }
 #endif
+                                    if (ImGui.Selectable("At Target", HoverPreviewMode == HoverPreviewMode.AtTarget))
+                                    {
+                                        HoverPreviewMode = HoverPreviewMode.AtTarget;
+                                    }
+                                    if (ImGui.IsItemHovered())
+                                    {
+                                        using (ImRaii.Tooltip())
+                                        {
+                                            ImGui.TextUnformatted("Preview the hovered asset at the location of the targeted object");
+                                        }
+                                    }
                                 }
                             }
 
@@ -558,8 +577,20 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
                                     ImGui.SetNextItemWidth(createWidth);
                                     if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Plus, "Create"))
                                     {
-                                        var rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, _objectTable.LocalPlayer?.Rotation ?? 0.0f);
-                                        var newObjectDefinition = _selectedAssetInfo.CreateObjectDefinition((_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.Transform(Vector3.UnitZ, rotation) * 2.0f, rotation);
+                                        var rotation = Quaternion.Identity;
+                                        var position = Vector3.Zero;
+                                        if (HoverPreviewMode == HoverPreviewMode.NearPlayer && _objectTable.LocalPlayer != null)
+                                        {
+                                            rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, _objectTable.LocalPlayer.Rotation);
+                                            position = _objectTable.LocalPlayer.Position + Vector3.Transform(Vector3.UnitZ, rotation) * 2.0f;
+                                        }
+                                        if (HoverPreviewMode == HoverPreviewMode.AtTarget && _targetManager.Target != null)
+                                        {
+                                            rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, _targetManager.Target.Rotation);
+                                            position = _targetManager.Target.Position;
+                                        }
+
+                                        var newObjectDefinition = _selectedAssetInfo.CreateObjectDefinition(position, rotation);
                                         if (newObjectDefinition != null)
                                         {
                                             if (_hoverPreviewObject != null)

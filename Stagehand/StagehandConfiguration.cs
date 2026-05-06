@@ -11,6 +11,7 @@ public enum HoverPreviewMode
     None,
     NearPlayer,
     EditorObject,
+    AtTarget,
 }
 
 [Serializable]
