@@ -52,11 +52,11 @@ public class StagehandConfiguration : IPluginConfiguration
     /// </summary>
     public HoverPreviewMode AssetLibraryPreviewMode { get; set; } = HoverPreviewMode.NearPlayer;
 
-    public bool LogMemoryResourceUntouched { get; set; } = true;
-    public bool LogMemoryResourceHandled { get; set; } = true;
+    public bool LogMemoryResourceUntouched { get; set; } = false;
+    public bool LogMemoryResourceHandled { get; set; } = false;
 
-    public bool LogModpackResourceUntouched { get; set; } = true;
-    public bool LogModpackResourceHandled { get; set; } = true;
+    public bool LogModpackResourceUntouched { get; set; } = false;
+    public bool LogModpackResourceHandled { get; set; } = false;
 
     public float EditorSplitterRatio { get; set; } = -1.0f;
 
