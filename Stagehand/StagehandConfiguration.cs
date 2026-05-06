@@ -58,6 +58,8 @@ public class StagehandConfiguration : IPluginConfiguration
     public bool LogModpackResourceUntouched { get; set; } = true;
     public bool LogModpackResourceHandled { get; set; } = true;
 
+    public float EditorSplitterRatio { get; set; } = -1.0f;
+
     // The below exists just to make saving less cumbersome
     public void Save()
     {

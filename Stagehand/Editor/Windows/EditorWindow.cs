@@ -43,6 +43,7 @@ internal class EditorWindow : Window, IDisposable
 
     private string _outlinerFilter = string.Empty;
     private bool _hasUnsavedChanges = false;
+    private float _splitterRatio = -1.0f;
 
     private readonly string _definitionFilename;
     private readonly StageDefinition _definition;
@@ -76,6 +77,7 @@ internal class EditorWindow : Window, IDisposable
 
         ShowCloseButton = false;
         RespectCloseHotkey = false;
+        _splitterRatio = _stagehandConfiguration.EditorSplitterRatio;
     }
 
     private void OnTransactionDoneOrUndone(ITransaction transaction)
@@ -279,7 +281,10 @@ internal class EditorWindow : Window, IDisposable
             }
         }
 
-        using (var outlinerListBox = ImRaii.ListBox("###Outliner", ImGui.GetContentRegionAvail() * new Vector2(1.0f, 0.5f)))
+        float splitterRatio = _splitterRatio > 0.0f ? _splitterRatio : 0.5f;
+        float splitterAvailable = ImGui.GetContentRegionAvail().Y;
+        float outlinerHeight = splitterAvailable * splitterRatio;
+        using (var outlinerListBox = ImRaii.ListBox("###Outliner", new Vector2(-1.0f, outlinerHeight)))
         {
             if (outlinerListBox.Success)
             {
@@ -340,6 +345,28 @@ internal class EditorWindow : Window, IDisposable
                     Position = (_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.UnitY
                 });
             }
+        }
+
+        ImGui.InvisibleButton("###HSplitter", new Vector2(-1.0f, 8.0f));
+        if (ImGui.IsItemActive())
+        {
+            ImGui.GetWindowDrawList().AddRectFilled(ImGui.GetItemRectMin(), ImGui.GetItemRectMax(), ImGui.ColorConvertFloat4ToU32(ImGui.GetStyle().Colors[(int)ImGuiCol.ScrollbarGrabHovered]));
+            ImGui.SetMouseCursor(ImGuiMouseCursor.ResizeNs);
+            var newHeight = outlinerHeight + ImGui.GetIO().MouseDelta.Y;
+            _splitterRatio = newHeight / splitterAvailable;
+            if (_splitterRatio < 0.25f)
+            {
+                _splitterRatio = 0.25f;
+            }
+            if (_splitterRatio > 0.75f)
+            {
+                _splitterRatio = 0.75f;
+            }
+        }
+        else if (ImGui.IsItemHovered())
+        {
+            ImGui.GetWindowDrawList().AddRectFilled(ImGui.GetItemRectMin(), ImGui.GetItemRectMax(), ImGui.ColorConvertFloat4ToU32(ImGui.GetStyle().Colors[(int)ImGuiCol.ScrollbarGrab]));
+            ImGui.SetMouseCursor(ImGuiMouseCursor.ResizeNs);
         }
 
         ImGui.Separator();
@@ -500,6 +527,9 @@ internal class EditorWindow : Window, IDisposable
     public override void OnClose()
     {
         base.OnClose();
+
+        _stagehandConfiguration.EditorSplitterRatio = _splitterRatio;
+        _stagehandConfiguration.Save();
 
         Closed?.Invoke();
     }
