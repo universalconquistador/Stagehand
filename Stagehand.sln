@@ -22,6 +22,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ThreadLocalHelper", "ThreadLocalHelper\ThreadLocalHelper.vcxproj", "{B2D77D12-27A2-4546-B630-73168DAA12C1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stagehand.ApiDemo", "Stagehand.ApiDemo\Stagehand.ApiDemo.csproj", "{3218B5F3-5AD4-497B-8131-B74222B85523}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -70,6 +72,14 @@ Global
 		{B2D77D12-27A2-4546-B630-73168DAA12C1}.Release|x64.Build.0 = Release|x64
 		{B2D77D12-27A2-4546-B630-73168DAA12C1}.Release|x86.ActiveCfg = Release|Win32
 		{B2D77D12-27A2-4546-B630-73168DAA12C1}.Release|x86.Build.0 = Release|Win32
+		{3218B5F3-5AD4-497B-8131-B74222B85523}.Debug|x64.ActiveCfg = Debug|x64
+		{3218B5F3-5AD4-497B-8131-B74222B85523}.Debug|x64.Build.0 = Debug|x64
+		{3218B5F3-5AD4-497B-8131-B74222B85523}.Debug|x86.ActiveCfg = Debug|x64
+		{3218B5F3-5AD4-497B-8131-B74222B85523}.Debug|x86.Build.0 = Debug|x64
+		{3218B5F3-5AD4-497B-8131-B74222B85523}.Release|x64.ActiveCfg = Release|x64
+		{3218B5F3-5AD4-497B-8131-B74222B85523}.Release|x64.Build.0 = Release|x64
+		{3218B5F3-5AD4-497B-8131-B74222B85523}.Release|x86.ActiveCfg = Release|x64
+		{3218B5F3-5AD4-497B-8131-B74222B85523}.Release|x86.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

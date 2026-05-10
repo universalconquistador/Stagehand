@@ -10,14 +10,12 @@
         <!-- Dalamud Packager properties for the plugin manifest -->
         <Author>UniversalConquistador</Author>
         <Name>Stagehand</Name>
-        <MinimumDalamudVersion>14.0.0</MinimumDalamudVersion>
         <Punchline>All of creation, in the palm of your hand!</Punchline>
         <Description>Design layouts with extra scene objects in the game world. Perfect for decorating venues, immersive RP, or gposing backdrops! 
 Use /stagehand to get started.</Description>
         <RepoUrl>https://github.com/universalconquistador/Stagehand</RepoUrl>
         <Tags>objects;weapons;lights;lighting;models;background;gpose</Tags>
         <CategoryTags></CategoryTags>
-        <DalamudApiLevel>15</DalamudApiLevel>
         <LoadRequiredState>1</LoadRequiredState>
         <LoadSync>true</LoadSync>
         <CanUnloadAsync>false</CanUnloadAsync>
