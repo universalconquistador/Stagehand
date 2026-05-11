@@ -54,6 +54,7 @@ public class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.Draw -= _windowSystem.Draw;
         CommandManager.RemoveHandler(ConfigCommand);
         _windowSystem.RemoveAllWindows();
+        _configWindow.Dispose();
         _stagehandApi.Dispose();
     }
 }

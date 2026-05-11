@@ -33,6 +33,8 @@ internal class LocalStageService : IHostedService
     private readonly ConcurrentDictionary<string, bool> _manualVisibilitySettings = new();
     private StageLocation _lastLocation;
 
+    public event Action? VisibleStagesChanged;
+
     public LocalStageService(ILogger<LocalStageService> logger, IFramework framework, IClientState clientState, IPlayerState playerState, ILocalDefinitionService localDefinitionService, ILiveStageService liveStageService, IEditorService editorService, StagehandConfiguration configuration)
     {
         _logger = logger;
@@ -86,6 +88,37 @@ internal class LocalStageService : IHostedService
     public void SetManualVisibility(string path, bool value)
     {
         _manualVisibilitySettings[path] = value;
+        string liveKey = LiveStageHelpers.MakeLocalStageKey(path);
+
+        if (value)
+        {
+            if (!_liveStageService.TryGetLiveStage(liveKey, out _))
+            {
+                try
+                {
+                    using (FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read))
+                    {
+                        var definition = JsonSerializer.Deserialize<StageDefinition>(stream, StageDefinition.StandardSerializerOptions);
+                        if (definition != null)
+                        {
+                            _liveStageService.CreateOrUpdateLiveStage(liveKey, definition);
+                            VisibleStagesChanged?.Invoke();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Exception loading {path} to instantiate!", path);
+                }
+            }
+        }
+        else
+        {
+            if (_liveStageService.TryDestroyLiveStage(liveKey))
+            {
+                VisibleStagesChanged?.Invoke();
+            }
+        }
     }
 
     private void OnLocalDefinitionsChanged(IReadOnlyList<string> removedDefinitions, IReadOnlyList<string> addedDefinitions, IReadOnlyList<string> modifiedDefinitions)
@@ -95,9 +128,11 @@ internal class LocalStageService : IHostedService
             if (!StageLocation.TryGetLocation(_clientState, _playerState, out var location))
                 return;
 
+            bool visibleChanged = false;
+
             foreach (var removed in removedDefinitions)
             {
-                _liveStageService.TryDestroyLiveStage(LiveStageHelpers.MakeLocalStageKey(removed));
+                visibleChanged |= _liveStageService.TryDestroyLiveStage(LiveStageHelpers.MakeLocalStageKey(removed));
             }
 
             // Show new Stages that meet their show conditions
@@ -116,6 +151,8 @@ internal class LocalStageService : IHostedService
                                 _liveStageService.CreateOrUpdateLiveStage(LiveStageHelpers.MakeLocalStageKey(added), definition);
                             }
                         }
+
+                        visibleChanged = true;
                     }
                     catch (Exception ex)
                     {
@@ -140,12 +177,18 @@ internal class LocalStageService : IHostedService
                                 liveStage.Update(definition);
                             }
                         }
+                        visibleChanged = true;
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Exception loading {path} to update!", modified);
                     }
                 }
+            }
+
+            if (visibleChanged)
+            {
+                VisibleStagesChanged?.Invoke();
             }
         });
     }
@@ -164,7 +207,11 @@ internal class LocalStageService : IHostedService
 
         if (currentlyVisible && !shouldBeVisible)
         {
-            _framework.RunOnFrameworkThread(() => _liveStageService.TryDestroyLiveStage(liveKey));
+            _framework.RunOnFrameworkThread(() =>
+            {
+                _liveStageService.TryDestroyLiveStage(liveKey);
+                VisibleStagesChanged?.Invoke();
+            });
         }
         else if (shouldBeVisible && !currentlyVisible)
         {
@@ -178,6 +225,7 @@ internal class LocalStageService : IHostedService
                         if (definition != null)
                         {
                             _liveStageService.CreateOrUpdateLiveStage(liveKey, definition);
+                            VisibleStagesChanged?.Invoke();
                         }
                     }
                 }
@@ -221,6 +269,8 @@ internal class LocalStageService : IHostedService
                 }
             }
         }
+
+        VisibleStagesChanged?.Invoke();
     }
 
     public Task StopAsync(CancellationToken cancellationToken)

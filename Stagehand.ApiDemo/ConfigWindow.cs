@@ -7,30 +7,52 @@ using Stagehand.Api;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Text;
 
 namespace Stagehand.ApiDemo;
 
-public class ConfigWindow : Window
+public class ConfigWindow : Window, IDisposable
 {
     private readonly Configuration _configuration;
     private readonly IStagehandApi _stagehandApi;
 
+    private bool _wasAvailable = false;
+    private LocalStageDefinition[] _localStages = Array.Empty<LocalStageDefinition>();
+
     public ConfigWindow(Configuration configuration, IStagehandApi stagehandApi)
-        : base("Stagehand IPC Demo Config")
+        : base("Stagehand IPC Demo")
     {
         _configuration = configuration;
         _stagehandApi = stagehandApi;
+
+        _stagehandApi.LocalStageDefinitionsChanged += OnLocalStageDefinitionsChanged;
 
         Size = new(600, 300);
 
         Flags |= ImGuiWindowFlags.NoResize;
     }
 
+    private void OnLocalStageDefinitionsChanged()
+    {
+        _localStages = _stagehandApi.GetLocalStageDefinitions();
+        _localStages.Sort((a, b) => a.Name.CompareTo(b.Name));
+    }
+
     public override void Draw()
     {
         var stagehandAvailability = _stagehandApi.CheckApiAvailability();
         var available = stagehandAvailability == StagehandApiAvailability.Available;
+
+        if (!available)
+        {
+            _localStages = Array.Empty<LocalStageDefinition>();
+        }
+        else if (!_wasAvailable)
+        {
+            _localStages = _stagehandApi.GetLocalStageDefinitions();
+            _localStages.Sort((a, b) => a.Name.CompareTo(b.Name));
+        }
 
         using (ImRaii.PushColor(ImGuiCol.Text, available ? ImGuiColors.HealerGreen : ImGuiColors.DPSRed))
         using (ImRaii.PushFont(UiBuilder.IconFontFixedWidth))
@@ -88,6 +110,8 @@ public class ConfigWindow : Window
                 }
             }
         }
+
+        _wasAvailable = available;
     }
 
     private void DrawTrailTab()
@@ -139,6 +163,56 @@ public class ConfigWindow : Window
     {
         ImGui.Spacing();
 
-        ImGui.TextDisabled("(Not yet implemented)");
+        using (ImRaii.Table("###LocalStagesTable", 2, ImGuiTableFlags.BordersV | ImGuiTableFlags.BordersOuterH | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY, ImGui.GetContentRegionAvail()))
+        {
+            ImGui.TableSetupScrollFreeze(0, 1);
+            ImGui.TableSetupColumn("###Visible", ImGuiTableColumnFlags.WidthFixed, ImGui.GetFrameHeight());
+            ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch, 1.0f);
+
+            ImGui.TableHeadersRow();
+
+            foreach (var localDefinition in _localStages)
+            {
+                // Visible icon
+                ImGui.TableNextColumn();
+                if (localDefinition.IsVisible)
+                {
+                    ImGui.AlignTextToFramePadding();
+                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetStyle().FramePadding.Y);
+                    using (ImRaii.PushFont(UiBuilder.IconFontFixedWidth))
+                    using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen))
+                    {
+                        ImGui.TextUnformatted(FontAwesomeIcon.Eye.ToIconString());
+                    }
+                    if (ImGui.IsItemHovered())
+                    {
+                        using (ImRaii.Tooltip())
+                        {
+                            ImGui.TextUnformatted("Currently visible");
+                        }
+                    }
+                }
+
+                // Name & version
+                ImGui.TableNextColumn();
+                ImGui.AlignTextToFramePadding();
+                ImGui.TextUnformatted(localDefinition.Name);
+                bool nameHovered = ImGui.IsItemHovered();
+                ImGui.SameLine();
+                ImGui.TextDisabled($"v{localDefinition.VersionString}");
+                if (nameHovered)
+                {
+                    using (ImRaii.Tooltip())
+                    {
+                        ImGui.TextUnformatted(localDefinition.Filename);
+                    }
+                }
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        _stagehandApi.LocalStageDefinitionsChanged -= OnLocalStageDefinitionsChanged;
     }
 }

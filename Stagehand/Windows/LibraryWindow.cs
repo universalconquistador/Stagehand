@@ -853,7 +853,6 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                             {
                                 if (ImGui.Button("Hide"))
                                 {
-                                    _liveStageService.TryDestroyLiveStage(liveKey);
                                     _localStageService.SetManualVisibility(_selectedLocalDefinitionFilename, false);
                                 }
                             }
@@ -862,21 +861,6 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                                 if (ImGui.Button("Show"))
                                 {
                                     _localStageService.SetManualVisibility(_selectedLocalDefinitionFilename, true);
-                                    try
-                                    {
-                                        using (FileStream stream = new FileStream(_selectedLocalDefinitionFilename, FileMode.Open, FileAccess.Read))
-                                        {
-                                            var definition = JsonSerializer.Deserialize<StageDefinition>(stream, StageDefinition.StandardSerializerOptions);
-                                            if (definition != null)
-                                            {
-                                                _liveStageService.CreateOrUpdateLiveStage(liveKey, definition);
-                                            }
-                                        }
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        _logger.LogError(ex, "Exception loading {path} to instantiate!", _selectedLocalDefinitionFilename);
-                                    }
                                 }
                             }
                         }
