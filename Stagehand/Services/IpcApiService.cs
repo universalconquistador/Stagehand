@@ -2,7 +2,9 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Microsoft.Extensions.Hosting;
 using Stagehand.Api;
+using Stagehand.Definitions;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,21 +20,25 @@ internal class IpcApiService : IHostedService, IStagehandApi
     private readonly ILogger _logger;
     private readonly IDalamudPluginInterface _dalamudPluginInterface;
     private readonly IFramework _framework;
+    private readonly IGameStateService _gameStateService;
     private readonly ILiveStageService _liveStageService;
     private readonly LocalStageService _localStageService;
     private readonly ILocalDefinitionService _localDefinitionService;
 
     private IDisposable? _apiProvider;
 
+    private readonly ConcurrentDictionary<string, StageDefinition> _temporaryStageDefinitions = new();
+
     private LocalStageDefinition[] _localStageDefinitions = Array.Empty<LocalStageDefinition>();
     private int _updatingLocalDefinitions = 0;
     private CancellationTokenSource _shutdownTokenSource = new();
 
-    public IpcApiService(ILogger<IpcApiService> logger, IDalamudPluginInterface dalamudPluginInterface, IFramework framework, ILiveStageService liveStageService, LocalStageService localStageService, ILocalDefinitionService localDefinitionService)
+    public IpcApiService(ILogger<IpcApiService> logger, IDalamudPluginInterface dalamudPluginInterface, IFramework framework, IGameStateService gameStateService, ILiveStageService liveStageService, LocalStageService localStageService, ILocalDefinitionService localDefinitionService)
     {
         _logger = logger;
         _dalamudPluginInterface = dalamudPluginInterface;
         _framework = framework;
+        _gameStateService = gameStateService;
         _liveStageService = liveStageService;
         _localStageService = localStageService;
         _localDefinitionService = localDefinitionService;
@@ -40,7 +46,20 @@ internal class IpcApiService : IHostedService, IStagehandApi
         _localStageService.VisibleStagesChanged += OnVisibleStagesChanged;
         _localDefinitionService.LocalDefinitionsChanged += OnLocalDefinitionsChanged;
 
+        _gameStateService.LocationChanged += OnLocationChanged;
+
         InvalidateLocalDefinitions();
+    }
+
+    private void OnLocationChanged(StageLocation location)
+    {
+        // Hide all the temporary stages
+        foreach (var temporaryStageKey in _temporaryStageDefinitions.Keys)
+        {
+            _liveStageService.TryDestroyLiveStage(temporaryStageKey);
+        }
+
+        LocationChanged?.Invoke(location);
     }
 
     private void OnLocalDefinitionsChanged(IReadOnlyList<string> removedDefinitions, IReadOnlyList<string> addedDefinitions, IReadOnlyList<string> modifiedDefinitions)
@@ -84,9 +103,16 @@ internal class IpcApiService : IHostedService, IStagehandApi
 
     #region IStagehandApi
 
+    public event Action<StageLocation>? LocationChanged;
+
     public ApiRevision GetPluginApiRevision()
     {
         return StagehandApi.LibraryApiRevision;
+    }
+
+    public StageLocation GetLocation()
+    {
+        return _gameStateService.Location;
     }
 
     #endregion
@@ -95,20 +121,50 @@ internal class IpcApiService : IHostedService, IStagehandApi
 
     public bool TryCreateOrUpdateTemporaryStage(string definitionString, string stageId, string debugName)
     {
-        // TODO: Implement!
-        throw new NotImplementedException();
+        if (StageDefinition.TryParseDefinitionString(definitionString, out var definition))
+        {
+            // TODO: Store debug name and calling plugin in a class
+            var key = LiveStageHelpers.MakeTemporaryStageKey(stageId, "temp");
+            _temporaryStageDefinitions[key] = definition;
+            _liveStageService.CreateOrUpdateLiveStage(key, definition);
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     public bool TryDestroyTemporaryStage(string stageId)
     {
-        // TODO: Implement!
-        throw new NotImplementedException();
+        var key = LiveStageHelpers.MakeTemporaryStageKey(stageId, "temp");
+        var found = _temporaryStageDefinitions.TryRemove(key, out _);
+        if (found)
+        {
+            _liveStageService.TryDestroyLiveStage(key);
+        }
+        return found;
     }
 
     public bool TrySetTemporaryStageVisible(string stageId, bool visible)
     {
-        // TODO: Implement!
-        throw new NotImplementedException();
+        var key = LiveStageHelpers.MakeTemporaryStageKey(stageId, "temp");
+        if (visible)
+        {
+            if (_temporaryStageDefinitions.TryGetValue(key, out var definition))
+            {
+                _liveStageService.CreateOrUpdateLiveStage(key, definition);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else
+        {
+            return _liveStageService.TryDestroyLiveStage(key);
+        }
     }
 
     #endregion

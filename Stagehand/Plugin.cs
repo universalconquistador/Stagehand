@@ -108,6 +108,7 @@ public sealed class Plugin : IDalamudPlugin
             services.AddSingleton<ILiveObjectService, LiveObjectService>();
             services.AddSingleton<ILiveStageService, LiveStageService>();
             services.AddSingleton<IEditorService, EditorService>();
+            services.AddSingleton<IGameStateService, GameStateService>();
             services.AddHostedService<IpcApiService>();
 
             // Global windows

@@ -24,8 +24,7 @@ internal class LocalStageService : IHostedService
 {
     private readonly ILogger _logger;
     private readonly IFramework _framework;
-    private readonly IClientState _clientState;
-    private readonly IPlayerState _playerState;
+    private readonly IGameStateService _gameStateService;
     private readonly ILocalDefinitionService _localDefinitionService;
     private readonly ILiveStageService _liveStageService;
     private readonly IEditorService _editorService;
@@ -35,12 +34,11 @@ internal class LocalStageService : IHostedService
 
     public event Action? VisibleStagesChanged;
 
-    public LocalStageService(ILogger<LocalStageService> logger, IFramework framework, IClientState clientState, IPlayerState playerState, ILocalDefinitionService localDefinitionService, ILiveStageService liveStageService, IEditorService editorService, StagehandConfiguration configuration)
+    public LocalStageService(ILogger<LocalStageService> logger, IFramework framework, IGameStateService gameStateService, ILocalDefinitionService localDefinitionService, ILiveStageService liveStageService, IEditorService editorService, StagehandConfiguration configuration)
     {
         _logger = logger;
         _framework = framework;
-        _clientState = clientState;
-        _playerState = playerState;
+        _gameStateService = gameStateService;
         _localDefinitionService = localDefinitionService;
         _liveStageService = liveStageService;
         _editorService = editorService;
@@ -54,9 +52,14 @@ internal class LocalStageService : IHostedService
         _editorService.EditorOpened += OnEditorOpened;
         _editorService.EditorClosed += OnEditorClosed;
 
-        _framework.Update += Update;
+        _gameStateService.LocationChanged += OnLocationChanged;
 
         return Task.CompletedTask;
+    }
+
+    private void OnLocationChanged(StageLocation obj)
+    {
+        RefreshLocation();
     }
 
     private void OnEditorOpened(string definitionPath)
@@ -67,17 +70,6 @@ internal class LocalStageService : IHostedService
     private void OnEditorClosed(string definitionPath)
     {
         RefreshVisibility(definitionPath);
-    }
-
-    private void Update(IFramework framework)
-    {
-        StageLocation.TryGetLocation(_clientState, _playerState, out var location);
-
-        if (location != _lastLocation)
-        {
-            _lastLocation = location;
-            RefreshLocation();
-        }
     }
 
     private void OnAutomaticShowConditionsChanged(string path)
@@ -125,9 +117,6 @@ internal class LocalStageService : IHostedService
     {
         _framework.RunOnFrameworkThread(() =>
         {
-            if (!StageLocation.TryGetLocation(_clientState, _playerState, out var location))
-                return;
-
             bool visibleChanged = false;
 
             foreach (var removed in removedDefinitions)
@@ -139,7 +128,7 @@ internal class LocalStageService : IHostedService
             foreach (var added in addedDefinitions)
             {
                 if (_localDefinitionService.LocalDefinitions.TryGetValue(added, out var metadata)
-                    && metadata.AutomaticShowConditions.Any(condition => condition.Evaluate(location)))
+                    && metadata.AutomaticShowConditions.Any(condition => condition.Evaluate(_gameStateService.Location)))
                 {
                     try
                     {
@@ -198,12 +187,9 @@ internal class LocalStageService : IHostedService
         var liveKey = LiveStageHelpers.MakeLocalStageKey(path);
         bool currentlyVisible = _liveStageService.TryGetLiveStage(liveKey, out var liveStage);
 
-        if (!StageLocation.TryGetLocation(_clientState, _playerState, out var location))
-            return;
-
         bool shouldBeVisible = path != _editorService.OpenEditorFilename
             && _manualVisibilitySettings.GetValueOrDefault(path, _localDefinitionService.LocalDefinitions.TryGetValue(path, out var metadata)
-            && metadata.AutomaticShowConditions.Any(condition => condition.Evaluate(location)));
+            && metadata.AutomaticShowConditions.Any(condition => condition.Evaluate(_gameStateService.Location)));
 
         if (currentlyVisible && !shouldBeVisible)
         {
@@ -244,12 +230,10 @@ internal class LocalStageService : IHostedService
 
         _manualVisibilitySettings.Clear();
 
-        if (!StageLocation.TryGetLocation(_clientState, _playerState, out var location))
-            return;
         foreach (var localDefinition in _localDefinitionService.LocalDefinitions)
         {
             if (localDefinition.Value.AutomaticShowConditions.Any(condition =>
-                condition.Evaluate(location)))
+                condition.Evaluate(_gameStateService.Location)))
             {
                 _logger.LogDebug("Trying to auto show {file}!", localDefinition.Key);
                 try
@@ -275,7 +259,7 @@ internal class LocalStageService : IHostedService
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        _framework.Update -= Update;
+        _gameStateService.LocationChanged -= OnLocationChanged;
         _editorService.EditorClosed -= OnEditorClosed;
         _editorService.EditorOpened -= OnEditorOpened;
         _localDefinitionService.AutomaticShowConditionsChanged -= OnAutomaticShowConditionsChanged;

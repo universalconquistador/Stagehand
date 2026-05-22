@@ -16,6 +16,9 @@ public partial interface IStagehandApi
     /// <summary>
     /// Creates or updates the temporary Stage with the given ID, if the given definition string is valid.
     /// </summary>
+    /// <remarks>
+    /// To show the created stage, call <see cref="TrySetTemporaryStageVisible(string, bool)"/>.
+    /// </remarks>
     /// <param name="definitionString">
     /// A string containing the serialized Stage definition.
     /// <br />
@@ -35,6 +38,16 @@ public partial interface IStagehandApi
     /// </returns>
     bool TryCreateOrUpdateTemporaryStage(string definitionString, string stageId, string debugName);
 
+    /// <summary>
+    /// Sets whether the temporary stage with the given stage ID is visible, if it exists.
+    /// </summary>
+    /// <remarks>
+    /// Note that all temporary stages are hidden when the player's current location changes.
+    /// Consider destroying or re-showing the stage in response to <see cref="IStagehandApi.LocationChanged"/>.
+    /// </remarks>
+    /// <param name="stageId">The ID of the temporary stage to set the visibility of.</param>
+    /// <param name="visible">The new visibility of the temporary stage.</param>
+    /// <returns>True if the temporary stage was found with the given ID and its visibility set.</returns>
     bool TrySetTemporaryStageVisible(string stageId, bool visible);
 
     /// <summary>

@@ -1,5 +1,6 @@
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using Lumina.Excel.Sheets;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -20,6 +21,13 @@ namespace Stagehand.Api;
 /// <param name="RoomId">The room number (apartment unit/private chambers) the player is in starting at 1, or 0 if the player is in the main house room or apartment lobby, or -1 if not in a housing building or if in a company workshop.</param>
 public record struct StageLocation(uint WorldId, ushort TerritoryId, int WardId, int DivisionId, int HouseId, int RoomId)
 {
+    /// <summary>
+    /// Gets the current location of the player, if they are logged in to the game.
+    /// </summary>
+    /// <param name="clientState">The client state of the game.</param>
+    /// <param name="playerState">The player state.</param>
+    /// <param name="location">The current location, if any.</param>
+    /// <returns>True if the current location could be determined, or false otherwise (e.g. if the player is not logged in).</returns>
     public static unsafe bool TryGetLocation(IClientState clientState, IPlayerState playerState, out StageLocation location)
     {
         if (clientState.IsLoggedIn)
@@ -84,5 +92,28 @@ public record struct StageLocation(uint WorldId, ushort TerritoryId, int WardId,
             location = default;
             return false;
         }
+    }
+
+    /// <summary>
+    /// Generates a human-readable description of this location without resolving any IDs.
+    /// </summary>
+    /// <remarks>
+    /// To resolve the IDs as well, use the <see cref="ToString(IDataManager)"/> overload.
+    /// </remarks>
+    /// <returns>A description of this location.</returns>
+    public override string ToString()
+    {
+        return $"World: {WorldId}, Territory: {TerritoryId}, Ward: {(WardId != -1 ? WardId.ToString() : "None")}, Division: {(DivisionId != -1 ? (DivisionId == 1 ? "Main Division" : "Subdivision") : "None")}, House: {(HouseId != -1 ? HouseId.ToString() : "None")}, Room: {(RoomId != -1 ? RoomId.ToString() : "None")}";
+    }
+
+    /// <summary>
+    /// Generates a human-readable description of this location, resolving World and Territory names
+    /// where possible using the given data manager.
+    /// </summary>
+    /// <param name="dataManager">The data manager to use to resolve world and territory names.</param>
+    /// <returns>A description of this location.</returns>
+    public readonly string ToString(IDataManager dataManager)
+    {
+        return $"World: {dataManager.GetExcelSheet<World>().GetRowOrDefault(WorldId)?.Name.ToString() ?? WorldId.ToString()}, Territory: {dataManager.GetExcelSheet<TerritoryType>().GetRowOrDefault(TerritoryId)?.PlaceName.ValueNullable?.Name.ToString() ?? TerritoryId.ToString()}, Ward: {(WardId != -1 ? WardId.ToString() : "None")}, Division: {(DivisionId != -1 ? (DivisionId == 1 ? "Main Division" : "Subdivision") : "None")}, House: {(HouseId != -1 ? HouseId.ToString() : "None")}, Room: {(RoomId != -1 ? RoomId.ToString() : "None")}";
     }
 }

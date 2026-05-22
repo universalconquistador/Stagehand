@@ -12,12 +12,16 @@ public class Plugin : IDalamudPlugin
 
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
     [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
+    [PluginService] internal static IFramework Framework { get; private set; } = null!;
+    [PluginService] internal static IObjectTable ObjectTable { get; private set; } = null!;
+    [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
 
     public Configuration Configuration { get; }
 
     private readonly IStagehandApiConsumer _stagehandApi;
     private readonly WindowSystem _windowSystem = new("Stagehand.ApiDemo");
     private readonly ConfigWindow _configWindow;
+    private readonly Trail _trail;
 
     public Plugin()
     {
@@ -25,7 +29,9 @@ public class Plugin : IDalamudPlugin
 
         _stagehandApi = StagehandApi.CreateIpcClient(PluginInterface);
 
-        _configWindow = new ConfigWindow(Configuration, _stagehandApi);
+        _trail = new Trail(Configuration, Framework, ObjectTable, _stagehandApi);
+
+        _configWindow = new ConfigWindow(Configuration, DataManager, _stagehandApi);
         _windowSystem.AddWindow(_configWindow);
 
         CommandManager.AddHandler(ConfigCommand, new(OnConfigCommandInvoked)
@@ -55,6 +61,7 @@ public class Plugin : IDalamudPlugin
         CommandManager.RemoveHandler(ConfigCommand);
         _windowSystem.RemoveAllWindows();
         _configWindow.Dispose();
+        _trail.Dispose();
         _stagehandApi.Dispose();
     }
 }

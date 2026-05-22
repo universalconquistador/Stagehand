@@ -28,7 +28,7 @@ public static partial class StagehandApi
     /// <summary>
     /// The Stagehand API revision of this version of the Stagehand.Api library.
     /// </summary>
-    public static readonly ApiRevision LibraryApiRevision = new(Major: 0, Minor: 2);
+    public static readonly ApiRevision LibraryApiRevision = new(Major: 1, Minor: 0);
 }
 
 /// <summary>
@@ -45,6 +45,16 @@ public partial interface IStagehandApi
     /// </summary>
     /// <returns>The API revision of the Stagehand plugin.</returns>
     ApiRevision GetPluginApiRevision();
+
+    /// <summary>
+    /// Gets the current location of the player.
+    /// </summary>
+    StageLocation GetLocation();
+
+    /// <summary>
+    /// Raised when the player changes location, immediately after all temporary stages are hidden.
+    /// </summary>
+    event Action<StageLocation> LocationChanged;
 }
 
 /// <summary>

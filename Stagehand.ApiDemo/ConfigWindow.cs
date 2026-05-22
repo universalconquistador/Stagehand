@@ -3,6 +3,8 @@ using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
+using Dalamud.Plugin.Services;
+using Lumina.Excel.Sheets;
 using Stagehand.Api;
 using System;
 using System.Collections.Generic;
@@ -15,15 +17,17 @@ namespace Stagehand.ApiDemo;
 public class ConfigWindow : Window, IDisposable
 {
     private readonly Configuration _configuration;
+    private readonly IDataManager _dataManager;
     private readonly IStagehandApi _stagehandApi;
 
     private bool _wasAvailable = false;
     private LocalStageDefinition[] _localStages = Array.Empty<LocalStageDefinition>();
 
-    public ConfigWindow(Configuration configuration, IStagehandApi stagehandApi)
+    public ConfigWindow(Configuration configuration, IDataManager dataManager, IStagehandApi stagehandApi)
         : base("Stagehand IPC Demo")
     {
         _configuration = configuration;
+        _dataManager = dataManager;
         _stagehandApi = stagehandApi;
 
         _stagehandApi.LocalStageDefinitionsChanged += OnLocalStageDefinitionsChanged;
@@ -80,6 +84,17 @@ public class ConfigWindow : Window, IDisposable
         {
             // Has a new enum member been added? Fail in debug builds!
             Debug.Assert(false);
+        }
+        ImGui.Spacing();
+        ImGui.TextUnformatted("Location: ");
+        ImGui.SameLine();
+        if (stagehandAvailability == StagehandApiAvailability.Available)
+        {
+            ImGui.TextWrapped(_stagehandApi.GetLocation().ToString(_dataManager));
+        }
+        else
+        {
+            ImGui.TextDisabled("(unavailable)");
         }
 
         ImGui.Spacing();
