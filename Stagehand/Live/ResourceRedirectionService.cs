@@ -157,7 +157,8 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
             {
                 ResourceRedirectionService._memoryResourceService.TryUnregisterMemoryResource(path.MemoryResourcePath);
             }
-            ResourceRedirectionService._liveModpacks.TryRemove(ID, out _);
+            var result = ResourceRedirectionService._liveModpacks.TryRemove(ID, out _);
+            Plugin.Log.Verbose("Modpack '{id}' ({debugName}) disposed. _liveModpacks Removal: {success}", ID, DebugName, result ? "SUCCESS" : "FAILURE");
         }
 
         public bool ModdedResourceExists(string gamePath)
@@ -388,7 +389,9 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
         }
 
         var newModpack = new LiveModpack(newId, debugName, ResourceRedirectionHelpers.HashModpackEffects(moddedResources), allRedirections, memoryResources, extractContext.Redirections, extractContext.DiskReplacements, this);
-        Debug.Assert(_liveModpacks.TryAdd(newId, newModpack));
+        var success = _liveModpacks.TryAdd(newId, newModpack);
+        Plugin.Log.Verbose("Modpack '{id}' ({debugName}) created. _liveModpacks addition: {success}", newModpack.ID, newModpack.DebugName, success ? "SUCCESS" : "FAILURE");
+        Debug.Assert(success);
         return newModpack;
     }
     private record struct ExtractModResourcesParams(string GamePath, Dictionary<string, string> Redirections, Dictionary<string, byte[]> MemoryReplacements, Dictionary<string, string> DiskReplacements);
@@ -434,6 +437,14 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
         gamePath = modpackPath.Substring(slashIndex + 1);
 
         var result = _liveModpacks.TryGetValue(modpackId, out var foundModpack);
+        if (!result)
+        {
+            Plugin.Log.Warning("No modpack exists with ID '{id}'!!!!", modpackId);
+        }
+        else
+        {
+            Plugin.Log.Verbose("Parsed modpack with ID '{id}' ({debugName})", modpackId, foundModpack.DebugName);
+        }
         modpack = foundModpack;
         return result;
     }
