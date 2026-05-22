@@ -104,3 +104,9 @@ Later down the road:
  - Modded files on disk are not fully implemented yet--use the embedded option instead.
  - Needs some UX around reusing modpacks from one Stage to another.
  - Modding support is by far the most tricky and fragile part of Stagehand (so far), so please PLEASE say something if you run into Stagehand crashes!
+
+## 0.4.1
+
+ - The initial IPC API is here! Developers can now use the [Stagehand.Api package](https://www.nuget.org/packages/Stagehand.Api/) and the [Stagehand.Definitions package](https://www.nuget.org/packages/Stagehand.Definitions/) to do awesome stuff programmatically with Stagehand! There is a demo plugin showing how to use each part of the API in the [Stagehand GitHub repository](https://github.com/universalconquistador/Stagehand).
+ - Adds a draggable horizontal splitter to the editor so you can see more objects or more properties!
+ - Adds an option in the Asset Library to preview the hovered asset using the transform of the targeted game object.
