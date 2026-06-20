@@ -2,31 +2,31 @@
     <Import Project="../Common.targets" />
 
     <PropertyGroup>
-    <ImplicitUsings>disable</ImplicitUsings>
-    <Nullable>enable</Nullable>
+        <ImplicitUsings>disable</ImplicitUsings>
+        <Nullable>enable</Nullable>
 
-    <!-- Dalamud Packager properties for the plugin manifest -->
-    <Author>UniversalConquistador</Author>
-    <Name>Stagehand API Demo</Name>
-    <Punchline>Simple demonstration of using the Stagehand API.</Punchline>
-    <Description>An example of how to use the Stagehand API.
+        <!-- Dalamud Packager properties for the plugin manifest -->
+        <Author>UniversalConquistador</Author>
+        <Name>Stagehand API Demo</Name>
+        <Punchline>Simple demonstration of using the Stagehand API.</Punchline>
+        <Description>An example of how to use the Stagehand API.
 Leaves a trail of VFX placements behind your character and lists the Stages in your library.
-    </Description>
-    <RepoUrl>https://github.com/universalconquistador/Stagehand</RepoUrl>
-    <Tags>objects;weapons;lights;lighting;models;background;gpose</Tags>
-    <CategoryTags></CategoryTags>
-    <LoadRequiredState>1</LoadRequiredState>
-    <LoadSync>true</LoadSync>
-    <CanUnloadAsync>false</CanUnloadAsync>
-    <LoadPriority>1</LoadPriority>
-    <ImageUrls></ImageUrls>
-    <IconUrl>https://github.com/universalconquistador/Stagehand/releases/latest/download/icon.png</IconUrl>
-    <Changelog></Changelog>
-  </PropertyGroup>
+        </Description>
+        <RepoUrl>https://github.com/universalconquistador/Stagehand</RepoUrl>
+        <Tags>objects;weapons;lights;lighting;models;background;gpose</Tags>
+        <CategoryTags></CategoryTags>
+        <LoadRequiredState>1</LoadRequiredState>
+        <LoadSync>true</LoadSync>
+        <CanUnloadAsync>false</CanUnloadAsync>
+        <LoadPriority>1</LoadPriority>
+        <ImageUrls></ImageUrls>
+        <IconUrl>https://github.com/universalconquistador/Stagehand/releases/latest/download/icon.png</IconUrl>
+        <Changelog></Changelog>
+    </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Stagehand.Api\Stagehand.Api.csproj" />
-      <ProjectReference Include="..\Stagehand.Definitions\Stagehand.Definitions.csproj" />
+        <ProjectReference Include="..\Stagehand.Api\Stagehand.Api.csproj" />
+        <ProjectReference Include="..\Stagehand.Definitions\Stagehand.Definitions.csproj" />
     </ItemGroup>
 
 </Project>

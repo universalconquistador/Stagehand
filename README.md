@@ -37,10 +37,10 @@ Stagehand is made up of several C# projects:
  - The `Stagehand.Editor` namespace, containing all the code for the definition editor
 
 
-### IPC (NOT YET IMPLEMENTED)
+### IPC
 
 The Stagehand IPC API is defined in the `Stagehand.Api.IStagehandApi` interface.
-It lets plugins query the local Stage definitions, create and destroy temporary Stages, and show and hide both local and temporary Stages.
+It lets plugins query the local Stage definitions and create, show, hide, and destroy temporary Stages.
 
 To get started, reference the `Stagehand.Api` NuGet package and call `StagehandApi.CreateIpcClient()`.
 For more information, see the [README](Stagehand.Api/README.md).
