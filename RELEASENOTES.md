@@ -32,7 +32,7 @@ Not yet implemented: (in no particular order)
  - ~~3D light widgets to show spot light cone angle, etc~~
  - Better resource browsing for model & VFX resources
  - Public website for documentation
- - IPC API to facilitate e.g. sync services
+ - ~~IPC API to facilitate e.g. sync services~~
 
 Later down the road:
  - Support for modded models, weapons, and VFX
@@ -110,3 +110,7 @@ Later down the road:
  - The initial IPC API is here! Developers can now use the [Stagehand.Api package](https://www.nuget.org/packages/Stagehand.Api/) and the [Stagehand.Definitions package](https://www.nuget.org/packages/Stagehand.Definitions/) to do awesome stuff programmatically with Stagehand! There is a demo plugin showing how to use each part of the API in the [Stagehand GitHub repository](https://github.com/universalconquistador/Stagehand).
  - Adds a draggable horizontal splitter to the editor so you can see more objects or more properties!
  - Adds an option in the Asset Library to preview the hovered asset using the transform of the targeted game object.
+
+## 0.4.2 & 0.4.3
+
+ - Fixes an issue I caused where lights and object dyes were not correctly being applied when a stage was shown.
