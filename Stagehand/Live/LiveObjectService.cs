@@ -302,14 +302,20 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
         public static ILiveObject? VisitBgObjectDefinition(BgObjectDefinition definition, ref LiveObjectFactoryParams param)
         {
             var bgObject = param.LiveObjectService.CreateBgObject(definition.ModelGamePath, definition.Position, definition.RotationQuaternion, definition.Scale, param.Modpack);
-            Debug.Assert(bgObject?.TryUpdate(definition, param.Modpack) ?? false);
+            bool updated = bgObject?.TryUpdate(definition, param.Modpack) ?? false;
+            // If TryUpdate had to create a new object, that's a dev problem. The creation above should produce a bgobject that can be updated to the given
+            // definition without needing to be recreated.
+            Debug.Assert(updated);
             return bgObject;
         }
 
         public static ILiveObject? VisitLightDefinition(LightDefinition definition, ref LiveObjectFactoryParams param)
         {
             var light = param.LiveObjectService.CreateLight(definition.Shape switch { LightShape.Ambient => RenderLightShape.WorldLight, LightShape.Point => RenderLightShape.PointLight, LightShape.Spot => RenderLightShape.SpotLight, LightShape.Flat => RenderLightShape.FlatLight, _ => RenderLightShape.PointLight }, param.Modpack);
-            Debug.Assert(light?.TryUpdate(definition, param.Modpack) ?? false);
+            bool updated = light?.TryUpdate(definition, param.Modpack) ?? false;
+            // If TryUpdate had to create a new object, that's a dev problem. The creation above should produce a light that can be updated to the given
+            // definition without needing to be recreated.
+            Debug.Assert(updated);
             return light;
         }
 
