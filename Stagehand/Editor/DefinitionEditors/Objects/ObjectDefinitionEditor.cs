@@ -1,11 +1,16 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
+using Dalamud.Interface.Colors;
+using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
+using Dalamud.Plugin.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Stagehand.Definitions.Objects;
 using Stagehand.Editor.Services;
 using Stagehand.Live;
 using Stagehand.Services;
+using Stagehand.Windows;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -51,6 +56,8 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
     protected ISelectionManager SelectionManager { get; }
     protected IOverlayService OverlayService { get; }
     protected ILiveObjectService LiveObjectService { get; }
+    protected IAssetLibraryWindow AssetLibraryWindow { get; }
+    protected IDataManager DataManager { get; }
 
     protected TDefinition Definition { get; }
     public string Key { get; }
@@ -125,6 +132,8 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         SelectionManager = serviceProvider.GetRequiredService<ISelectionManager>();
         OverlayService = serviceProvider.GetRequiredService<IOverlayService>();
         LiveObjectService = serviceProvider.GetRequiredService<ILiveObjectService>();
+        AssetLibraryWindow = serviceProvider.GetRequiredService<IAssetLibraryWindow>();
+        DataManager = serviceProvider.GetRequiredService<IDataManager>();
 
         Definition = definition;
         Key = key;
@@ -210,6 +219,48 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         }
 
         ImGuiHelpers.ScaledDummy(4.0f);
+    }
+
+    protected bool DrawResourceGamePath(string propertyName, ref string gamePath)
+    {
+        var result = false;
+        if (ImGui.InputText(propertyName, ref gamePath, 1024, ImGuiInputTextFlags.EnterReturnsTrue))
+        {
+            result = true;
+        }
+
+        bool existsModded = !string.IsNullOrEmpty(ModpackId) && GetPreviewModpack() is ILiveModpack liveModpack && liveModpack.ModdedResourceExists(gamePath);
+        string modpackName = (!string.IsNullOrEmpty(ModpackId) && Stage.EmbeddedModpacks.TryGetValue(ModpackId, out var modpack)) ? modpack.DisplayName : string.Empty;
+        bool existsVanilla = DataManager.GameData.FileExists(gamePath);
+        var icon = existsModded ? FontAwesomeIcon.PlusCircle : existsVanilla ? FontAwesomeIcon.CheckCircle : FontAwesomeIcon.ExclamationCircle;
+        float propertiesColumnWidth = (ImGui.GetContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) * 0.333f;
+        ImGui.SameLine(ImGui.GetContentRegionMax().X - propertiesColumnWidth - 16.0f * ImGuiHelpers.GlobalScale);
+        using (ImRaii.PushColor(ImGuiCol.Text, existsModded ? ImGuiColors.HealerGreen : existsVanilla ? ImGuiColors.DalamudWhite : ImGuiColors.DPSRed))
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            ImGui.TextUnformatted(icon.ToIconString());
+        }
+        if (ImGui.IsItemHovered())
+        {
+            using (ImRaii.Tooltip())
+            {
+                ImGui.TextUnformatted(existsModded ? $"Game path is modded in {modpackName}" : existsVanilla ? "Game path exists" : "Game path does not exist");
+            }
+        }
+        ImGui.SameLine(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight());
+        if (ImGuiComponents.IconButton(IAssetLibraryWindow.Icon, new Vector2(ImGui.GetFrameHeight(), ImGui.GetFrameHeight())))
+        {
+            AssetLibraryWindow.Show();
+        }
+        if (ImGui.IsItemHovered())
+        {
+            using (ImRaii.Tooltip())
+            {
+                ImGui.TextUnformatted("Open the Asset Library");
+            }
+        }
+
+        return result;
     }
 
     protected virtual IEnumerable<OutlinerContextMenuItem> GenerateContextMenuItems()
