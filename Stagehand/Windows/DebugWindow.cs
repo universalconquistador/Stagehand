@@ -1,3 +1,5 @@
+#define ENABLE_RENDER_HOOK_TESTS
+
 using Dalamud.Bindings.ImGui;
 using Dalamud.Bindings.ImGuizmo;
 using Dalamud.Hooking;
@@ -8,12 +10,16 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using FFXIVClientStructs.FFXIV.Client.Graphics;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Environment;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.System.Input;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using FFXIVClientStructs.Interop;
+using Lumina.Models.Materials;
 using Microsoft.Extensions.Hosting;
 using Stagehand.Api;
 using Stagehand.Live;
@@ -29,7 +35,10 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using TerraFX.Interop.DirectX;
+using static FFXIVClientStructs.Interop.ThreadLocals;
 using static Stagehand.Live.LiveVfxObject;
+using Light = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Light;
 using Object = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object;
 
 namespace Stagehand.Windows;
@@ -45,6 +54,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
         Oriented,
     }
 
+    private readonly ILogger _logger;
     private readonly IFramework _framework;
     private readonly ICommandManager _commandManager;
     private readonly IGameInteropProvider _gameInteropProvider;
@@ -63,9 +73,11 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
     private Object* _selectedObject = null;
     private BoundsMode _boundsMode = BoundsMode.Oriented;
 
-#if false
-    private Hook<FFXIVClientStructs.FFXIV.Client.Graphics.Render.TerrainRenderer.Delegates.QueueRenderJob> _terrainRendererQueueRenderJobHook;
-    private Hook<FFXIVClientStructs.FFXIV.Client.Graphics.Render.ModelRenderer.Delegates.QueueRenderJob> _modelRendererQueueRenderJobHook;
+#if ENABLE_RENDER_HOOK_TESTS
+    //private Hook<FFXIVClientStructs.FFXIV.Client.Graphics.Render.TerrainRenderer.Delegates.QueueRenderJob> _terrainRendererQueueRenderJobHook;
+    //private Hook<FFXIVClientStructs.FFXIV.Client.Graphics.Render.ModelRenderer.Delegates.QueueRenderJob> _modelRendererQueueRenderJobHook;
+    private Hook<FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.ImmediateContext.Delegates.DoClearCommandViaDraw> _clearCommandDrawHook;
+    private Hook<AtkServer.Delegates.ProcessUICommands> _atkServerProcessUICommandsHook;
 
     Vector4 _clearColorValue = Vector4.Zero;
     float _clearDepthValue = 0.0f;
@@ -78,7 +90,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
 
     private bool _suppressInput = false;
 
-    public DebugWindow(IFramework framework, ICommandManager commandManager, IGameInteropProvider gameInteropProvider, IObjectTable objectTable, IGameGui gameGui, IClientState clientState, IPlayerState playerState, WindowSystem windowSystem, IOverlayService overlayService, ILiveObjectService liveObjectService, IModelBvhCacheService modelBvhCacheService)
+    public DebugWindow(ILogger<DebugWindow> logger, IFramework framework, ICommandManager commandManager, IGameInteropProvider gameInteropProvider, IObjectTable objectTable, IGameGui gameGui, IClientState clientState, IPlayerState playerState, WindowSystem windowSystem, IOverlayService overlayService, ILiveObjectService liveObjectService, IModelBvhCacheService modelBvhCacheService)
         : base("Stagehand Debug", ImGuiWindowFlags.None)
     {
         SizeConstraints = new WindowSizeConstraints
@@ -87,6 +99,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue)
         };
 
+        _logger = logger;
         _framework = framework;
         _commandManager = commandManager;
         _gameInteropProvider = gameInteropProvider;
@@ -100,64 +113,113 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
         _liveObjectService = liveObjectService;
         _modelBvhCacheService = modelBvhCacheService;
 
-#if false
+#if ENABLE_RENDER_HOOK_TESTS
 
-        _terrainRendererQueueRenderJobHook = gameInteropProvider.HookFromAddress<FFXIVClientStructs.FFXIV.Client.Graphics.Render.TerrainRenderer.Delegates.QueueRenderJob>(FFXIVClientStructs.FFXIV.Client.Graphics.Render.TerrainRenderer.MemberFunctionPointers.QueueRenderJob_Sig, TerrainRendererQueueRenderJob);
-        _terrainRendererQueueRenderJobHook.Enable();
+        //_terrainRendererQueueRenderJobHook = gameInteropProvider.HookFromAddress<FFXIVClientStructs.FFXIV.Client.Graphics.Render.TerrainRenderer.Delegates.QueueRenderJob>(FFXIVClientStructs.FFXIV.Client.Graphics.Render.TerrainRenderer.MemberFunctionPointers.QueueRenderJob_Sig, TerrainRendererQueueRenderJob);
+        //_terrainRendererQueueRenderJobHook.Enable();
 
-        _modelRendererQueueRenderJobHook = gameInteropProvider.HookFromAddress<FFXIVClientStructs.FFXIV.Client.Graphics.Render.ModelRenderer.Delegates.QueueRenderJob>(FFXIVClientStructs.FFXIV.Client.Graphics.Render.ModelRenderer.MemberFunctionPointers.QueueRenderJob_Sig, ModelRendererQueueRenderJob);
-        _modelRendererQueueRenderJobHook.Enable();
+        //_modelRendererQueueRenderJobHook = gameInteropProvider.HookFromAddress<FFXIVClientStructs.FFXIV.Client.Graphics.Render.ModelRenderer.Delegates.QueueRenderJob>(FFXIVClientStructs.FFXIV.Client.Graphics.Render.ModelRenderer.MemberFunctionPointers.QueueRenderJob_Sig, ModelRendererQueueRenderJob);
+        //_modelRendererQueueRenderJobHook.Enable();
+
+        _clearCommandDrawHook = gameInteropProvider.HookFromAddress<ImmediateContext.Delegates.DoClearCommandViaDraw>(ImmediateContext.Addresses.DoClearCommandViaDraw.Value, ClearCommandDraw_Detour);
+        _clearCommandDrawHook.Enable();
+
+        _atkServerProcessUICommandsHook = gameInteropProvider.HookFromAddress<AtkServer.Delegates.ProcessUICommands>(AtkServer.Addresses.ProcessUICommandsAlt.Value, AtkServerProcessUICommands_Detour);
+        _atkServerProcessUICommandsHook.Enable();
 #endif
+
+        //ImDrawDataBuilder builder = new ImDrawDataBuilder();
+        //builder.Clear
+
+        // Set ImGui context
+
+        //using (var drawData = BufferBackedImDrawData.Create())
+        //{
+        //    //drawData.ListPtr;
+        //}
+
+        // Clear ImGui context
     }
 
-#if false
-    [StructLayout(LayoutKind.Explicit, Size = 0x100)] // unknown size
-    private struct _TEB
-    {
-        [FieldOffset(0x58)] public IntPtr* ThreadLocalStoragePointer;
-    }
-
-    [LibraryImport("ThreadLocalHelper.dll")]
-    private unsafe static partial _TEB* GetTEB();
-
-    [LibraryImport("Kernel32.dll")]
-    private unsafe static partial void* TlsGetValue(uint dwTlsIndex);
+#if ENABLE_RENDER_HOOK_TESTS
 
     private static int frameCount = 0;
-    private long TerrainRendererQueueRenderJob(FFXIVClientStructs.FFXIV.Client.Graphics.Render.TerrainRenderer* thisPtr)
+    //private long TerrainRendererQueueRenderJob(FFXIVClientStructs.FFXIV.Client.Graphics.Render.TerrainRenderer* thisPtr)
+    //{
+    //    var result = _terrainRendererQueueRenderJobHook.Original.Invoke(thisPtr);
+
+    //    //var tlsIndex = 0;
+    //    //var threadLocals = *(GetTEB()->ThreadLocalStoragePointer + tlsIndex);
+    //    //Context* context = *(Context**)(threadLocals + 0x238);
+    //    //var clearCommand = (RenderCommandClearDepth*)context->AllocateCommand((ulong)Marshal.SizeOf<RenderCommandClearDepth>());
+
+    //    //AddClearCommand(context);
+
+    //    return result;
+    //}
+
+    //private long ModelRendererQueueRenderJob(FFXIVClientStructs.FFXIV.Client.Graphics.Render.ModelRenderer* thisPtr)
+    //{
+
+    //    //var tlsIndex = 0;
+    //    //var threadLocals = (ThreadLocals*)*(GetTEB()->ThreadLocalStoragePointer + tlsIndex);
+    //    ////Context* context = *(Context**)(threadLocals + 0x238);
+    //    //var context = threadLocals->GraphicsKernelContext;
+    //    //var clearCommand = (RenderCommandClearDepth*)context->AllocateCommand(4, (ulong)Marshal.SizeOf<RenderCommandClearDepth>());
+
+    //    //AddClearCommand(context);
+
+    //    var result = _modelRendererQueueRenderJobHook.Original.Invoke(thisPtr);
+
+    //    return result;
+    //}
+
+    Context* GetContext()
     {
-        var result = _terrainRendererQueueRenderJobHook.Original.Invoke(thisPtr);
-
-        //var tlsIndex = 0;
-        //var threadLocals = *(GetTEB()->ThreadLocalStoragePointer + tlsIndex);
-        //Context* context = *(Context**)(threadLocals + 0x238);
-        //var clearCommand = (RenderCommandClearDepth*)context->AllocateCommand((ulong)Marshal.SizeOf<RenderCommandClearDepth>());
-
-        //AddClearCommand(context);
-
-        return result;
+        return ThreadLocals.ThreadLocalInstance()->GraphicsKernelContext;
     }
 
-    private long ModelRendererQueueRenderJob(FFXIVClientStructs.FFXIV.Client.Graphics.Render.ModelRenderer* thisPtr)
+    private void AtkServerProcessUICommands_Detour(AtkServer* atkServer, bool unk)
     {
+        var context = GetContext();
 
-        var tlsIndex = 0;
-        var threadLocals = *(GetTEB()->ThreadLocalStoragePointer + tlsIndex);
-        Context* context = *(Context**)(threadLocals + 0x238);
-        var clearCommand = (RenderCommandClearDepth*)context->AllocateCommand((ulong)Marshal.SizeOf<RenderCommandClearDepth>());
-
+        //var backbuffer = Device.Instance()->SwapChain->BackBuffer;
+        var backbuffer = RenderTargetManager.Instance()->SwapChainBackBuffer;
+        context->SetRenderTargets(1, &backbuffer, null, 0, 0, 0, 0);
         AddClearCommand(context);
 
-        var result = _modelRendererQueueRenderJobHook.Original.Invoke(thisPtr);
+        _atkServerProcessUICommandsHook?.Original.Invoke(atkServer, unk);
+    }
 
-        return result;
+    private void ClearCommandDraw_Detour(ImmediateContext* context, RenderCommandClear* clearCommand)
+    {
+        if (clearCommand->ClearFlags == ClearFlags.None)
+        {
+            var customRenderCommand = (CustomRenderCommand*)clearCommand;
+            if (customRenderCommand->Guard1 == CustomRenderCommand.GuardValue && customRenderCommand->Guard2 == CustomRenderCommand.GuardValue && customRenderCommand->Callback.IsAllocated)
+            {
+                try
+                {
+                    customRenderCommand->Callback.Target.Invoke(context);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Exception in custom render command!");
+                }
+                finally
+                {
+                    customRenderCommand->Callback.Dispose();
+                }
+            }
+        }
+        _clearCommandDrawHook?.OriginalDisposeSafe?.Invoke(context, clearCommand);
     }
 
     private void AddClearCommand(Context* context)
     {
-        var clearCommand = (RenderCommandClearDepth*)context->AllocateCommand((ulong)Marshal.SizeOf<RenderCommandClearDepth>());
+        var clearCommand = (RenderCommandClear*)context->AllocateSpecificCommand(RenderCommandType.Clear, (ulong)Marshal.SizeOf<RenderCommandClear>());
 
-        clearCommand->SwitchType = 4;
+        //clearCommand->SwitchType = 4;
         clearCommand->ClearFlags = (_clearColor ? ClearFlags.Color : ClearFlags.None) | (_clearDepth ? ClearFlags.Depth : ClearFlags.None) | (_clearStencil ? ClearFlags.Stencil : ClearFlags.None);
         clearCommand->ColorB = _clearColorValue.X;
         clearCommand->ColorG = _clearColorValue.Y;
@@ -165,17 +227,61 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
         clearCommand->ColorA = _clearColorValue.W;
         clearCommand->ClearDepth = _clearDepthValue;
         clearCommand->ClearStencil = _clearStencilValue; // 0xFF00;
-        clearCommand->RectPtr = (void*)0;
+        clearCommand->ClearRectanglePtr = (FFXIVClientStructs.FFXIV.Common.Math.IntRectangle*)0;
 
         context->PushBackCommand(clearCommand);
+    }
+
+    [StructLayout(LayoutKind.Explicit, Size = 0x40)]
+    private struct CustomRenderCommand
+    {
+        public const ulong GuardValue = 0xDEADBEEFDEADBEEFul;
+
+        [FieldOffset(0x00)] public RenderCommandClear BaseCommand;
+        [FieldOffset(0x08)] public GCHandle<Action<Pointer<ImmediateContext>>> Callback;
+        // Stomp over the rest of the clear color and the depth and stencil values with 16 sentinel bytes just to be absolutely sure this is a custom render command
+        [FieldOffset(0x10)] public ulong Guard1;
+        [FieldOffset(0x18)] public ulong Guard2;
+    }
+
+    private void AddCustomCommand(Context* context, Action<Pointer<ImmediateContext>> callback)
+    {
+        var customCommand = (CustomRenderCommand*)context->AllocateSpecificCommand(RenderCommandType.Clear, (ulong)Marshal.SizeOf<CustomRenderCommand>());
+        customCommand->BaseCommand.ClearFlags = ClearFlags.None;
+        customCommand->Callback = new(callback);
+        customCommand->Guard1 = CustomRenderCommand.GuardValue;
+        customCommand->Guard2 = CustomRenderCommand.GuardValue;
+        customCommand->BaseCommand.ClearRectanglePtr = null;
+
+        context->PushBackCommand(customCommand);
+    }
+
+    private void AddTestDrawingCommand(Context* context)
+    {
+        //_logger.LogWarning("Queueing test drawing command!");
+
+        AddCustomCommand(context, context =>
+        {
+            //Device.Instance()->D3D11Forwarder
+            var immediateContext = (ID3D11DeviceContext*)context.Value->D3D11DeviceContext_2;
+            using (var stateBackup = new D3D11DeviceContextStateBackup((D3D_FEATURE_LEVEL)Device.Instance()->D3DFeatureLevel, immediateContext))
+            {
+                immediateContext->ClearState();
+                // TODO: Draw in the scene!
+                // g_Client::Graphics::Scene::CameraManager_PtrInstance->Cameras[g_Client::Graphics::Scene::CameraManager_PtrInstance->CameraIndex];
+            }
+            //_logger.LogWarning("In test drawing command!");
+        });
     }
 #endif
 
     public void Dispose()
     {
-#if false
-        _modelRendererQueueRenderJobHook?.Dispose();
-        _terrainRendererQueueRenderJobHook?.Dispose();
+#if ENABLE_RENDER_HOOK_TESTS
+        _atkServerProcessUICommandsHook?.Dispose();
+        _clearCommandDrawHook?.Dispose();
+        //_modelRendererQueueRenderJobHook?.Dispose();
+        //_terrainRendererQueueRenderJobHook?.Dispose();
 #endif
 
         foreach (var item in createdObjects)
@@ -194,7 +300,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
     bool _scrollSelectionInfoFrame = false;
     public override void Draw()
     {
-#if false
+#if ENABLE_RENDER_HOOK_TESTS
         ImGui.ColorEdit4("Clear Color Value", ref _clearColorValue);
         ImGui.SliderFloat("Clear Depth Value", ref _clearDepthValue, 0.0f, 1.0f);
         ImGui.SliderByte("Clear Stencil Value", ref _clearStencilValue, 0, 255);
@@ -250,6 +356,25 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
                         {
                             ImGui.TextDisabled("World.Instance() returned null.");
                         }
+
+                        //var envManager = EnvManager.Instance();
+                        //if (envManager != null)
+                        //{
+                        //    if (envManager->EnvSpace != null)
+                        //    {
+                        //        DrawObjectTree((Object*)envManager->EnvSpace, ref foundSelectedObject);
+                        //    }
+
+                        //    foreach (var thing in envManager->EnvScene->EnvSpaces)
+                        //    {
+                        //        DrawObjectTree((Object*)&thing, ref foundSelectedObject);
+                        //    }
+
+                        //    for (int i = 0; i < envManager->EnvScene->LocationCount; i++)
+                        //    {
+                        //        DrawObjectTree((Object*)envManager->EnvScene->Locations[i], ref foundSelectedObject);
+                        //    }
+                        //}
                     }
                 }
 
@@ -295,48 +420,18 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
                         {
                             var vfx = (VfxObject*)_selectedObject;
 
-                            string vfxResourceGamePath;
+                            ResourceHandle* vfxResourceHandle = null;
                             var vfxResource = (VfxResourceInstance__Internal*)vfx->VfxResourceInstance;
                             if (vfxResource != null)
                             {
                                 var resourceUnk = vfxResource->VfxResourceUnk;
                                 if (resourceUnk != null)
                                 {
-                                    var apricotResourceHandle = resourceUnk->ApricotResourceHandle;
-                                    if (apricotResourceHandle != null)
-                                    {
-                                        vfxResourceGamePath = apricotResourceHandle->FileName.ToString();
-                                    }
-                                    else
-                                    {
-                                        vfxResourceGamePath = string.Empty;
-                                    }
+                                    vfxResourceHandle = (ResourceHandle*)resourceUnk->ApricotResourceHandle;
                                 }
-                                else
-                                {
-                                    vfxResourceGamePath = string.Empty;
-                                }
-                            }
-                            else
-                            {
-                                vfxResourceGamePath = string.Empty;
                             }
 
-
-                            ImGui.LabelText("Vfx Path", vfxResourceGamePath);
-                            if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
-                            {
-                                ImGui.SetClipboardText(vfxResourceGamePath);
-                            }
-                            if (ImGui.IsItemHovered())
-                            {
-                                using (ImRaii.Tooltip())
-                                {
-                                    ImGui.Text(vfxResourceGamePath);
-                                    ImGui.Separator();
-                                    ImGui.TextDisabled("Click to copy");
-                                }
-                            }
+                            DrawResourceHandle("Vfx Path", vfxResourceHandle);
 
                             var transparency = vfx->GetTransparency();
                             if (ImGui.SliderFloat("Transparency", ref transparency, vMin: 0.0f, vMax: 1.0f))
@@ -457,20 +552,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
                             {
                                 var bgObject = (BgObject*)_selectedObject;
 
-                                ImGui.LabelText("Model Path", bgObject->ModelResourceHandle->FileName.ToString());
-                                if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
-                                {
-                                    ImGui.SetClipboardText(bgObject->ModelResourceHandle->FileName.ToString());
-                                }
-                                if (ImGui.IsItemHovered())
-                                {
-                                    using (ImRaii.Tooltip())
-                                    {
-                                        ImGui.Text(bgObject->ModelResourceHandle->FileName.ToString());
-                                        ImGui.Separator();
-                                        ImGui.TextDisabled("Click to copy");
-                                    }
-                                }
+                                DrawResourceHandle("Model Path", (ResourceHandle*)bgObject->ModelResourceHandle);
 
                                 var transparency = bgObject->GetTransparency();
                                 if (ImGui.SliderFloat("Transparency", ref transparency, vMin: 0.0f, vMax: 1.0f))
@@ -501,6 +583,24 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
 
                                 break;
                             }
+                        //case ObjectType.EnvLocation:
+                        //    {
+                        //        var envLocation = (EnvLocation*)_selectedObject;
+
+                        //        DrawResourceHandle("Ambient Set Resource Handle", envLocation->AmbientSetResource);
+                        //        DrawResourceHandle("Environment Cubemap Texture Resource Handle", (ResourceHandle*)envLocation->EnvironmentCubemapTextureResource);
+
+                        //        break;
+                        //    }
+                        //case ObjectType.EnvSpace:
+                        //    {
+                        //        var envSpace = (EnvSpace*)_selectedObject;
+
+                        //        DrawResourceHandle("Env Set Resource Handle", envSpace->EnvSetResourceHandle);
+                        //        DrawResourceHandle("Sound Set Resource Handle", envSpace->SoundSetResourceHandle);
+
+                        //        break;
+                        //    }
                     }
                 }
                 else
@@ -560,6 +660,42 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
 
                     createdObjects.Clear();
                 }
+            }
+        }
+    }
+
+    private void DrawResourceHandle(string label, ResourceHandle* resourceHandle)
+    {
+        if (resourceHandle == null)
+        {
+            ImGui.LabelText(label, "(null)");
+        }
+        else
+        {
+            string path = "(overflow reading string)";
+            //try
+            //{
+                path = resourceHandle->FileName.ToString();
+            //}
+            //catch (OverflowException)
+            //{ }
+            ImGui.LabelText(label, path);
+            if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
+            {
+                ImGui.SetClipboardText(path);
+            }
+            if (ImGui.IsItemHovered())
+            {
+                using (ImRaii.Tooltip())
+                {
+                    ImGui.Text(path);
+                    ImGui.Separator();
+                    ImGui.TextDisabled("Click to copy");
+                }
+            }
+            using (ImRaii.PushIndent())
+            {
+                ImGui.TextDisabled($"Load state: {resourceHandle->LoadState}");
             }
         }
     }
@@ -637,6 +773,15 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
                 {
                     DrawObjectTree(child, ref foundSelectedObject);
                 }
+
+                if (obj->GetObjectType() == ObjectType.EnvSpace)
+                {
+                    var space = (EnvSpace*)obj;
+                    if (space->EnvLocation != null)
+                    {
+                        DrawObjectTree((Object*)space->EnvLocation, ref foundSelectedObject);
+                    }
+                }
             }
         }
 
@@ -656,7 +801,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
         var yDir = Vector3.Transform(Vector3.UnitY, obj->Rotation);
         var zDir = Vector3.Transform(Vector3.UnitZ, obj->Rotation);
 
-        if (type == ObjectType.BgObject || type == ObjectType.Light || type == ObjectType.CharacterBase || type == ObjectType.VfxObject)
+        if (type == ObjectType.BgObject || type == ObjectType.Light || type == ObjectType.CharacterBase || type == ObjectType.VfxObject || type == ObjectType.Decal || type == ObjectType.EnvSpace || type == ObjectType.EnvLocation)
         {
             var drawObj = (DrawObject*)obj;
 
@@ -830,7 +975,27 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
             float nearestDistanceSq = float.MaxValue;
             Object* nearestObject = null;
             DrawObjectOverlays((Object*)worldObject, overlay, mouseRay, ref nearestDistanceSq, ref nearestObject);
-        
+
+            //var envManager = EnvManager.Instance();
+            //if (envManager != null)
+            //{
+            //    if (envManager->EnvSpace != null)
+            //    {
+            //        DrawObjectOverlays((Object*)envManager->EnvSpace, overlay, mouseRay, ref nearestDistanceSq, ref nearestObject);
+            //    }
+
+            //    foreach (var thing in envManager->EnvScene->EnvSpaces)
+            //    {
+            //        DrawObjectOverlays((Object*)&thing, overlay, mouseRay, ref nearestDistanceSq, ref nearestObject);
+            //    }
+
+            //    for (int i = 0; i < envManager->EnvScene->LocationCount; i++)
+            //    {
+            //        DrawObjectOverlays((Object*)envManager->EnvScene->Locations[i], overlay, mouseRay, ref nearestDistanceSq, ref nearestObject);
+            //    }
+            //}
+
+
             if (nearestObject != null && _overlayService.IsPicking)
             {
                 ImGui.GetIO().WantCaptureMouse = true;
