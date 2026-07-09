@@ -1,0 +1,39 @@
+﻿<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+    <Import Project="../Common.targets" />
+
+    <PropertyGroup>
+        <ImplicitUsings>disable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+
+        <!-- Dalamud Packager properties for the plugin manifest -->
+        <Author>UniversalConquistador</Author>
+        <Name>Stagehand Asset Thumbnailer</Name>
+        <Punchline>Stagehand thumbnail capture tool.</Punchline>
+        <Description>Captures asset thumbnail images for the Stagehand asset library.</Description>
+        <RepoUrl>https://github.com/universalconquistador/Stagehand</RepoUrl>
+        <Tags>objects;weapons;lights;lighting;models;background;gpose</Tags>
+        <CategoryTags></CategoryTags>
+        <LoadRequiredState>1</LoadRequiredState>
+        <LoadSync>true</LoadSync>
+        <CanUnloadAsync>false</CanUnloadAsync>
+        <LoadPriority>1</LoadPriority>
+        <ImageUrls></ImageUrls>
+        <IconUrl>https://github.com/universalconquistador/Stagehand/releases/latest/download/icon.png</IconUrl>
+        <Changelog></Changelog>
+        
+        <Use_Dalamud_FFXIVClientStructs Condition="'$(Configuration)'=='Debug'">false</Use_Dalamud_FFXIVClientStructs>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Compile Include="..\Stagehand\Utils\Crc32Hasher.cs" Link="Crc32Hasher.cs" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj" Condition="'$(Configuration)'=='Debug'" Private="True" />
+        <ProjectReference Include="..\..\FFXIVClientStructs\InteropGenerator.Runtime\InteropGenerator.Runtime.csproj" Condition="'$(Configuration)'=='Debug'" Private="True" />
+        
+        <ProjectReference Include="..\Stagehand.Api\Stagehand.Api.csproj" />
+        <ProjectReference Include="..\Stagehand.Definitions\Stagehand.Definitions.csproj" />
+    </ItemGroup>
+
+</Project>
