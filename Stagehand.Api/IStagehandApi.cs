@@ -84,7 +84,7 @@ public enum StagehandApiAvailability
 }
 
 /// <summary>
-/// Helpers for consuming the Staghand IPC API.
+/// Helpers for consuming the Stagehand IPC API.
 /// </summary>
 public static class StagehandApiExtensions
 {
