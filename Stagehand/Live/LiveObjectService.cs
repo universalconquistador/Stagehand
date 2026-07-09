@@ -319,6 +319,12 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
             return light;
         }
 
+        public static ILiveObject? VisitSoundObjectDefinition(SoundObjectDefinition definition, ref LiveObjectFactoryParams param)
+        {
+            // TODO: Implement!
+            throw new NotImplementedException();
+        }
+
         public static ILiveObject? VisitVfxObjectDefinition(VfxObjectDefinition definition, ref LiveObjectFactoryParams param)
         {
             var vfxObject = param.LiveObjectService.CreateVfx(definition.VfxGamePath, definition.Position, definition.RotationQuaternion, definition.Scale, definition.Color, param.Modpack);

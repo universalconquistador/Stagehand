@@ -190,6 +190,12 @@ public class StageDefinitionEditor : DefinitionEditorBase
             return new LightDefinitionEditor(param.ServiceProvider, definition, param.Key, param.Stage);
         }
 
+        public static IObjectDefinitionEditor VisitSoundObjectDefinition(SoundObjectDefinition definition, ref ObjectDefinitionEditorFactoryParams param)
+        {
+            // TODO: Implement!
+            throw new NotImplementedException();
+        }
+
         public static IObjectDefinitionEditor VisitVfxObjectDefinition(VfxObjectDefinition definition, ref ObjectDefinitionEditorFactoryParams param)
         {
             return new VfxObjectDefinitionEditor(param.ServiceProvider, definition, param.Key, param.Stage);
