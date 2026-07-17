@@ -192,8 +192,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
 
         public static IObjectDefinitionEditor VisitSoundObjectDefinition(SoundObjectDefinition definition, ref ObjectDefinitionEditorFactoryParams param)
         {
-            // TODO: Implement!
-            throw new NotImplementedException();
+            return new SoundObjectDefinitionEditor(param.ServiceProvider, definition, param.Key, param.Stage);
         }
 
         public static IObjectDefinitionEditor VisitVfxObjectDefinition(VfxObjectDefinition definition, ref ObjectDefinitionEditorFactoryParams param)

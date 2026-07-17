@@ -208,7 +208,8 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
                         ImGui.TableNextColumn();
                         bool isModelResource = entry.Key.EndsWith(".mdl", StringComparison.OrdinalIgnoreCase);
                         bool isVfxResource = entry.Key.EndsWith(".avfx", StringComparison.OrdinalIgnoreCase);
-                        if (isModelResource || isVfxResource)
+                        bool isScdResource = entry.Key.EndsWith(".scd", StringComparison.OrdinalIgnoreCase);
+                        if (isModelResource || isVfxResource || isScdResource)
                         {
                             if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus, new Vector2(ImGui.GetFrameHeight())))
                             {
@@ -221,6 +222,10 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
                                 else if (isVfxResource)
                                 {
                                     newDefinition = new VfxObjectDefinition() { VfxGamePath = entry.Key };
+                                }
+                                else if (isScdResource)
+                                {
+                                    newDefinition = new SoundObjectDefinition() { SoundGamePath = entry.Key };
                                 }
 
                                 if (newDefinition != null)

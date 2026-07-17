@@ -15,7 +15,7 @@ public class SoundObjectDefinition : ObjectDefinition
     public string SoundGamePath { get; set; } = "";
 
     /// <summary>
-    /// Which of the Sounds in the sound resource to play.
+    /// The index of the Sound in the sound resource to play.
     /// </summary>
     public int SoundIndex { get; set; } = 0;
 
