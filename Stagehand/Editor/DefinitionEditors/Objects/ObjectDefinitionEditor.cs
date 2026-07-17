@@ -68,6 +68,12 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
 
     public override string DisplayName => Definition.DisplayName;
 
+    public bool IsDisabled
+    {
+        get => Definition.IsDisabled;
+        set => SetPropertyValue(SetIsDisabledInternal, value, Definition.IsDisabled);
+    }
+
     public Vector3 Position
     {
         get => Definition.Position;
@@ -100,6 +106,12 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
     {
         get => Definition.ModpackId;
         set => SetPropertyValue(SetModpackIdInternal, value, Definition.ModpackId);
+    }
+
+    protected virtual void SetIsDisabledInternal(bool isDisabled)
+    {
+        Definition.IsDisabled = isDisabled;
+        OutlinerNode.IsVisible = !isDisabled;
     }
 
     protected virtual void SetPositionInternal(Vector3 position)
@@ -140,8 +152,18 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         Stage = stage;
 
         OutlinerNode = new OutlinerNode(definition.DisplayName, key, TypeInfo.Icon, TypeInfo.DisplayName, TypeInfo.Description);
+        OutlinerNode.IsVisible = !IsDisabled;
         OutlinerNode.Clicked += OnOutlinerNodeClicked;
+        OutlinerNode.IsVisibleClicked += OnOutlinerNodeIsVisibleClicked;
         OutlinerNode.ContextMenuItems = GenerateContextMenuItems();
+    }
+
+    private void OnOutlinerNodeIsVisibleClicked(OutlinerNode obj)
+    {
+        using (TransactionManager.BeginTransactionGroup($"{(IsDisabled ? "Enable" : "Disable")} {DisplayName}"))
+        {
+            IsDisabled = !IsDisabled;
+        }
     }
 
     private void OnOutlinerNodeClicked(OutlinerNode obj)

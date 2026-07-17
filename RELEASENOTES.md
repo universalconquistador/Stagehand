@@ -121,3 +121,7 @@ Later down the road:
  - Additionally, you can choose for a sound to be positional so that it sounds like it's coming from where you place the object.
  - Note that each `.scd` file can have multiple sounds in it, not just one! Use the Sound Index property on your sounds to specify which sound in the `.scd` resource to play. You can use the VfxEditor plugin's Sounds tab to load up an `.scd` resource and view the sounds within it.
  - The Asset Library has been updated with all the `.scd` resources in the vanilla game *that are placed in zones*. I want to expand this to all the other sounds used in the game, but until then you can use the VfxEditor plugin to explore the rest of the game's `.scd` resources.
+
+## 0.4.5
+
+ - Adds the ability to hide objects in the editor. Hidden objects have no effect on the scene, which is useful for many things like WIP stuff you don't want to get rid of or keeping a palette of base objects to duplicate.

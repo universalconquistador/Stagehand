@@ -452,7 +452,9 @@ internal class EditorWindow : Window, IDisposable
             flags |= ImGuiTreeNodeFlags.Selected;
         }
 
-        bool hovered = false;
+        bool showNodeTooltip = false;
+        string tooltipPrimary = node.TooltipPrimary;
+        string tooltipSecondary = node.TooltipSecondary;
         ImRaii.TreeNodeDisposable treeNode;
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
@@ -460,12 +462,56 @@ internal class EditorWindow : Window, IDisposable
         }
         using (treeNode)
         {
-            hovered = ImGui.IsItemHovered();
-            if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
+            showNodeTooltip = ImGui.IsItemHovered();
+            bool nodeLeftClicked = ImGui.IsItemClicked(ImGuiMouseButton.Left);
+            bool nodeRightClicked = ImGui.IsItemClicked(ImGuiMouseButton.Right);
+
+            ImGui.SameLine();
+
+            using (ImRaii.PushColor(ImGuiCol.Text, ImGui.GetStyle().Colors[(int)ImGuiCol.Text] * new Vector4(1.0f, 1.0f, 1.0f, 0.7f), node.IsHiddenByParent || (node.IsVisible == false)))
+            {
+                ImGui.TextUnformatted($" {node.DisplayName}");
+            }
+
+            var localVisibility = node.IsVisible;
+            if (localVisibility != null)
+            {
+                using (ImRaii.PushColor(ImGuiCol.Text, ImGui.GetStyle().Colors[(int)ImGuiCol.Text] * new Vector4(1.0f, 1.0f, 1.0f, 0.7f), node.IsHiddenByParent))
+                {
+                    FontAwesomeIcon visibilityButtonIcon = localVisibility.Value ? FontAwesomeIcon.Eye : FontAwesomeIcon.EyeSlash;
+                    using (ImRaii.PushFont(UiBuilder.IconFontFixedWidth))
+                    using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 0.0f))
+                    using (ImRaii.PushColor(ImGuiCol.Button, Vector4.Zero))
+                    {
+                        ImGui.SameLine();
+                        ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight());
+                        if (ImGui.Button(visibilityButtonIcon.ToIconString(), new Vector2(ImGui.GetFrameHeight())))
+                        {
+                            node.RaiseIsVisibleClicked();
+                        }
+                        if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
+                        {
+                            nodeLeftClicked = false;
+                        }
+                        if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
+                        {
+                            nodeRightClicked = false;
+                        }
+                        if (ImGui.IsItemHovered())
+                        {
+                            showNodeTooltip = true;
+                            tooltipPrimary = localVisibility.Value ? "Hide" : "Show";
+                            tooltipSecondary = "Hidden objects have no effect in the Stage.";
+                        }
+                    }
+                }
+            }
+
+            if (nodeLeftClicked)
             {
                 node.RaiseClicked();
             }
-            if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
+            if (nodeRightClicked)
             {
                 node.RaiseClicked();
                 if (node.ContextMenuItems != null && node.ContextMenuItems.Any())
@@ -473,9 +519,6 @@ internal class EditorWindow : Window, IDisposable
                     ImGui.OpenPopup("###ContextMenu");
                 }
             }
-
-            ImGui.SameLine();
-            ImGui.TextUnformatted($" {node.DisplayName}");
 
             ImGui.SetNextWindowSizeConstraints(new Vector2(200.0f, 0.0f), new Vector2(float.MaxValue, float.MaxValue));
             using (var contextMenu = ImRaii.Popup("###ContextMenu"))
@@ -510,20 +553,20 @@ internal class EditorWindow : Window, IDisposable
                 }
             }
         }
-        if (hovered && !string.IsNullOrEmpty(node.TooltipPrimary))
+        if (showNodeTooltip && !string.IsNullOrEmpty(node.TooltipPrimary))
         {
             using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, originalItemSpacing))
             using (ImRaii.Tooltip())
             using (ImRaii.PushFont(UiBuilder.DefaultFont))
             using (ImRaii.TextWrapPos(250.0f * ImGuiHelpers.GlobalScale))
             {
-                ImGui.TextWrapped(node.TooltipPrimary);
-                if (!string.IsNullOrEmpty(node.TooltipSecondary))
+                ImGui.TextWrapped(tooltipPrimary);
+                if (!string.IsNullOrEmpty(tooltipSecondary))
                 {
                     ImGui.Separator();
                     using (ImRaii.Disabled())
                     {
-                        ImGui.TextWrapped(node.TooltipSecondary);
+                        ImGui.TextWrapped(tooltipSecondary);
                     }
                 }
             }

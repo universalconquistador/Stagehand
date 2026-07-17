@@ -31,6 +31,11 @@ internal sealed unsafe class LiveWeapon : LiveDrawObject
 
     public override bool TryUpdate(ObjectDefinition definition, ILiveModpack? modpack)
     {
+        if (definition.IsDisabled)
+        {
+            return false;
+        }
+
         // If we are adding or removing a modpack or making a material change to the modpack, we can't update in place
         if ((modpack == null) != (Modpack == null)
             || (Modpack != null && modpack != null && Modpack.EffectsHash != modpack.EffectsHash))

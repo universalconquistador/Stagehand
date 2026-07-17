@@ -325,12 +325,19 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
 
     public ILiveObject? CreateObject(ObjectDefinition definition, ILiveModpack? modpack)
     {
-        LiveObjectFactoryParams factoryParams = new()
+        if (!definition.IsDisabled)
         {
-            LiveObjectService = this,
-            Modpack = modpack,
-        };
-        return definition.Visit<LiveObjectFactory, LiveObjectFactoryParams, ILiveObject?>(ref factoryParams);
+            LiveObjectFactoryParams factoryParams = new()
+            {
+                LiveObjectService = this,
+                Modpack = modpack,
+            };
+            return definition.Visit<LiveObjectFactory, LiveObjectFactoryParams, ILiveObject?>(ref factoryParams);
+        }
+        else
+        {
+            return null;
+        }
     }
 
     public ILiveObject? UpdateOrRecreateObject(ILiveObject obj, ObjectDefinition newDefinition, ILiveModpack? modpack)

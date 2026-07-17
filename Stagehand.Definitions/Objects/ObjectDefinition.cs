@@ -24,6 +24,11 @@ public abstract class ObjectDefinition
     public string DisplayName { get; set; } = "";
 
     /// <summary>
+    /// Whether this object should be ignored when instantiating the Stage.
+    /// </summary>
+    public bool IsDisabled { get; set; } = false;
+
+    /// <summary>
     /// The position of this object in world space.
     /// </summary>
     public Vector3 Position { get; set; } = Vector3.Zero;
@@ -78,6 +83,7 @@ public abstract class ObjectDefinition
     public virtual void CopyTo(ObjectDefinition other)
     {
         other.DisplayName = DisplayName;
+        other.IsDisabled = IsDisabled;
         other.Position = Position;
         other.RotationPitchYawRollDegrees = RotationPitchYawRollDegrees;
         other.Scale = Scale;

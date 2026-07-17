@@ -57,11 +57,14 @@ public class OutlinerNode
     public string TooltipPrimary { get; set; } = string.Empty;
     public string TooltipSecondary { get; set; } = string.Empty;
     public bool IsSelected { get; set; } = false;
+    public bool? IsVisible { get; set; } = null; // This node's visibility choice, regardless of inherited state
+    public bool IsHiddenByParent { get; set; } = false; // The inherited visibility state from the parent, if any
     public IEnumerable<OutlinerContextMenuItem>? ContextMenuItems { get; set; }
 
     public OutlinerNode? ParentNode { get; private set; } = null;
     public bool IsVisibleWithFilter { get; private set; } = true;
     public event Action<OutlinerNode>? Clicked;
+    public event Action<OutlinerNode>? IsVisibleClicked;
 
     private List<OutlinerNode> _childNodes = new List<OutlinerNode>();
     public IReadOnlyList<OutlinerNode> ChildNodes => _childNodes;
@@ -121,6 +124,8 @@ public class OutlinerNode
             _recomputeChildOrder = false;
         }
 
+        IsHiddenByParent = ParentNode != null && (ParentNode.IsVisible == false || ParentNode.IsHiddenByParent);
+
         bool anyChildrenVisibleWithFilter = false;
         foreach (var child in _childNodes)
         {
@@ -137,6 +142,11 @@ public class OutlinerNode
     public void RaiseClicked()
     {
         Clicked?.Invoke(this);
+    }
+
+    public void RaiseIsVisibleClicked()
+    {
+        IsVisibleClicked?.Invoke(this);
     }
 }
 
