@@ -114,3 +114,10 @@ Later down the road:
 ## 0.4.2 & 0.4.3
 
  - Fixes an issue I caused where lights and object dyes were not correctly being applied when a stage was shown.
+
+## 0.4.4
+
+ - Adds sounds! You can place looping instances of sounds from .scd resources and configure their volume, playback speed, and fade in time.
+ - Additionally, you can choose for a sound to be positional so that it sounds like it's coming from where you place the object.
+ - Note that each `.scd` file can have multiple sounds in it, not just one! Use the Sound Index property on your sounds to specify which sound in the `.scd` resource to play. You can use the VfxEditor plugin's Sounds tab to load up an `.scd` resource and view the sounds within it.
+ - The Asset Library has been updated with all the `.scd` resources in the vanilla game *that are placed in zones*. I want to expand this to all the other sounds used in the game, but until then you can use the VfxEditor plugin to explore the rest of the game's `.scd` resources.
