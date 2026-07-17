@@ -24,9 +24,7 @@ internal class BgObjectDefinitionEditor : ObjectDefinitionEditor<BgObjectDefinit
 
     public override DefinitionTypeInfo TypeInfo => StaticTypeInfo;
 
-    private readonly IDataManager _dataManager;
     private readonly IEditorHitTestService _hitTestService;
-    private readonly IAssetLibraryWindow _assetLibraryWindow;
     private readonly EditorHitTestModel _hitTestModel;
 
     public string ModelGamePath
@@ -49,9 +47,7 @@ internal class BgObjectDefinitionEditor : ObjectDefinitionEditor<BgObjectDefinit
 
     public BgObjectDefinitionEditor(IServiceProvider serviceProvider, BgObjectDefinition definition, string key, StageDefinitionEditor stage) : base(serviceProvider, definition, key, stage)
     {
-        _dataManager = serviceProvider.GetRequiredService<IDataManager>();
         _hitTestService = serviceProvider.GetRequiredService<IEditorHitTestService>();
-        _assetLibraryWindow = serviceProvider.GetRequiredService<IAssetLibraryWindow>();
         _hitTestModel = new EditorHitTestModel(this, ModelGamePath, serviceProvider.GetRequiredService<IModelBvhCacheService>(), serviceProvider.GetRequiredService<IDataManager>())
         {
             Position = Position,
@@ -103,7 +99,7 @@ internal class BgObjectDefinitionEditor : ObjectDefinitionEditor<BgObjectDefinit
         base.SetDisplayNameInternal(displayName);
         if (IsSelected)
         {
-            _assetLibraryWindow.SetSelectionCallback(DisplayName, "Model Path", AssetType.MdlResource, () => IsInStage && IsSelected, asset => ModelGamePath = asset.GamePath);
+            AssetLibraryWindow.SetSelectionCallback(DisplayName, "Model Path", AssetType.MdlResource, () => IsInStage && IsSelected, asset => ModelGamePath = asset.GamePath);
         }
     }
 
@@ -124,7 +120,7 @@ internal class BgObjectDefinitionEditor : ObjectDefinitionEditor<BgObjectDefinit
     {
         base.Selected();
 
-        _assetLibraryWindow.SetSelectionCallback(DisplayName, "Model Path", AssetType.MdlResource, () => IsInStage && IsSelected, asset => ModelGamePath = asset.GamePath);
+        AssetLibraryWindow.SetSelectionCallback(DisplayName, "Model Path", AssetType.MdlResource, () => IsInStage && IsSelected, asset => ModelGamePath = asset.GamePath);
     }
 
     protected override void OnDrawProperties()
@@ -132,38 +128,9 @@ internal class BgObjectDefinitionEditor : ObjectDefinitionEditor<BgObjectDefinit
         base.OnDrawProperties();
 
         string modelGamePath = ModelGamePath;
-        if (ImGui.InputText("Model Path", ref modelGamePath, 1024, ImGuiInputTextFlags.EnterReturnsTrue))
+        if (DrawResourceGamePath("Model Path", ref modelGamePath))
         {
             ModelGamePath = modelGamePath;
-        }
-
-        bool exists = _dataManager.GameData.FileExists(ModelGamePath);
-        var icon = exists ? FontAwesomeIcon.CheckCircle : FontAwesomeIcon.ExclamationCircle;
-        float propertiesColumnWidth = (ImGui.GetContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) * 0.333f;
-        ImGui.SameLine(ImGui.GetContentRegionMax().X - propertiesColumnWidth - 16.0f * ImGuiHelpers.GlobalScale);
-        using (ImRaii.PushColor(ImGuiCol.Text, exists ? ImGuiColors.HealerGreen : ImGuiColors.DPSRed))
-        using (ImRaii.PushFont(UiBuilder.IconFont))
-        {
-            ImGui.TextUnformatted(icon.ToIconString());
-        }
-        if (ImGui.IsItemHovered())
-        {
-            using (ImRaii.Tooltip())
-            {
-                ImGui.TextUnformatted(exists ? "Game path exists" : "Game path does not exist");
-            }
-        }
-        ImGui.SameLine(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight());
-        if (ImGuiComponents.IconButton(IAssetLibraryWindow.Icon, new Vector2(ImGui.GetFrameHeight(), ImGui.GetFrameHeight())))
-        {
-            _assetLibraryWindow.Show();
-        }
-        if (ImGui.IsItemHovered())
-        {
-            using (ImRaii.Tooltip())
-            {
-                ImGui.TextUnformatted("Open the Asset Library");
-            }
         }
 
         float opacity = Opacity;

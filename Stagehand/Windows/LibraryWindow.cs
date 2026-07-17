@@ -460,12 +460,12 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                         {
                             if (table.Success)
                             {
-                                ImGui.TableSetupColumn("World", ImGuiTableColumnFlags.None, 2);
-                                ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.None, 3);
-                                ImGui.TableSetupColumn("Ward", ImGuiTableColumnFlags.None, 1);
-                                ImGui.TableSetupColumn("Division", ImGuiTableColumnFlags.None, 2);
-                                ImGui.TableSetupColumn("House", ImGuiTableColumnFlags.None, 1);
-                                ImGui.TableSetupColumn("Room", ImGuiTableColumnFlags.None, 1);
+                                ImGui.TableSetupColumn("World", ImGuiTableColumnFlags.WidthStretch, 2);
+                                ImGui.TableSetupColumn("Location", ImGuiTableColumnFlags.WidthStretch, 3);
+                                ImGui.TableSetupColumn("Ward", ImGuiTableColumnFlags.WidthStretch, 1);
+                                ImGui.TableSetupColumn("Division", ImGuiTableColumnFlags.WidthStretch, 2);
+                                ImGui.TableSetupColumn("House", ImGuiTableColumnFlags.WidthStretch, 1);
+                                ImGui.TableSetupColumn("Room", ImGuiTableColumnFlags.WidthStretch, 1);
                                 ImGui.TableSetupColumn("###Copy", ImGuiTableColumnFlags.NoResize | ImGuiTableColumnFlags.WidthFixed, ImGuiComponents.GetIconButtonWithTextWidth(FontAwesomeIcon.Copy, ""));
                                 ImGui.TableSetupColumn("###Delete", ImGuiTableColumnFlags.NoResize | ImGuiTableColumnFlags.WidthFixed, ImGuiComponents.GetIconButtonWithTextWidth(FontAwesomeIcon.Trash, ""));
 

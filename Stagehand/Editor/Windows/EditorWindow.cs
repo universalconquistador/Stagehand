@@ -344,6 +344,12 @@ internal class EditorWindow : Window, IDisposable
                     DisplayName = $"New {WeaponDefinitionEditor.StaticTypeInfo.DisplayName}",
                     Position = (_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.UnitY
                 });
+                DrawCreateMenuItem(SoundObjectDefinitionEditor.StaticTypeInfo, _definitionEditor.Objects, () => new SoundObjectDefinition()
+                {
+                    DisplayName = $"New {SoundObjectDefinitionEditor.StaticTypeInfo.DisplayName}",
+                    SoundGamePath = "bgcommon/sound/hou/hou_spot_fall_small_new.scd",
+                    Position = (_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.UnitY
+                });
             }
         }
 

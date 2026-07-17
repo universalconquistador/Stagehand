@@ -36,6 +36,7 @@ public record class AssetType(string DisplayName, string DisplayDescription, Fon
     public static readonly AssetType<MdlResourceAssetInfo> MdlResource = new("Model Resource", ".mdl", FontAwesomeIcon.Cube);
     public static readonly AssetType<AvfxResourceAssetInfo> AvfxResource = new("VFX Resource", ".avfx", FontAwesomeIcon.WandSparkles);
     public static readonly AssetType<ResourceAssetInfo> SgbResource = new("Shared Group Resource", ".sgb", FontAwesomeIcon.Archive);
+    public static readonly AssetType<ScdResourceAssetInfo> ScdResource = new("Sound Resource", ".scd", FontAwesomeIcon.VolumeUp);
 }
 
 public record class AssetType<TAssetInfo>(string DisplayName, string DisplayDescription, FontAwesomeIcon Icon) : AssetType(DisplayName, DisplayDescription, Icon);
@@ -97,7 +98,7 @@ public record class ResourceAssetInfo(string DisplayName, AssetType Type, string
 /// <summary>
 /// Asset info for a model resource (*.mdl)
 /// </summary>
-public record class MdlResourceAssetInfo(string DisplayName, AssetType Type, string GamePath) : ResourceAssetInfo(DisplayName, Type, GamePath)
+public record class MdlResourceAssetInfo(string DisplayName, string GamePath) : ResourceAssetInfo(DisplayName, AssetType.MdlResource, GamePath)
 {
     public override ILiveObject? CreatePreviewObject(ILiveObjectService liveObjectService, Vector3 location, Quaternion rotation)
     {
@@ -119,7 +120,7 @@ public record class MdlResourceAssetInfo(string DisplayName, AssetType Type, str
 /// <summary>
 /// Asset info for a VFX resource (*.avfx)
 /// </summary>
-public record class AvfxResourceAssetInfo(string DisplayName, AssetType Type, string GamePath) : ResourceAssetInfo(DisplayName, Type, GamePath)
+public record class AvfxResourceAssetInfo(string DisplayName, string GamePath) : ResourceAssetInfo(DisplayName, AssetType.AvfxResource, GamePath)
 {
     public override ILiveObject? CreatePreviewObject(ILiveObjectService liveObjectService, Vector3 location, Quaternion rotation)
     {
@@ -132,6 +133,28 @@ public record class AvfxResourceAssetInfo(string DisplayName, AssetType Type, st
         {
             DisplayName = DisplayName,
             VfxGamePath = GamePath,
+            Position = location,
+            RotationQuaternion = rotation,
+        };
+    }
+}
+
+/// <summary>
+/// Asset info for a Sound resource (*.scd)
+/// </summary>
+public record class ScdResourceAssetInfo(string DisplayName, string GamePath) : ResourceAssetInfo(DisplayName, AssetType.ScdResource, GamePath)
+{
+    public override ILiveObject? CreatePreviewObject(ILiveObjectService liveObjectService, Vector3 location, Quaternion rotation)
+    {
+        return liveObjectService.CreateSound(GamePath, soundIndex: 0, volume: 1.0f, fadeInDuration: 0.0f, speed: 1.0f, isPositional: true, location, modpack: null);
+    }
+
+    public override ObjectDefinition? CreateObjectDefinition(Vector3 location, Quaternion rotation)
+    {
+        return new SoundObjectDefinition()
+        {
+            DisplayName = DisplayName,
+            SoundGamePath = GamePath,
             Position = location,
             RotationQuaternion = rotation,
         };
@@ -187,7 +210,7 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
 {
     private record class AssetLibraryTab(string DisplayName, Action DrawAction);
 
-    private record class PathCache(List<string> MdlPaths, List<string> AvfxPaths);
+    private record class PathCache(List<string> MdlPaths, List<string> AvfxPaths, List<string> ScdPaths);
 
     private record class TreeNode(string DisplayName, FontAwesomeIcon Icon, IEnumerable<TreeNode> ChildNodes, bool CanSelect)
     {
@@ -356,7 +379,7 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
 
             foreach (var mdlPath in pathCache.MdlPaths)
             {
-                var resource = new MdlResourceAssetInfo(Path.GetFileNameWithoutExtension(mdlPath), AssetType.MdlResource, mdlPath);
+                var resource = new MdlResourceAssetInfo(Path.GetFileNameWithoutExtension(mdlPath), mdlPath);
 
                 var newNode = new ResourceTreeNode(resource);
                 var lastSlash = mdlPath.LastIndexOf('/');
@@ -373,13 +396,30 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
 
             foreach (var avfxPath in pathCache.AvfxPaths)
             {
-                var resource = new AvfxResourceAssetInfo(Path.GetFileNameWithoutExtension(avfxPath), AssetType.AvfxResource, avfxPath);
+                var resource = new AvfxResourceAssetInfo(Path.GetFileNameWithoutExtension(avfxPath), avfxPath);
 
                 var newNode = new ResourceTreeNode(resource);
                 var lastSlash = avfxPath.LastIndexOf('/');
                 if (lastSlash > 0)
                 {
                     var parentNode = addOrGetFolderNode(avfxPath.Substring(0, lastSlash));
+                    parentNode.ChildNodeList.Add(newNode);
+                }
+                else
+                {
+                    rootNodes.Add(newNode);
+                }
+            }
+
+            foreach (var scdPath in pathCache.ScdPaths)
+            {
+                var resource = new ScdResourceAssetInfo(Path.GetFileNameWithoutExtension(scdPath), scdPath);
+
+                var newNode = new ResourceTreeNode(resource);
+                var lastSlash = scdPath.LastIndexOf('/');
+                if (lastSlash > 0)
+                {
+                    var parentNode = addOrGetFolderNode(scdPath.Substring(0, lastSlash));
                     parentNode.ChildNodeList.Add(newNode);
                 }
                 else

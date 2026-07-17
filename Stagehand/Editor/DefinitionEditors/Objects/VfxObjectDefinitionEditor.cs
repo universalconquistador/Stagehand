@@ -22,9 +22,6 @@ internal class VfxObjectDefinitionEditor : ObjectDefinitionEditor<VfxObjectDefin
 
     public override DefinitionTypeInfo TypeInfo => StaticTypeInfo;
 
-    private readonly IDataManager _dataManager;
-    private readonly IAssetLibraryWindow _assetLibraryWindow;
-
     public string VfxGamePath
     {
         get => Definition.VfxGamePath;
@@ -39,8 +36,7 @@ internal class VfxObjectDefinitionEditor : ObjectDefinitionEditor<VfxObjectDefin
 
     public VfxObjectDefinitionEditor(IServiceProvider serviceProvider, VfxObjectDefinition definition, string key, StageDefinitionEditor stage) : base(serviceProvider, definition, key, stage)
     {
-        _dataManager = serviceProvider.GetRequiredService<IDataManager>();
-        _assetLibraryWindow = serviceProvider.GetRequiredService<IAssetLibraryWindow>();
+
     }
 
     protected override void SetDisplayNameInternal(string displayName)
@@ -48,7 +44,7 @@ internal class VfxObjectDefinitionEditor : ObjectDefinitionEditor<VfxObjectDefin
         base.SetDisplayNameInternal(displayName);
         if (IsSelected)
         {
-            _assetLibraryWindow.SetSelectionCallback(DisplayName, "VFX", AssetType.AvfxResource, () => IsInStage && IsSelected, asset => VfxGamePath = asset.GamePath);
+            AssetLibraryWindow.SetSelectionCallback(DisplayName, "VFX", AssetType.AvfxResource, () => IsInStage && IsSelected, asset => VfxGamePath = asset.GamePath);
         }
     }
 
@@ -56,7 +52,7 @@ internal class VfxObjectDefinitionEditor : ObjectDefinitionEditor<VfxObjectDefin
     {
         base.Selected();
 
-        _assetLibraryWindow.SetSelectionCallback(DisplayName, "VFX", AssetType.AvfxResource, () => IsInStage && IsSelected, asset => VfxGamePath = asset.GamePath);
+        AssetLibraryWindow.SetSelectionCallback(DisplayName, "VFX", AssetType.AvfxResource, () => IsInStage && IsSelected, asset => VfxGamePath = asset.GamePath);
     }
 
     protected override void OnDrawProperties()
@@ -64,38 +60,9 @@ internal class VfxObjectDefinitionEditor : ObjectDefinitionEditor<VfxObjectDefin
         base.OnDrawProperties();
 
         string vfxGamePath = VfxGamePath;
-        if (ImGui.InputText("VFX Path", ref vfxGamePath, 1024, ImGuiInputTextFlags.EnterReturnsTrue))
+        if (DrawResourceGamePath("VFX Path", ref vfxGamePath))
         {
             VfxGamePath = vfxGamePath;
-        }
-
-        bool exists = _dataManager.GameData.FileExists(VfxGamePath);
-        var icon = exists ? FontAwesomeIcon.CheckCircle : FontAwesomeIcon.ExclamationCircle;
-        float propertiesColumnWidth = (ImGui.GetContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) * 0.333f;
-        ImGui.SameLine(ImGui.GetContentRegionMax().X - propertiesColumnWidth - 16.0f * ImGuiHelpers.GlobalScale);
-        using (ImRaii.PushColor(ImGuiCol.Text, exists ? ImGuiColors.HealerGreen : ImGuiColors.DPSRed))
-        using (ImRaii.PushFont(UiBuilder.IconFont))
-        {
-            ImGui.TextUnformatted(icon.ToIconString());
-        }
-        if (ImGui.IsItemHovered())
-        {
-            using (ImRaii.Tooltip())
-            {
-                ImGui.TextUnformatted(exists ? "Game path exists" : "Game path does not exist");
-            }
-        }
-        ImGui.SameLine(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight());
-        if (ImGuiComponents.IconButton(IAssetLibraryWindow.Icon, new Vector2(ImGui.GetFrameHeight(), ImGui.GetFrameHeight())))
-        {
-            _assetLibraryWindow.Show();
-        }
-        if (ImGui.IsItemHovered())
-        {
-            using (ImRaii.Tooltip())
-            {
-                ImGui.TextUnformatted("Open the Asset Library");
-            }
         }
 
         Vector4 color = Color;

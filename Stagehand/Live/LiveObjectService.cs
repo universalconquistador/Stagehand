@@ -1,6 +1,7 @@
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
+using FFXIVClientStructs.FFXIV.Client.Sound;
 using Stagehand.Definitions.Objects;
 using System;
 using System.Collections.Concurrent;
@@ -59,6 +60,20 @@ public interface ILiveObjectService
     /// <param name="scale">The world space scale to create the new weapon object with.</param>
     /// <returns>The new live weapon object, or null if it could not be created.</returns>
     ILiveObject? CreateWeapon(ushort modelSetId, ushort secondaryId, ushort variant, byte stain0, byte stain1, Vector3 position, Quaternion rotation, Vector3 scale, ILiveModpack? modpack);
+
+    /// <summary>
+    /// Creates a new live sound object that plays the given sound from the given sound resource.
+    /// </summary>
+    /// <param name="soundGamePath">The game path to the .scd resource to play from.</param>
+    /// <param name="soundIndex">The index of the sound in the resource to play.</param>
+    /// <param name="volume">How loud the sound should play.</param>
+    /// <param name="fadeInDuration">How long to fade in the sound.</param>
+    /// <param name="speed">The speed to play the sound at.</param>
+    /// <param name="isPositional">Whether to play the sound as though it is coming from a position in the scene.</param>
+    /// <param name="position">The position in the scene to play the sound from, if <paramref name="isPositional"/> is <see langword="true"/>.</param>
+    /// <param name="modpack">The modpack to use when loading the sound resource.</param>
+    /// <returns>The new live sound object, or null if it could not be created.</returns>
+    ILiveObject? CreateSound(string soundGamePath, int soundIndex, float volume, float fadeInDuration, float speed, bool isPositional, Vector3 position, ILiveModpack? modpack);
 
     /// <summary>
     /// Creates a new live object according to the given object definition.
@@ -268,6 +283,41 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
         return new LiveWeapon(weapon, modpack);
     }
 
+    public ILiveObject? CreateSound(string soundGamePath, int soundIndex, float volume, float fadeInDuration, float speed, bool isPositional, Vector3 position, ILiveModpack? modpack)
+    {
+        var finalPath = soundGamePath;
+        bool exists = false;
+        if (modpack != null)
+        {
+            exists = modpack.AllRedirections.ContainsKey(soundGamePath);
+            if (!exists)
+            {
+                exists = SafeResourceExists(soundGamePath);
+            }
+            finalPath = ResourceRedirectionHelpers.MakeModpackPath(soundGamePath, modpack);
+        }
+        else
+        {
+            exists = SafeResourceExists(finalPath);
+        }
+
+        if (!exists)
+        {
+            return null;
+        }
+
+        var fadeInMilliseconds = (uint)(MathF.Max(0.0f, fadeInDuration) * 1000);
+        var soundData = SoundManager.Instance()->PlaySound(finalPath, volume, fadeInMilliseconds, position.X, position.Y, position.Z, speed, 0, (uint)soundIndex, autoRelease: false, SoundVolumeCategory.BypassVolumeRules, false, midiNote: -1, false, defaultFadeOut: false, isPositional, false);
+        if (soundData != null)
+        {
+            return new LiveSoundObject(_framework, soundData, finalPath, modpack);
+        }
+        else
+        {
+            return null;
+        }
+    }
+
     public void Dispose()
     {
         // TODO: Emergency cleanup of any leftover live objects
@@ -317,6 +367,13 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
             // definition without needing to be recreated.
             Debug.Assert(updated);
             return light;
+        }
+
+        public static ILiveObject? VisitSoundObjectDefinition(SoundObjectDefinition definition, ref LiveObjectFactoryParams param)
+        {
+            var sound = param.LiveObjectService.CreateSound(definition.SoundGamePath, definition.SoundIndex, definition.Volume, definition.FadeInDurationSeconds, definition.Speed, definition.IsPositional, definition.Position, param.Modpack);
+            //sound?.TryUpdate(definition, param.Modpack);
+            return sound;
         }
 
         public static ILiveObject? VisitVfxObjectDefinition(VfxObjectDefinition definition, ref LiveObjectFactoryParams param)
