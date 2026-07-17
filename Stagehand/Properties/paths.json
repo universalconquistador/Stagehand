@@ -111009,7 +111009,6 @@
     ],
     "ScdPaths": [
         "bgcommon/sound/roc/roc_spot_torch_s.scd",
-        "",
         "bgcommon/sound/roc/roc_spot_pipe_steam_loop.scd",
         "bgcommon/sound/roc/roc_spot_mizutamari_4ch.scd",
         "bgcommon/sound/roc/roc_spot_fall-thin.scd",
