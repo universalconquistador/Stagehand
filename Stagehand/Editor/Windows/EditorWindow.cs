@@ -146,14 +146,14 @@ internal class EditorWindow : Window, IDisposable
         int buttonSize = (int)(32.0f * ImGuiHelpers.GlobalScale);
 
         // Commands
-        if (ImGuiComponents.IconButton("###Save", FontAwesomeIcon.Save, new Vector2(buttonSize, buttonSize)))
+        if (ImGuiComponents.IconButton("###Save", FontAwesomeIcon.Save, new Vector2(buttonSize / ImGuiHelpers.GlobalScale)))
         {
             SaveDefinition();
         }
         ImGui.SameLine();
         using (ImRaii.Disabled(_transactionManager.UndoTransactionTitle == null))
         {
-            if (ImGuiComponents.IconButton("###Undo", FontAwesomeIcon.Undo, new Vector2(buttonSize, buttonSize)))
+            if (ImGuiComponents.IconButton("###Undo", FontAwesomeIcon.Undo, new Vector2(buttonSize / ImGuiHelpers.GlobalScale)))
             {
                 _transactionManager.Undo();
             }
@@ -175,7 +175,7 @@ internal class EditorWindow : Window, IDisposable
         ImGui.SameLine();
         using (ImRaii.Disabled(_transactionManager.RedoTransactionTitle == null))
         {
-            if (ImGuiComponents.IconButton("###Redo", FontAwesomeIcon.Redo, new Vector2(buttonSize, buttonSize)))
+            if (ImGuiComponents.IconButton("###Redo", FontAwesomeIcon.Redo, new Vector2(buttonSize / ImGuiHelpers.GlobalScale)))
             {
                 _transactionManager.Redo();
             }
@@ -201,7 +201,7 @@ internal class EditorWindow : Window, IDisposable
         }
         using (ImRaii.Disabled(_hasUnsavedChanges && !ImGui.IsKeyDown(ImGuiKey.LeftCtrl)))
         {
-            if (ImGuiComponents.IconButton("###Close", FontAwesomeIcon.Times, new Vector2(buttonSize, buttonSize)))
+            if (ImGuiComponents.IconButton("###Close", FontAwesomeIcon.Times, new Vector2(buttonSize / ImGuiHelpers.GlobalScale)))
             {
                 IsOpen = false;
             }
@@ -239,7 +239,7 @@ internal class EditorWindow : Window, IDisposable
                 ImGui.SameLine();
             }
 
-            if (ImGuiComponents.IconButton(tool.DisplayName, tool.Icon, size: new Vector2(buttonSize, buttonSize),
+            if (ImGuiComponents.IconButton(tool.DisplayName, tool.Icon, size: new Vector2(buttonSize / ImGuiHelpers.GlobalScale),
                 defaultColor: tool.IsActive ? *ImGui.GetStyleColorVec4(ImGuiCol.ButtonActive) : null))
             {
                 _toolManager.ActiveTool = tool;
@@ -274,7 +274,7 @@ internal class EditorWindow : Window, IDisposable
         if (showClearFilter)
         {
             ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
-            if (ImGuiComponents.IconButton("###OutlinerFilterClear", FontAwesomeIcon.Times, new Vector2(clearFilterWidth, clearFilterWidth)))
+            if (ImGuiComponents.IconButton("###OutlinerFilterClear", FontAwesomeIcon.Times, new Vector2(clearFilterWidth / ImGuiHelpers.GlobalScale)))
             {
                 _outliner.FilterText = string.Empty;
                 _outlinerFilter = string.Empty;

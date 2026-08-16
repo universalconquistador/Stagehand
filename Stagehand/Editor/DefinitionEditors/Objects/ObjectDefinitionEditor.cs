@@ -270,7 +270,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
             }
         }
         ImGui.SameLine(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight());
-        if (ImGuiComponents.IconButton(IAssetLibraryWindow.Icon, new Vector2(ImGui.GetFrameHeight(), ImGui.GetFrameHeight())))
+        if (ImGuiComponents.IconButton(IAssetLibraryWindow.Icon, new Vector2(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
         {
             AssetLibraryWindow.Show();
         }

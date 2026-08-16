@@ -3,6 +3,7 @@ using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.ImGuiFileDialog;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -164,7 +165,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
             ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight());
             using (ImRaii.Disabled(!ImGui.IsKeyDown(ImGuiKey.LeftCtrl)))
             {
-                if (ImGuiComponents.IconButton(FontAwesomeIcon.SyncAlt, new(ImGui.GetFrameHeight())))
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.SyncAlt, new(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
                 {
                     UpdateFromPenumbraMod();
                 }
@@ -182,7 +183,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
 
         ImGui.Spacing();
         ImGui.TextDisabled("Resources:");
-        ImGuiExtensions.FilterBox("Filter", ref _filterText);
+        Utils.ImGuiExtensions.FilterBox("Filter", ref _filterText);
         using (var table = ImRaii.Table("###Replacements", 4, ImGuiTableFlags.PadOuterX | ImGuiTableFlags.ScrollY, ImGui.GetContentRegionAvail()))
         {
             if (table.Success)
@@ -211,7 +212,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
                         bool isScdResource = entry.Key.EndsWith(".scd", StringComparison.OrdinalIgnoreCase);
                         if (isModelResource || isVfxResource || isScdResource)
                         {
-                            if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus, new Vector2(ImGui.GetFrameHeight())))
+                            if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus, new Vector2(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
                             {
                                 var rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, _objectTable.LocalPlayer?.Rotation ?? 0.0f);
                                 ObjectDefinition? newDefinition = null;
@@ -345,7 +346,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
                     ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - ImGui.GetFrameHeight() - ImGui.GetStyle().ItemInnerSpacing.X);
                     ImGui.InputTextWithHint("###NewModResourceDiskPath", "File path", ref _newModResourceDiskFilePath, 512, ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll);
                     ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
-                    if (ImGuiComponents.IconButton(FontAwesomeIcon.Folder, new(ImGui.GetFrameHeight())))
+                    if (ImGuiComponents.IconButton(FontAwesomeIcon.Folder, new(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
                     {
                         _fileDialogManager.OpenFileDialog($"Select mod file{(_newModResourceGamePath.Length > 0 ? $" for {Path.GetFileName(_newModResourceGamePath)}" : "")}", _newModResourceGamePath.Length > 0 ? Path.GetExtension(_newModResourceGamePath) : ".*", (accepted, path) =>
                         {
@@ -366,7 +367,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
                 ImGui.TableNextColumn();
                 if (_newModResourceType == NewModResourceType.DiskResource)
                 {
-                    if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus, new(ImGui.GetFrameHeight())))
+                    if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus, new(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
                     {
                         if (TryAddDiskResource(_newModResourceGamePath, _newModResourceDiskFilePath))
                         {
@@ -385,7 +386,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
                 }
                 else if (_newModResourceType == NewModResourceType.GameResource)
                 {
-                    if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus, new(ImGui.GetFrameHeight())))
+                    if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus, new(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
                     {
                         if (TryAddGameResource(_newModResourceGamePath, _newModResourceRedirectionPath))
                         {
@@ -406,7 +407,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
                 {
                     using (ImRaii.Disabled(_isAddingEmbed))
                     {
-                        if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus, new(ImGui.GetFrameHeight())))
+                        if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus, new(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
                         {
                             if (!_isAddingEmbed)
                             {
@@ -710,7 +711,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
 
             // Delete button
             ImGui.TableNextColumn();
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash, new(ImGui.GetFrameHeight())))
+            if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash, new(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
             {
                 param.Editor.TryRemoveModdedResource(param.GamePath);
             }
@@ -724,7 +725,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
 
             // Replace button
             ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.Folder, new(ImGui.GetFrameHeight())))
+            if (ImGuiComponents.IconButton(FontAwesomeIcon.Folder, new(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
             {
                 var editor = param.Editor;
                 var gamePath = param.GamePath;
@@ -752,11 +753,11 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
             // Contents
             ImGui.TableNextColumn();
             ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted(definition.CompressedDataBytes.Length == 0 ? "(empty)" : $"{ImGuiExtensions.ByteSizeToString(definition.CompressedDataBytes.LongLength)}{(definition.CompressionScheme != ModCompressionScheme.None ? " (compressed)" : "")}");
+            ImGui.TextUnformatted(definition.CompressedDataBytes.Length == 0 ? "(empty)" : $"{Utils.ImGuiExtensions.ByteSizeToString(definition.CompressedDataBytes.LongLength)}{(definition.CompressionScheme != ModCompressionScheme.None ? " (compressed)" : "")}");
 
             // Delete button
             ImGui.TableNextColumn();
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash, new(ImGui.GetFrameHeight())))
+            if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash, new(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
             {
                 param.Editor.TryRemoveModdedResource(param.GamePath);
             }
@@ -770,7 +771,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
 
             // Replace button
             ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.Upload, new(ImGui.GetFrameHeight())))
+            if (ImGuiComponents.IconButton(FontAwesomeIcon.Upload, new(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
             {
                 var editor = param.Editor;
                 var gamePath = param.GamePath;
@@ -815,7 +816,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
 
             // Delete button
             ImGui.TableNextColumn();
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash, new(ImGui.GetFrameHeight())))
+            if (ImGuiComponents.IconButton(FontAwesomeIcon.Trash, new(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
             {
                 param.Editor.TryRemoveModdedResource(param.GamePath);
             }

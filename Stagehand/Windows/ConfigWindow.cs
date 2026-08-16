@@ -2,6 +2,7 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.ImGuiFileDialog;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
@@ -60,7 +61,7 @@ public class ConfigWindow : Window, IConfigWindow, IDisposable
                 _configuration.Save();
             }
             ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
-            if (ImGuiComponents.IconButton("###BrowseLibraryFolder", FontAwesomeIcon.Folder, new Vector2(ImGui.GetFrameHeight())))
+            if (ImGuiComponents.IconButton("###BrowseLibraryFolder", FontAwesomeIcon.Folder, new Vector2(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
             {
                 _fileDialogManager.OpenFolderDialog("Definition Library Folder", (confirmed, path) =>
                 {
@@ -76,7 +77,7 @@ public class ConfigWindow : Window, IConfigWindow, IDisposable
             ImGui.TextUnformatted("Definition Library Folder");
             ImGui.SameLine(0.0f, 0.0f);
             ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight());
-            if (ImGuiComponents.IconButton("###OpenLibraryFolder", FontAwesomeIcon.ExternalLinkAlt, new Vector2(ImGui.GetFrameHeight())))
+            if (ImGuiComponents.IconButton("###OpenLibraryFolder", FontAwesomeIcon.ExternalLinkAlt, new Vector2(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
             {
                 Process.Start("explorer", $"/root, {_configuration.DefinitionLibraryPath}");
             }
@@ -98,7 +99,7 @@ public class ConfigWindow : Window, IConfigWindow, IDisposable
                 _configuration.Save();
             }
             ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
-            if (ImGuiComponents.IconButton("###BrowseAutosaveFolder", FontAwesomeIcon.Folder, new Vector2(ImGui.GetFrameHeight())))
+            if (ImGuiComponents.IconButton("###BrowseAutosaveFolder", FontAwesomeIcon.Folder, new Vector2(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
             {
                 _fileDialogManager.OpenFolderDialog("Autosave Folder", (confirmed, path) =>
                 {
@@ -114,7 +115,7 @@ public class ConfigWindow : Window, IConfigWindow, IDisposable
             ImGui.TextUnformatted("Autosave Folder");
             ImGui.SameLine(0.0f, 0.0f);
             ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight());
-            if (ImGuiComponents.IconButton("###OpenAutosaveFolder", FontAwesomeIcon.ExternalLinkAlt, new Vector2(ImGui.GetFrameHeight())))
+            if (ImGuiComponents.IconButton("###OpenAutosaveFolder", FontAwesomeIcon.ExternalLinkAlt, new Vector2(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
             {
                 Process.Start("explorer", $"/root, {_configuration.FinalAutosavePath}");
             }

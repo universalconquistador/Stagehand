@@ -26,7 +26,7 @@ internal static class ImGuiExtensions
         if (currentFilter.Length > 0)
         {
             ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
-            if (ImGuiComponents.IconButton(icon, new Vector2(clearButtonWidth, clearButtonWidth)))
+            if (ImGuiComponents.IconButton(icon, new Vector2(clearButtonWidth / ImGuiHelpers.GlobalScale)))
             {
                 currentFilter = string.Empty;
             }
