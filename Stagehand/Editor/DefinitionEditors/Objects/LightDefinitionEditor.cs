@@ -263,7 +263,7 @@ internal class LightDefinitionEditor : ObjectDefinitionEditor<LightDefinition>
         float labelWidth = (ImGui.GetContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) * 0.333f;
         float propertiesColumnWidth = (ImGui.GetContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) - labelWidth;
 
-        float shapeButtonWidth = (propertiesColumnWidth - ImGui.GetStyle().ItemInnerSpacing.X * 3.0f) / 4.0f;
+        float shapeButtonWidth = ((propertiesColumnWidth - ImGui.GetStyle().ItemInnerSpacing.X * 3.0f) / 4.0f) / ImGuiHelpers.GlobalScale;
         if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Sun, "Ambient", defaultColor: Shape == LightShape.Ambient ? ImGui.GetStyle().Colors[(int)ImGuiCol.ButtonActive] : null, size: new Vector2(shapeButtonWidth, 0.0f)))
         {
             Shape = LightShape.Ambient;
@@ -379,7 +379,7 @@ internal class LightDefinitionEditor : ObjectDefinitionEditor<LightDefinition>
 
         // Shadow
 
-        float shadowButtonWidth = (propertiesColumnWidth - ImGui.GetStyle().ItemInnerSpacing.X * 2.0f) / 3.0f;
+        float shadowButtonWidth = ((propertiesColumnWidth - ImGui.GetStyle().ItemInnerSpacing.X * 2.0f) / 3.0f) / ImGuiHelpers.GlobalScale;
         if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Shapes, "Objects", defaultColor: EnableObjectShadows ? ImGui.GetStyle().Colors[(int)ImGuiCol.ButtonActive] : null, size: new Vector2(shadowButtonWidth, 0.0f)))
         {
             EnableObjectShadows = !EnableObjectShadows;
