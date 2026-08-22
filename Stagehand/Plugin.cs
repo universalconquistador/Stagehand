@@ -38,6 +38,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IObjectTable ObjectTable { get; private set; } = null!;
     [PluginService] internal static ISigScanner SigScanner { get; private set; } = null!;
     [PluginService] internal static IGameGui GameGui { get; private set; } = null!;
+    [PluginService] internal static IKeyState KeyState { get; private set; } = null!;
 
     private readonly IHost _host;
 
@@ -97,7 +98,9 @@ public sealed class Plugin : IDalamudPlugin
             services.AddSingleton(SigScanner);
             services.AddSingleton(GameGui);
             services.AddSingleton(WindowSystem);
+            services.AddSingleton(KeyState);
 
+            services.AddSingleton<IKeybindService, KeybindService>();
             services.AddSingleton<IModelBvhCacheService, ModelBvhCacheService>();
             services.AddSingleton<IViewportInputService, ViewportInputService>();
             services.AddSingleton<IOverlayService>(_overlayService);
@@ -110,6 +113,9 @@ public sealed class Plugin : IDalamudPlugin
             services.AddSingleton<IEditorService, EditorService>();
             services.AddSingleton<IGameStateService, GameStateService>();
             services.AddHostedService<IpcApiService>();
+            services.AddSingleton<StagehandKeybinds>();
+            services.AddSingleton<IStagehandKeybinds>(services => services.GetRequiredService<StagehandKeybinds>());
+            services.AddHostedService<StagehandKeybinds>(services => services.GetRequiredService<StagehandKeybinds>());
 
             // Global windows
             services.AddSingleton<IConfigWindow, ConfigWindow>();

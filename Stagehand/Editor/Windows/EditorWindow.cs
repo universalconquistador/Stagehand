@@ -13,6 +13,7 @@ using Stagehand.Definitions.Objects;
 using Stagehand.Editor.DefinitionEditors;
 using Stagehand.Editor.DefinitionEditors.Objects;
 using Stagehand.Editor.Services;
+using Stagehand.Services;
 using Stagehand.Windows;
 using System;
 using System.Collections.Generic;
@@ -37,6 +38,7 @@ internal class EditorWindow : Window, IDisposable
     private readonly ITransactionManager _transactionManager;
     private readonly IObjectTable _objectTable;
     private readonly IAssetLibraryWindow _assetLibraryWindow;
+    private readonly IStagehandKeybinds _stagehandKeybinds;
     private readonly StagehandConfiguration _stagehandConfiguration;
 
     public event Action? Closed;
@@ -62,6 +64,7 @@ internal class EditorWindow : Window, IDisposable
         _transactionManager = _serviceScope.ServiceProvider.GetRequiredService<ITransactionManager>();
         _objectTable = _serviceScope.ServiceProvider.GetRequiredService<IObjectTable>();
         _assetLibraryWindow = _serviceScope.ServiceProvider.GetRequiredService<IAssetLibraryWindow>();
+        _stagehandKeybinds = _serviceScope.ServiceProvider.GetRequiredService<IStagehandKeybinds>();
         _stagehandConfiguration = _serviceScope.ServiceProvider.GetRequiredService<StagehandConfiguration>();
 
         _definitionFilename = definitionFilename;
@@ -78,6 +81,10 @@ internal class EditorWindow : Window, IDisposable
         ShowCloseButton = false;
         RespectCloseHotkey = false;
         _splitterRatio = _stagehandConfiguration.EditorSplitterRatio;
+
+        _stagehandKeybinds.EditorUndo.Pressed += _transactionManager.Undo;
+        _stagehandKeybinds.EditorRedo.Pressed += _transactionManager.Redo;
+        _stagehandKeybinds.EditorSave.Pressed += SaveDefinition;
     }
 
     private void OnTransactionDoneOrUndone(ITransaction transaction)
@@ -521,6 +528,8 @@ internal class EditorWindow : Window, IDisposable
             }
 
             ImGui.SetNextWindowSizeConstraints(new Vector2(200.0f, 0.0f), new Vector2(float.MaxValue, float.MaxValue));
+            using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(8.0f)))
+            using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, new Vector2(8.0f)))
             using (var contextMenu = ImRaii.Popup("###ContextMenu"))
             {
                 if (contextMenu.Success)
@@ -529,7 +538,7 @@ internal class EditorWindow : Window, IDisposable
                     {
                         foreach (var item in node.ContextMenuItems)
                         {
-                            if (ImGui.Selectable(item.DisplayName))
+                            if (ImGui.MenuItem(item.DisplayName, item.KeybindString))
                             {
                                 item.RaiseClicked(node);
                             }
@@ -585,6 +594,10 @@ internal class EditorWindow : Window, IDisposable
 
     public void Dispose()
     {
+        _stagehandKeybinds.EditorUndo.Pressed -= _transactionManager.Undo;
+        _stagehandKeybinds.EditorRedo.Pressed -= _transactionManager.Redo;
+        _stagehandKeybinds.EditorSave.Pressed -= SaveDefinition;
+
         _autosaveTimer.Dispose();
         _transactionManager.TransactionUndone -= OnTransactionDoneOrUndone;
         _transactionManager.TransactionDone -= OnTransactionDoneOrUndone;

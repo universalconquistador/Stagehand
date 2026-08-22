@@ -43,6 +43,9 @@ public record struct StageLocation(uint WorldId, ushort TerritoryId, int WardId,
 
                 if (housingManager->IsInside())
                 {
+                    // We want the territory ID of the logical housing district, regardless of the actual territory used for the chosen interior design
+                    location.TerritoryId = housingManager->GetCurrentHouseId().TerritoryTypeId;
+
                     if (housingManager->GetCurrentHouseId().Unit.IsApartment)
                     {
                         // GetCurrentDivision returns 0 indoors. Luckily we can tell by house number.

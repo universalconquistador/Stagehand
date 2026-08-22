@@ -1,4 +1,5 @@
 using Dalamud.Interface;
+using Stagehand.Services;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -7,20 +8,45 @@ namespace Stagehand.Editor.Services;
 
 public class OutlinerContextMenuItem
 {
-    public string DisplayName { get; set; }
-    public string Description { get; set; }
+    public virtual string DisplayName { get; }
+    public virtual string Description { get; }
+    public virtual string KeybindString { get; }
     public event Action<OutlinerNode> Clicked;
 
-    public OutlinerContextMenuItem(string displayName, string description, Action<OutlinerNode> clicked)
+    protected OutlinerContextMenuItem(Action<OutlinerNode> clicked)
+    {
+        DisplayName = string.Empty;
+        Description = string.Empty;
+        KeybindString = string.Empty;
+        Clicked = clicked;
+    }
+
+    public OutlinerContextMenuItem(string displayName, string description, Action<OutlinerNode> clicked, string keybindString = "")
     {
         DisplayName = displayName;
         Description = description;
+        KeybindString = keybindString;
         Clicked = clicked;
     }
 
     public void RaiseClicked(OutlinerNode node)
     {
         Clicked.Invoke(node);
+    }
+}
+
+public class KeybindOutlinerContextMenuItem : OutlinerContextMenuItem
+{
+    public IKeybindAction KeybindAction { get; }
+
+    public override string DisplayName => KeybindAction.Info.DisplayName;
+    public override string Description => KeybindAction.Info.Description;
+    public override string KeybindString => KeybindAction.CurrentKeybind.IsUnassigned ? string.Empty : KeybindAction.CurrentKeybind.ToString();
+
+    public KeybindOutlinerContextMenuItem(IKeybindAction keybindAction, Action<OutlinerNode> clicked)
+        : base(clicked)
+    {
+        KeybindAction = keybindAction;
     }
 }
 

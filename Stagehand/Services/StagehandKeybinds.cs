@@ -1,0 +1,125 @@
+using Dalamud.Game.ClientState.Keys;
+using Microsoft.Extensions.Hosting;
+using System;
+using System.Collections.Generic;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Stagehand.Services;
+
+/// <summary>
+/// Manages the keybinds Stagehand supports.
+/// </summary>
+public interface IStagehandKeybinds
+{
+    // Editor (Objects)
+    IKeybindAction EditorDeleteObject { get; }
+    IKeybindAction EditorDuplicateObject { get; }
+    IKeybindAction EditorHideObject { get; }
+    IKeybindAction EditorUnhideObject { get; }
+
+    // Editor
+    IKeybindAction EditorUndo { get; }
+    IKeybindAction EditorRedo { get; }
+    IKeybindAction EditorSave { get; }
+}
+
+internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposable
+{
+    private const string EditorObjectsGroupName = "Stage Editor (Objects)";
+    private const string EditorGroupName = "Stage Editor";
+
+    private readonly IKeybindService _keybindService;
+
+    private bool _isDisposed = false;
+
+    public IKeybindAction EditorDeleteObject { get; }
+    public IKeybindAction EditorDuplicateObject { get; }
+    public IKeybindAction EditorHideObject { get; }
+    public IKeybindAction EditorUnhideObject { get; }
+
+    public IKeybindAction EditorUndo { get; }
+    public IKeybindAction EditorRedo { get; }
+    public IKeybindAction EditorSave { get; }
+
+    public StagehandKeybinds(IKeybindService keybindService)
+    {
+        _keybindService = keybindService;
+
+        //
+        // Editor (Objects)
+        //
+        EditorDeleteObject = _keybindService.RegisterAction(new(nameof(EditorDeleteObject),
+            "Delete Object",
+            EditorObjectsGroupName,
+            "Deletes the selected object in the stage being edited.",
+            new Keybind(VirtualKey.DELETE, KeybindModifierKeys.None)));
+
+        EditorDuplicateObject = _keybindService.RegisterAction(new(nameof(EditorDuplicateObject),
+            "Duplicate Object",
+            EditorObjectsGroupName,
+            "Duplicates the selected object in the stage being edited.",
+            new Keybind(VirtualKey.D, KeybindModifierKeys.Control)));
+
+        EditorHideObject = _keybindService.RegisterAction(new(nameof(EditorHideObject),
+            "Hide Object",
+            EditorObjectsGroupName,
+            "Hides the selected object.",
+            new Keybind(VirtualKey.H, KeybindModifierKeys.Control)));
+
+        EditorUnhideObject = _keybindService.RegisterAction(new(nameof(EditorUnhideObject),
+            "Unhide Object",
+            EditorObjectsGroupName,
+            "Unhides the selected object.",
+            new Keybind(VirtualKey.H, KeybindModifierKeys.Control | KeybindModifierKeys.Shift)));
+
+        //
+        // Editor
+        //
+        EditorUndo = _keybindService.RegisterAction(new(nameof(EditorUndo),
+            "Undo",
+            EditorGroupName,
+            "Undoes the most recently performed or undone action.", 
+           new Keybind(VirtualKey.Z, KeybindModifierKeys.Control)));
+
+        EditorRedo = _keybindService.RegisterAction(new(nameof(EditorRedo),
+            "Redo",
+            EditorGroupName,
+            "Redoes the most recently undone action.",
+            new Keybind(VirtualKey.Z, KeybindModifierKeys.Control | KeybindModifierKeys.Shift)));
+
+        EditorSave = _keybindService.RegisterAction(new(nameof(EditorSave),
+            "Save",
+            EditorGroupName,
+            "Saves the stage being edited.",
+            new Keybind(VirtualKey.S, KeybindModifierKeys.Control)));
+    }
+
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        if (!_isDisposed)
+        {
+            _isDisposed = true;
+
+            _keybindService.UnregisterAction(EditorSave);
+            _keybindService.UnregisterAction(EditorRedo);
+            _keybindService.UnregisterAction(EditorUndo);
+            
+            _keybindService.UnregisterAction(EditorUnhideObject);
+            _keybindService.UnregisterAction(EditorHideObject);
+            _keybindService.UnregisterAction(EditorDuplicateObject);
+            _keybindService.UnregisterAction(EditorDeleteObject);
+        }
+    }
+}

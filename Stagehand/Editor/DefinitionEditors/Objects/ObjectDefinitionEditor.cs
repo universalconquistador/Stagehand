@@ -58,6 +58,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
     protected ILiveObjectService LiveObjectService { get; }
     protected IAssetLibraryWindow AssetLibraryWindow { get; }
     protected IDataManager DataManager { get; }
+    protected IStagehandKeybinds StagehandKeybinds { get; }
 
     protected TDefinition Definition { get; }
     public string Key { get; }
@@ -146,6 +147,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         LiveObjectService = serviceProvider.GetRequiredService<ILiveObjectService>();
         AssetLibraryWindow = serviceProvider.GetRequiredService<IAssetLibraryWindow>();
         DataManager = serviceProvider.GetRequiredService<IDataManager>();
+        StagehandKeybinds = serviceProvider.GetRequiredService<IStagehandKeybinds>();
 
         Definition = definition;
         Key = key;
@@ -160,9 +162,13 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
 
     private void OnOutlinerNodeIsVisibleClicked(OutlinerNode obj)
     {
-        using (TransactionManager.BeginTransactionGroup($"{(IsDisabled ? "Enable" : "Disable")} {DisplayName}"))
+        if (IsDisabled)
         {
-            IsDisabled = !IsDisabled;
+            Unhide();
+        }
+        else
+        {
+            Hide();
         }
     }
 
@@ -287,15 +293,8 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
 
     protected virtual IEnumerable<OutlinerContextMenuItem> GenerateContextMenuItems()
     {
-        yield return new OutlinerContextMenuItem("Duplicate", "Creates a copy of this object.", _ =>
-        {
-            var clonedDefinition = Definition.Clone();
-            Stage.Objects.Add(clonedDefinition);
-        });
-        yield return new OutlinerContextMenuItem("Delete", $"Removes this {TypeInfo.DisplayName} from the stage.", _ =>
-        {
-            Stage.Objects.Remove(this);
-        });
+        yield return new KeybindOutlinerContextMenuItem(StagehandKeybinds.EditorDuplicateObject, _ => Duplicate());
+        yield return new KeybindOutlinerContextMenuItem(StagehandKeybinds.EditorDeleteObject, _ => Delete());
     }
 
     public override void Selected()
@@ -303,6 +302,44 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         base.Selected();
 
         OutlinerNode.IsSelected = true;
+
+        StagehandKeybinds.EditorDeleteObject.Pressed += Delete;
+        StagehandKeybinds.EditorDuplicateObject.Pressed += Duplicate;
+        StagehandKeybinds.EditorHideObject.Pressed += Hide;
+        StagehandKeybinds.EditorUnhideObject.Pressed += Unhide;
+    }
+
+    private void Unhide()
+    {
+        using (TransactionManager.BeginTransactionGroup($"Unhide {DisplayName}"))
+        {
+            IsDisabled = false;
+        }
+    }
+
+    private void Hide()
+    {
+        using (TransactionManager.BeginTransactionGroup($"Hide {DisplayName}"))
+        {
+            IsDisabled = true;
+        }
+    }
+
+    private void Duplicate()
+    {
+        var clonedDefinition = Definition.Clone();
+        using (TransactionManager.BeginTransactionGroup($"Duplicate {DisplayName}"))
+        {
+            Stage.Objects.Add(clonedDefinition);
+        }
+    }
+
+    private void Delete()
+    {
+        using (TransactionManager.BeginTransactionGroup($"Delete {DisplayName}"))
+        {
+            Stage.Objects.Remove(this);
+        }
     }
 
     protected override void SetPropertyValue<TValue>(Action<TValue> setter, TValue newValue, TValue oldValue, [CallerMemberName] string? propertyName = null)
@@ -340,6 +377,11 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         base.Deselected();
 
         OutlinerNode.IsSelected = false;
+
+        StagehandKeybinds.EditorDeleteObject.Pressed -= Delete;
+        StagehandKeybinds.EditorDuplicateObject.Pressed -= Duplicate;
+        StagehandKeybinds.EditorHideObject.Pressed -= Hide;
+        StagehandKeybinds.EditorUnhideObject.Pressed -= Unhide;
     }
 
     public virtual void AddedToStage()

@@ -61,6 +61,14 @@ public class StagehandConfiguration : IPluginConfiguration
 
     public float EditorSplitterRatio { get; set; } = -1.0f;
 
+    /// <summary>
+    /// The keybinds that the user has assigned.
+    /// </summary>
+    /// <remarks>
+    /// Don't edit this directly; go through <see cref="IKeybindService"/>.
+    /// </remarks>
+    public Dictionary<string, Keybind> AssignedKeybinds { get; set; } = new();
+
     // The below exists just to make saving less cumbersome
     public void Save()
     {
