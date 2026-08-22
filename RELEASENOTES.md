@@ -125,3 +125,18 @@ Later down the road:
 ## 0.4.5
 
  - Adds the ability to hide objects in the editor. Hidden objects have no effect on the scene, which is useful for many things like WIP stuff you don't want to get rid of or keeping a palette of base objects to duplicate.
+
+## 0.4.6
+
+ - Fixes UI issues with DPI scaling, mostly in the editor.
+
+## 0.4.7
+
+ - Adds keybinds! These are completely customizable in the Stagehand settings.
+    - Undo: Ctrl + Z
+    - Redo: Ctrl + Shift + Z
+    - Save: Ctrl + S
+    - Duplicate Selected Object: Ctrl + D
+    - Delete Selected Object: Delete
+    - Hide Selected Object: Ctrl + H
+    - Unhide Selected Object: Ctrl + Shift + H
