@@ -37,7 +37,7 @@ public record struct StageLocation(uint WorldId, ushort TerritoryId, int WardId,
             location.WorldId = playerState.CurrentWorld.RowId;
 
             var housingManager = HousingManager.Instance();
-            if (housingManager != null)
+            if (housingManager != null && housingManager->CurrentTerritory != null)
             {
                 location.WardId = (housingManager->GetCurrentWard() + 1);
 
