@@ -140,3 +140,8 @@ Later down the road:
     - Delete Selected Object: Delete
     - Hide Selected Object: Ctrl + H
     - Unhide Selected Object: Ctrl + Shift + H
+
+## 0.4.8
+
+ - Fixes bug getting the current location
+ - Adds IPC event for when the user saves a stage in the editor
