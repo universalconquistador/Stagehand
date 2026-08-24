@@ -32,4 +32,12 @@ public partial interface IStagehandApi
     /// Use <see cref="GetLocalStageDefinitions"/> to get the new list of local Stage definitions.
     /// </remarks>
     event Action LocalStageDefinitionsChanged;
+
+    /// <summary>
+    /// Raised when a local Stage definition has been edited by the user (i.e. saved in the Stagehand editor).
+    /// </summary>
+    /// <remarks>
+    /// The parameter is the full disk path to the definition that was edited.
+    /// </remarks>
+    event Action<string> LocalStageDefinitionEdited;
 }

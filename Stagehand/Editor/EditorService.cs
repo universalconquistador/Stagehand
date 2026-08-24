@@ -41,6 +41,11 @@ public interface IEditorService
     /// Raised when an editor was closed for the Stage definition at the given path.
     /// </summary>
     event Action<string> EditorClosed;
+
+    /// <summary>
+    /// Raised when an editor saved the Stage definition at the given path.
+    /// </summary>
+    event Action<string> EditorSaved;
 }
 
 internal class EditorService : IEditorService, IDisposable
@@ -55,6 +60,7 @@ internal class EditorService : IEditorService, IDisposable
     
     public event Action<string>? EditorOpened;
     public event Action<string>? EditorClosed;
+    public event Action<string>? EditorSaved;
 
     public EditorService(IServiceProvider serviceProvider, WindowSystem windowSystem, ILogger<EditorService> logger)
     {
@@ -86,6 +92,7 @@ internal class EditorService : IEditorService, IDisposable
                         OpenEditorFilename = null;
                         EditorClosed?.Invoke(definitionFilename);
                     };
+                    newWindow.Saved += () => EditorSaved?.Invoke(definitionFilename);
                     _editorWindow = newWindow;
                     _windowSystem.AddWindow(newWindow);
                     newWindow.IsOpen = true;

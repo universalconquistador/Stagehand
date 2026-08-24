@@ -3,6 +3,7 @@ using Dalamud.Plugin.Services;
 using Microsoft.Extensions.Hosting;
 using Stagehand.Api;
 using Stagehand.Definitions;
+using Stagehand.Editor;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -22,6 +23,7 @@ internal class IpcApiService : IHostedService, IStagehandApi
     private readonly IFramework _framework;
     private readonly IGameStateService _gameStateService;
     private readonly ILiveStageService _liveStageService;
+    private readonly IEditorService _editorService;
     private readonly LocalStageService _localStageService;
     private readonly ILocalDefinitionService _localDefinitionService;
 
@@ -33,13 +35,14 @@ internal class IpcApiService : IHostedService, IStagehandApi
     private int _updatingLocalDefinitions = 0;
     private CancellationTokenSource _shutdownTokenSource = new();
 
-    public IpcApiService(ILogger<IpcApiService> logger, IDalamudPluginInterface dalamudPluginInterface, IFramework framework, IGameStateService gameStateService, ILiveStageService liveStageService, LocalStageService localStageService, ILocalDefinitionService localDefinitionService)
+    public IpcApiService(ILogger<IpcApiService> logger, IDalamudPluginInterface dalamudPluginInterface, IFramework framework, IGameStateService gameStateService, ILiveStageService liveStageService, IEditorService editorService, LocalStageService localStageService, ILocalDefinitionService localDefinitionService)
     {
         _logger = logger;
         _dalamudPluginInterface = dalamudPluginInterface;
         _framework = framework;
         _gameStateService = gameStateService;
         _liveStageService = liveStageService;
+        _editorService = editorService;
         _localStageService = localStageService;
         _localDefinitionService = localDefinitionService;
 
@@ -48,7 +51,14 @@ internal class IpcApiService : IHostedService, IStagehandApi
 
         _gameStateService.LocationChanged += OnLocationChanged;
 
+        _editorService.EditorSaved += OnEditorSaved;
+
         InvalidateLocalDefinitions();
+    }
+
+    private void OnEditorSaved(string definitionFilename)
+    {
+        LocalStageDefinitionEdited?.Invoke(definitionFilename);
     }
 
     private void OnLocationChanged(StageLocation location)
@@ -173,6 +183,8 @@ internal class IpcApiService : IHostedService, IStagehandApi
 
     public event Action? LocalStageDefinitionsChanged;
 
+    public event Action<string>? LocalStageDefinitionEdited;
+
     public LocalStageDefinition[] GetLocalStageDefinitions()
     {
         return _localStageDefinitions;
@@ -183,6 +195,8 @@ internal class IpcApiService : IHostedService, IStagehandApi
     public Task StopAsync(CancellationToken cancellationToken)
     {
         _shutdownTokenSource.Cancel();
+
+        _editorService.EditorSaved -= OnEditorSaved;
 
         _localStageService.VisibleStagesChanged -= OnVisibleStagesChanged;
 

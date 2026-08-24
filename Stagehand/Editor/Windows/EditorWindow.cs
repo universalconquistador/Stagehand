@@ -42,6 +42,7 @@ internal class EditorWindow : Window, IDisposable
     private readonly StagehandConfiguration _stagehandConfiguration;
 
     public event Action? Closed;
+    public event Action? Saved;
 
     private string _outlinerFilter = string.Empty;
     private bool _hasUnsavedChanges = false;
@@ -137,6 +138,7 @@ internal class EditorWindow : Window, IDisposable
             {
                 _definition.WriteToJSONStream(stream);
             }
+            Saved?.Invoke();
             return true;
         }
         catch (Exception ex)
