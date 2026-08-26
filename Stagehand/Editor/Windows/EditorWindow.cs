@@ -138,7 +138,10 @@ internal class EditorWindow : Window, IDisposable
             {
                 _definition.WriteToJSONStream(stream);
             }
-            Saved?.Invoke();
+            if (filename == _definitionFilename)
+            {
+                Saved?.Invoke();
+            }
             return true;
         }
         catch (Exception ex)
