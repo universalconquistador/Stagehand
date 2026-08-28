@@ -1,8 +1,10 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Stagehand.AssetLibrary;
+using Stagehand.AssetLibrary.Assets;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -126,7 +128,29 @@ public abstract class TreeViewComponent<TItem>
     public void Draw(Vector2 size)
     {
         var startY = ImGui.GetCursorPosY();
-        Utils.ImGuiExtensions.FilterBox("Filter"u8, ref _filterText);
+        Utils.ImGuiExtensions.FilterBox("Filter"u8, ref _filterText, HasFilterPopup ? ImGui.GetContentRegionAvail().X - ImGui.GetFrameHeight() - ImGui.GetStyle().ItemInnerSpacing.X : -1.0f);
+
+        if (HasFilterPopup)
+        {
+            ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
+            using (ImRaii.PushColor(ImGuiCol.Button, ImGui.GetStyle().Colors[(int)ImGuiCol.ButtonActive], IsFiltering))
+            {
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.Filter, new Vector2(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
+                {
+                    ImGui.OpenPopup("###BookmarkFiltersList");
+                }
+            }
+            ImGui.SetNextWindowSizeConstraints(new Vector2(200.0f, 0.0f), new Vector2(float.MaxValue, float.MaxValue));
+            using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(8.0f)))
+            using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, new Vector2(8.0f)))
+            using (var filtersList = ImRaii.Popup("###BookmarkFiltersList"))
+            {
+                if (filtersList.Success)
+                {
+                    DrawFilterPopup();
+                }
+            }
+        }
 
         TItem? hoveredNode = null;
         using (var listBox = ImRaii.ListBox("###TreeItems", new Vector2(size.X, size.Y - (ImGui.GetCursorPosY() - startY))))
@@ -341,6 +365,12 @@ public abstract class TreeViewComponent<TItem>
             }
         }
     }
+
+    protected virtual bool HasFilterPopup => false;
+    protected virtual bool IsFiltering => false;
+
+    protected virtual void DrawFilterPopup()
+    { }
 
     public void ExpandItem(TItem? item)
     {

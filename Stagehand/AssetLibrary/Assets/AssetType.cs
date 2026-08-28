@@ -14,6 +14,14 @@ public record class AssetType(string DisplayName, string DisplayDescription, Fon
     public static readonly AssetType<AvfxResourceAssetInfo> AvfxResource = new("VFX Resource", ".avfx", FontAwesomeIcon.WandSparkles);
     public static readonly AssetType<ResourceAssetInfo> SgbResource = new("Shared Group Resource", ".sgb", FontAwesomeIcon.Archive);
     public static readonly AssetType<ScdResourceAssetInfo> ScdResource = new("Sound Resource", ".scd", FontAwesomeIcon.VolumeUp);
+
+    public static AssetType[] AllAssetTypes { get; } =
+    [
+        MdlResource,
+        AvfxResource,
+        //SgbResource, // TODO: Uncomment when these are in the asset database
+        ScdResource,
+    ];
 }
 
 public record class AssetType<TAssetInfo>(string DisplayName, string DisplayDescription, FontAwesomeIcon Icon) : AssetType(DisplayName, DisplayDescription, Icon);

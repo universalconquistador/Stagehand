@@ -16,12 +16,16 @@ namespace Stagehand.Utils;
 
 internal static class ImGuiExtensions
 {
-    public static void FilterBox(ImU8String hint, ref string currentFilter)
+    public static void FilterBox(ImU8String hint, ref string currentFilter, float width = -1)
     {
         var icon = FontAwesomeIcon.Times;
         var clearButtonWidth = 0.0f;
         clearButtonWidth = ImGui.GetFrameHeight();
-        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - (currentFilter.Length > 0 ? clearButtonWidth + ImGui.GetStyle().ItemInnerSpacing.X : 0));
+        if (width < 0.0f)
+        {
+            width = ImGui.GetContentRegionAvail().X;
+        }
+        ImGui.SetNextItemWidth(width - (currentFilter.Length > 0 ? clearButtonWidth + ImGui.GetStyle().ItemInnerSpacing.X : 0));
         ImGui.InputTextWithHint("##SearchFilter", hint, ref currentFilter, 2048);
         if (currentFilter.Length > 0)
         {

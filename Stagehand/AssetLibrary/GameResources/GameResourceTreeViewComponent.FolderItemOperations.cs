@@ -18,7 +18,8 @@ public partial class GameResourceTreeViewComponent
         public override FontAwesomeIcon GetIcon() => FontAwesomeIcon.Folder;
         public override string GetText() => Item.Name;
 
-        public override bool IsVisible() => Item.FullGamePath.Contains(TreeView.FilterText, StringComparison.CurrentCultureIgnoreCase)
+        public override bool IsVisible() => (TreeView.FilterText.Length > 0 && Item.FullGamePath.Contains(TreeView.FilterText, StringComparison.CurrentCultureIgnoreCase))
+            || (TreeView.FilterText.Length == 0 && TreeView.HiddenAssetTypes.Count == 0)
             || Item.ChildItems.Any(TreeView.IsVisible);
 
         private readonly IAssetBookmarkService _assetBookmarkService;

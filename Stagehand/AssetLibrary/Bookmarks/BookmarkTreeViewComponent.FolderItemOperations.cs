@@ -19,7 +19,8 @@ public partial class BookmarkTreeViewComponent
         public override string GetUniqueId() => Item.Guid.ToString();
 
         // WARNING: Recursing here is not great complexity-wise, we should cache visibility per item
-        public override bool IsVisible() => Item.Name.Contains(TreeView.FilterText, StringComparison.CurrentCultureIgnoreCase)
+        public override bool IsVisible() => (TreeView.FilterText.Length > 0 && Item.Name.Contains(TreeView.FilterText, StringComparison.CurrentCultureIgnoreCase))
+            || (TreeView.FilterText.Length == 0 && TreeView.HiddenAssetTypes.Count == 0)
             || Item.ChildItems.Any(TreeView.IsVisible);
 
         public override bool CanRename() => true;

@@ -18,7 +18,7 @@ public partial class BookmarkTreeViewComponent
         public override string? GetTypeDescription() => "Resource Folder Link";
 
         public override bool IsLeafNode() => true;
-        public override bool IsVisible() => Item.FolderGamePath.Contains(TreeView.FilterText, StringComparison.CurrentCultureIgnoreCase);
+        public override bool IsVisible() => Item.FolderGamePath.Contains(TreeView.FilterText, StringComparison.CurrentCultureIgnoreCase) && !TreeView.HideFolderBookmarks;
         
         public override bool CanDrag() => true;
 

@@ -1,5 +1,12 @@
+using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
+using Dalamud.Interface.Components;
+using Dalamud.Interface.Utility;
+using Dalamud.Interface.Utility.Raii;
+using Stagehand.AssetLibrary.Assets;
 using Stagehand.UI;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Text;
 
 namespace Stagehand.AssetLibrary.GameResources;
@@ -9,12 +16,16 @@ namespace Stagehand.AssetLibrary.GameResources;
 /// </summary>
 public partial class GameResourceTreeViewComponent : TreeViewComponent<IGameFilesystemItem>
 {
+    public HashSet<AssetType> HiddenAssetTypes { get; } = new();
+
     private readonly IGameResourceAssetService _gameResourceAssetService;
 
     private readonly FolderItemOperations _folderItemOperations;
     private readonly ResourceItemOperations _resourceItemOperations;
 
     protected override IReadOnlyList<IGameFilesystemItem> RootItems => _gameResourceAssetService.RootItems;
+    protected override bool HasFilterPopup => true;
+    protected override bool IsFiltering => HiddenAssetTypes.Count != 0;
 
     public GameResourceTreeViewComponent(IGameResourceAssetService gameResourceAssetService, IAssetBookmarkService assetBookmarkService)
     {
@@ -22,6 +33,28 @@ public partial class GameResourceTreeViewComponent : TreeViewComponent<IGameFile
 
         _folderItemOperations = new(this, assetBookmarkService);
         _resourceItemOperations = new(this, gameResourceAssetService, assetBookmarkService);
+    }
+
+    protected override void DrawFilterPopup()
+    {
+        foreach (var assetType in AssetType.AllAssetTypes)
+        {
+            bool visible = !HiddenAssetTypes.Contains(assetType);
+            using (ImRaii.PushColor(ImGuiCol.Button, ImGui.GetStyle().Colors[(int)ImGuiCol.ButtonActive], visible))
+            {
+                if (ImGuiComponents.IconButtonWithText(visible ? assetType.Icon : FontAwesomeIcon.Ban, assetType.DisplayName, new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
+                {
+                    if (visible)
+                    {
+                        HiddenAssetTypes.Add(assetType);
+                    }
+                    else
+                    {
+                        HiddenAssetTypes.Remove(assetType);
+                    }
+                }
+            }
+        }
     }
 
     private class FilesystemItemOperationsVisitor : IGameFilesystemItemVisitor<GameResourceTreeViewComponent, ITreeItemOperations<IGameFilesystemItem>>

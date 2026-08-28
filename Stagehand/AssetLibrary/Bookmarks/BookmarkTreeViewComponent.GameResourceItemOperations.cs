@@ -19,7 +19,7 @@ public partial class BookmarkTreeViewComponent
         public override string? GetTypeDescription() => _gameResourceAssetService.TryGetResource(Item.ResourceGamePath, out var resource) ? resource.AssetInfo.Type.DisplayName : "(Resource not found)";
         
         public override bool IsLeafNode() => true;
-        public override bool IsVisible() => Item.ResourceGamePath.Contains(TreeView.FilterText, StringComparison.CurrentCultureIgnoreCase);
+        public override bool IsVisible() => Item.ResourceGamePath.Contains(TreeView.FilterText, StringComparison.CurrentCultureIgnoreCase) && (!_gameResourceAssetService.TryGetResource(Item.ResourceGamePath, out var resource) || !TreeView.HiddenAssetTypes.Contains(resource.AssetInfo.Type));
 
         public override bool CanDrag() => true;
 

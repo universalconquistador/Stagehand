@@ -1,9 +1,15 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
+using Dalamud.Interface.Components;
+using Dalamud.Interface.Utility;
+using Dalamud.Interface.Utility.Raii;
+using Stagehand.AssetLibrary.Assets;
 using Stagehand.AssetLibrary.GameResources;
 using Stagehand.UI;
 using Stagehand.Utils;
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -14,6 +20,9 @@ namespace Stagehand.AssetLibrary.Bookmarks;
 /// </summary>
 public partial class BookmarkTreeViewComponent : TreeViewComponent<IBookmarkItem>
 {
+    public HashSet<AssetType> HiddenAssetTypes { get; } = new();
+    public bool HideFolderBookmarks { get; set; } = false;
+
     private readonly IAssetBookmarkService _assetBookmarkService;
     private readonly IGameResourceAssetService _gameResourceAssetService;
 
@@ -42,6 +51,41 @@ public partial class BookmarkTreeViewComponent : TreeViewComponent<IBookmarkItem
     public event Action<IGameResourceBookmarkItem>? GameResourceDoubleClicked;
 
     protected override IReadOnlyList<IBookmarkItem> RootItems => _assetBookmarkService.RootItemsSorted;
+    protected override bool HasFilterPopup => true;
+    protected override bool IsFiltering => HiddenAssetTypes.Count != 0 || HideFolderBookmarks;
+
+    protected override void DrawFilterPopup()
+    {
+        foreach (var assetType in AssetType.AllAssetTypes)
+        {
+            bool visible = !HiddenAssetTypes.Contains(assetType);
+            using (ImRaii.PushColor(ImGuiCol.Button, ImGui.GetStyle().Colors[(int)ImGuiCol.ButtonActive], visible))
+            {
+                if (ImGuiComponents.IconButtonWithText(visible ? assetType.Icon : FontAwesomeIcon.Ban, assetType.DisplayName, new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
+                {
+                    if (visible)
+                    {
+                        HiddenAssetTypes.Add(assetType);
+                    }
+                    else
+                    {
+                        HiddenAssetTypes.Remove(assetType);
+                    }
+                }
+            }
+        }
+
+        ImGui.Separator();
+
+        bool foldersVisible = !HideFolderBookmarks;
+        using (ImRaii.PushColor(ImGuiCol.Button, ImGui.GetStyle().Colors[(int)ImGuiCol.ButtonActive], foldersVisible))
+        {
+            if (ImGuiComponents.IconButtonWithText(foldersVisible ? FontAwesomeIcon.ExternalLinkSquareAlt : FontAwesomeIcon.Ban, "Resource Folder Link", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
+            {
+                HideFolderBookmarks = !HideFolderBookmarks;
+            }
+        }
+    }
 
     public BookmarkTreeViewComponent(IAssetBookmarkService assetBookmarkService, IGameResourceAssetService gameResourceAssetService)
     {

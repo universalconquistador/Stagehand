@@ -12,13 +12,13 @@ public partial class GameResourceTreeViewComponent
     private class ResourceItemOperations : TreeItemOperationsBase<IGameFilesystemResource, GameResourceTreeViewComponent>
     {
         public override IGameFilesystemItem? GetParent() => Item.ParentItem;
-        public override FontAwesomeIcon GetIcon() => _gameResourceAssetService.TryGetResource(Item.FullGamePath, out var resource) ? resource.AssetInfo.Type.Icon : FontAwesomeIcon.FileCircleQuestion;
+        public override FontAwesomeIcon GetIcon() => Item.AssetInfo.Type.Icon;
         public override string GetText() => Item.Name;
         public override string? GetDescription() => Item.FullGamePath;
-        public override string? GetTypeDescription() => _gameResourceAssetService.TryGetResource(Item.FullGamePath, out var resource) ? resource.AssetInfo.Type.DisplayName : "(Unknown resource type)";
+        public override string? GetTypeDescription() => Item.AssetInfo.Type.DisplayName;
 
         public override bool IsLeafNode() => true;
-        public override bool IsVisible() => Item.FullGamePath.Contains(TreeView.FilterText, StringComparison.CurrentCultureIgnoreCase);
+        public override bool IsVisible() => Item.FullGamePath.Contains(TreeView.FilterText, StringComparison.CurrentCultureIgnoreCase) && !TreeView.HiddenAssetTypes.Contains(Item.AssetInfo.Type);
 
         private readonly IGameResourceAssetService _gameResourceAssetService;
         private readonly IAssetBookmarkService _assetBookmarkService;
