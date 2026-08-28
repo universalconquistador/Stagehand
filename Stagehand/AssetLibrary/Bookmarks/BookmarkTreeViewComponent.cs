@@ -67,10 +67,12 @@ public partial class BookmarkTreeViewComponent : TreeViewComponent<IBookmarkItem
                     if (visible)
                     {
                         HiddenAssetTypes.Add(assetType);
+                        InvalidateFilter();
                     }
                     else
                     {
                         HiddenAssetTypes.Remove(assetType);
+                        InvalidateFilter();
                     }
                 }
             }
