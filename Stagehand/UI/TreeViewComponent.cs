@@ -3,8 +3,6 @@ using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
-using Stagehand.AssetLibrary;
-using Stagehand.AssetLibrary.Assets;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -129,6 +127,8 @@ public abstract class TreeViewComponent<TItem>
 
     protected abstract IReadOnlyList<TItem> RootItems { get; }
 
+    protected virtual bool HasContextMenu => false;
+
     private readonly HashSet<TItem> _itemsToExpand = new();
     private readonly Dictionary<TItem, bool> _isVisibleCache = new();
     private TItem? _dragItem = null;
@@ -203,6 +203,10 @@ public abstract class TreeViewComponent<TItem>
                 {
                     SelectedItem = null;
                 }
+                if (HasContextMenu && ImGui.IsItemClicked(ImGuiMouseButton.Right))
+                {
+                    ImGui.OpenPopup("###TreeEmptySpaceContextMenu");
+                }
                 if (_dragItem != null && CanAcceptDrop(_dragItem))
                 {
                     using (var dropTarget = ImRaii.DragDropTarget())
@@ -218,6 +222,11 @@ public abstract class TreeViewComponent<TItem>
                             }
                         }
                     }
+                }
+
+                if (HasContextMenu)
+                {
+                    DrawContextMenu("###TreeEmptySpaceContextMenu");
                 }
             }
         }
@@ -401,6 +410,9 @@ public abstract class TreeViewComponent<TItem>
     protected virtual bool IsFiltering => false;
 
     protected virtual void DrawFilterPopup()
+    { }
+
+    protected virtual void DrawContextMenu(string id)
     { }
 
     public void ExpandItem(TItem? item)

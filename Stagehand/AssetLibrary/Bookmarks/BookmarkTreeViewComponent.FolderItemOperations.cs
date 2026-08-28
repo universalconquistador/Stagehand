@@ -55,6 +55,12 @@ public partial class BookmarkTreeViewComponent
             {
                 if (contextMenu.Success)
                 {
+                    if (ImGui.MenuItem("New Folder"))
+                    {
+                        TreeView.ExpandItem(Item);
+                        _ = TreeView.CreateAndSelectFolderAsync(Item, "New Folder");
+                    }
+                    ImGui.Separator();
                     if (ImGui.MenuItem("Cut"))
                     {
                         _ = TreeView.CutItemAsync(Item);

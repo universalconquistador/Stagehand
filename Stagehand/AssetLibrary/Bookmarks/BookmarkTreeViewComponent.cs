@@ -52,6 +52,7 @@ public partial class BookmarkTreeViewComponent : TreeViewComponent<IBookmarkItem
 
     protected override IReadOnlyList<IBookmarkItem> RootItems => _assetBookmarkService.RootItemsSorted;
     protected override bool HasFilterPopup => true;
+    protected override bool HasContextMenu => true;
     protected override bool IsFiltering => HiddenAssetTypes.Count != 0 || HideFolderBookmarks;
 
     protected override void DrawFilterPopup()
@@ -95,6 +96,28 @@ public partial class BookmarkTreeViewComponent : TreeViewComponent<IBookmarkItem
         _folderItemOperations = new(this);
         _gameFolderItemOperations = new(this);
         _gameResourceItemOperations = new(this, _gameResourceAssetService);
+    }
+
+    protected override void DrawContextMenu(string id)
+    {
+        ImGui.SetNextWindowSizeConstraints(new Vector2(200.0f, 0.0f), new Vector2(float.MaxValue, float.MaxValue));
+        using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(8.0f)))
+        using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, new Vector2(8.0f)))
+        using (var contextMenu = ImRaii.Popup(id))
+        {
+            if (contextMenu.Success)
+            {
+                if (ImGui.MenuItem("New Folder"))
+                {
+                    _ = CreateAndSelectFolderAsync(null, "New Folder");
+                }
+                ImGui.Separator();
+                if (ImGui.MenuItem("Paste"))
+                {
+                    _ = PasteItemsAsync(null);
+                }
+            }
+        }
     }
 
     protected override bool CanAcceptDrop(IBookmarkItem item)
@@ -155,7 +178,7 @@ public partial class BookmarkTreeViewComponent : TreeViewComponent<IBookmarkItem
         ImGui.SetClipboardText(fragment.ToDataString());
     }
 
-    private async Task PasteItemsAsync(IFolderBookmarkItem parent)
+    private async Task PasteItemsAsync(IFolderBookmarkItem? parent)
     {
         var fragment = DataTransferFragment.FromDataString(ImGui.GetClipboardText());
         if (fragment != null)

@@ -163,3 +163,4 @@ Later down the road:
 ## 0.4.10
 
  - Adds visibility caching to the Game Resources tree to address performance issues with very large numbers of visible items.
+ - Adds New Folder context menu item to bookmark folders, and adds New Folder and Paste context menu items to the empty space in the bookmark tree.
