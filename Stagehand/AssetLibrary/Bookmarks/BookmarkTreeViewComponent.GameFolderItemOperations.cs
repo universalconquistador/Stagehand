@@ -40,6 +40,15 @@ public partial class BookmarkTreeViewComponent
             {
                 if (contextMenu.Success)
                 {
+                    if (ImGui.MenuItem("Cut"))
+                    {
+                        _ = TreeView.CutItemAsync(Item);
+                    }
+                    if (ImGui.MenuItem("Copy"))
+                    {
+                        _ = TreeView.CopyItemAsync(Item);
+                    }
+                    ImGui.Separator();
                     if (ImGui.MenuItem("Delete"u8))
                     {
                         _ = TreeView.DeleteBookmarkItemAsync(Item);

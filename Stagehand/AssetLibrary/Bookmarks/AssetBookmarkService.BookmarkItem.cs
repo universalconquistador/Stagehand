@@ -63,7 +63,7 @@ internal partial class AssetBookmarkService
     [JsonDerivedType(typeof(FolderBookmarkItem), typeDiscriminator: "Folder")]
     [JsonDerivedType(typeof(GameResourceBookmarkItem), typeDiscriminator: "GameResource")]
     [JsonDerivedType(typeof(GameFolderBookmarkItem), typeDiscriminator: "GameFolder")]
-    private abstract class BookmarkItem : IBookmarkItem, IComparable<BookmarkItem>
+    public abstract class BookmarkItem : IBookmarkItem, IComparable<BookmarkItem>
     {
         [JsonIgnore]
         public abstract int TypeSortOrder { get; }
@@ -120,6 +120,8 @@ internal partial class AssetBookmarkService
         {
             Deleted?.Invoke(thisItem);
         }
+
+        public abstract BookmarkItem DeepClone(bool newGuid);
 
         public abstract void RaiseDeleted();
 

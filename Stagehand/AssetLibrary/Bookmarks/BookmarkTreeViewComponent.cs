@@ -1,5 +1,7 @@
+using Dalamud.Bindings.ImGui;
 using Stagehand.AssetLibrary.GameResources;
 using Stagehand.UI;
+using Stagehand.Utils;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -69,7 +71,7 @@ public partial class BookmarkTreeViewComponent : TreeViewComponent<IBookmarkItem
 
     public async Task CreateAndSelectFolderAsync(IFolderBookmarkItem? parentFolder, string name)
     {
-        var newFolder = await _assetBookmarkService.CreateFolderAsync(parentFolder, name).ConfigureAwait(false);
+        var newFolder = await _assetBookmarkService.CreateFolderAsync(name, parentFolder).ConfigureAwait(false);
         SelectedItem = newFolder;
         RenamingItem = newFolder;
         await _assetBookmarkService.SaveBookmarksAsync().ConfigureAwait(false);
@@ -95,6 +97,33 @@ public partial class BookmarkTreeViewComponent : TreeViewComponent<IBookmarkItem
             ExpandItem(newParent);
         }
         await _assetBookmarkService.SaveBookmarksAsync().ConfigureAwait(false);
+    }
+
+    private async Task CutItemAsync(IBookmarkItem item)
+    {
+        await CopyItemAsync(item).ConfigureAwait(false);
+        await DeleteBookmarkItemAsync(item);
+    }
+
+    private async Task CopyItemAsync(IBookmarkItem item)
+    {
+        var fragment = await _assetBookmarkService.SaveToFragment([item]).ConfigureAwait(false);
+        ImGui.SetClipboardText(fragment.ToDataString());
+    }
+
+    private async Task PasteItemsAsync(IFolderBookmarkItem parent)
+    {
+        var fragment = DataTransferFragment.FromDataString(ImGui.GetClipboardText());
+        if (fragment != null)
+        {
+            var newItems = await _assetBookmarkService.CreateFromFragment(fragment, parent).ConfigureAwait(false);
+
+            if (newItems.Count > 0)
+            {
+                SelectedItem = newItems[0];
+                ExpandItem(newItems[0]);
+            }
+        }
     }
 
     /// <summary>

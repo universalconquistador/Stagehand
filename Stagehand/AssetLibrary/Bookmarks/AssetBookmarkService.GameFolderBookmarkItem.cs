@@ -23,7 +23,7 @@ public interface IGameFolderBookmarkItem : IBookmarkItem
 
 internal partial class AssetBookmarkService
 {
-    private class GameFolderBookmarkItem : BookmarkItem, IGameFolderBookmarkItem
+    public class GameFolderBookmarkItem : BookmarkItem, IGameFolderBookmarkItem
     {
         [JsonIgnore]
         public override int TypeSortOrder => 2;
@@ -52,6 +52,11 @@ internal partial class AssetBookmarkService
         public override void RaiseDeleted()
         {
             RaiseDeleted(this);
+        }
+
+        public override BookmarkItem DeepClone(bool newGuid)
+        {
+            return new GameFolderBookmarkItem(FolderGamePath, newGuid ? Guid.NewGuid() : Guid);
         }
 
         public override TResult Visit<TVisitor, TParam, TResult>(ref TParam param)

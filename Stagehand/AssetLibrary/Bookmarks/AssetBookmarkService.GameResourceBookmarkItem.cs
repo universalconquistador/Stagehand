@@ -54,6 +54,11 @@ internal partial class AssetBookmarkService
             RaiseDeleted(this);
         }
 
+        public override BookmarkItem DeepClone(bool newGuid)
+        {
+            return new GameResourceBookmarkItem(ResourceGamePath, newGuid ? Guid.NewGuid() : Guid);
+        }
+
         public override TResult Visit<TVisitor, TParam, TResult>(ref TParam param)
         {
             return TVisitor.VisitGameResourceBookmarkItem(this, ref param);

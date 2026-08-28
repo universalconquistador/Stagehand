@@ -502,7 +502,7 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
 
     private async Task CreateAndSelectBookmarkFolderAsync(IFolderBookmarkItem? parentItem, string name)
     {
-        var newFolder = await _assetBookmarkService.CreateFolderAsync(parentItem, name).ConfigureAwait(false);
+        var newFolder = await _assetBookmarkService.CreateFolderAsync(name, parentItem).ConfigureAwait(false);
         _bookmarkTreeView.ExpandItem(newFolder);
         _bookmarkTreeView.RenamingItem = newFolder;
         _bookmarkTreeView.SelectedItem = newFolder;

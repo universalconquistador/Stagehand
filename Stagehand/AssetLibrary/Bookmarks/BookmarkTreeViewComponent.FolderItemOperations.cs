@@ -54,6 +54,19 @@ public partial class BookmarkTreeViewComponent
             {
                 if (contextMenu.Success)
                 {
+                    if (ImGui.MenuItem("Cut"))
+                    {
+                        _ = TreeView.CutItemAsync(Item);
+                    }
+                    if (ImGui.MenuItem("Copy"))
+                    {
+                        _ = TreeView.CopyItemAsync(Item);
+                    }
+                    if (ImGui.MenuItem("Paste"))
+                    {
+                        _ = TreeView.PasteItemsAsync(Item);
+                    }
+                    ImGui.Separator();
                     if (ImGui.MenuItem("Rename"))
                     {
                         TreeView.RenamingItem = Item;

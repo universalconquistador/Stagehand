@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace Stagehand.AssetLibrary;
@@ -20,7 +21,7 @@ public interface IFolderBookmarkItem : IBookmarkItem
 
 internal partial class AssetBookmarkService
 {
-    private class FolderBookmarkItem : BookmarkItem, IFolderBookmarkItem
+    public class FolderBookmarkItem : BookmarkItem, IFolderBookmarkItem
     {
         [JsonIgnore]
         public override int TypeSortOrder => 10;
@@ -92,6 +93,11 @@ internal partial class AssetBookmarkService
             }
 
             RaiseDeleted(this);
+        }
+
+        public override BookmarkItem DeepClone(bool newGuid)
+        {
+            return new FolderBookmarkItem(Name, ChildItems.Select(item => item.DeepClone(newGuid)).ToList(), newGuid ? Guid.NewGuid() : Guid);
         }
 
         public override TResult Visit<TVisitor, TParam, TResult>(ref TParam param)

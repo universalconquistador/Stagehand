@@ -91,7 +91,7 @@ public partial class GameResourceTreeViewComponent
 
         private async Task CreateGameResourceBookmarkAsync(IFolderBookmarkItem? parentFolder, string gamePath)
         {
-            var newItem = await _assetBookmarkService.CreateGameResourceBookmarkAsync(parentFolder, gamePath).ConfigureAwait(false);
+            var newItem = await _assetBookmarkService.CreateGameResourceBookmarkAsync(gamePath, parentFolder).ConfigureAwait(false);
             await _assetBookmarkService.SaveBookmarksAsync().ConfigureAwait(false);
         }
     }

@@ -1,4 +1,5 @@
 using Dalamud.Plugin;
+using Stagehand.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -33,26 +34,42 @@ public interface IAssetBookmarkService
     /// <summary>
     /// Creates a new folder with the given name, optionally within a parent folder.
     /// </summary>
-    /// <param name="parent">The parent folder to create the new folder within, or <see langword="null"/> to create the new folder at the outermost level.</param>
     /// <param name="name">The name of the folder to create.</param>
+    /// <param name="parent">The parent folder to create the new folder within, or <see langword="null"/> to create the new folder at the outermost level.</param>
     /// <returns>The new folder item.</returns>
-    Task<IFolderBookmarkItem> CreateFolderAsync(IFolderBookmarkItem? parent, string name);
+    Task<IFolderBookmarkItem> CreateFolderAsync(string name, IFolderBookmarkItem? parent);
 
     /// <summary>
     /// Creates a new bookmark for the resource at the given game path, optionally within a parent folder.
     /// </summary>
-    /// <param name="parent">The parent folder to create the new bookmark within, or <see langword="null"/> to create the new folder at the outermost level.</param>
     /// <param name="resourceGamePath">The game path of the resource to create a bookmark to.</param>
+    /// <param name="parent">The parent folder to create the new bookmark within, or <see langword="null"/> to create the new folder at the outermost level.</param>
     /// <returns>The new bookmark item.</returns>
-    Task<IGameResourceBookmarkItem> CreateGameResourceBookmarkAsync(IFolderBookmarkItem? parent, string resourceGamePath);
+    Task<IGameResourceBookmarkItem> CreateGameResourceBookmarkAsync(string resourceGamePath, IFolderBookmarkItem? parent);
 
     /// <summary>
     /// Creates a new bookmark for the folder at the given game path, optionally within a parent folder.
     /// </summary>
-    /// <param name="parent">The parent folder to create the new bookmark within, or <see langword="null"/> to create the new folder at the outermost level.</param>
     /// <param name="folderGamePath">The game path of the folder to create a bookmark to.</param>
+    /// <param name="parent">The parent folder to create the new bookmark within, or <see langword="null"/> to create the new folder at the outermost level.</param>
     /// <returns>The new bookmark item.</returns>
-    Task<IGameFolderBookmarkItem> CreateGameFolderBookmarkAsync(IFolderBookmarkItem? parent, string folderGamePath);
+    Task<IGameFolderBookmarkItem> CreateGameFolderBookmarkAsync(string folderGamePath, IFolderBookmarkItem? parent);
+
+    /// <summary>
+    /// Creates bookmark items according to the given data transfer fragment from a previous call to <see cref="SaveToFragment(IReadOnlyList{IBookmarkItem})"/>.
+    /// </summary>
+    /// <param name="fragment">The fragment containing the items to create.</param>
+    /// <param name="parent">The parent to place the created items in, or null.</param>
+    /// <returns>The items that were created.</returns>
+    Task<IReadOnlyList<IBookmarkItem>> CreateFromFragment(DataTransferFragment fragment, IFolderBookmarkItem? parent);
+
+    /// <summary>
+    /// Saves the given bookmark items to a data transfer fragment that can be serialized and then passed back to
+    /// <see cref="CreateFromFragment(DataTransferFragment, IFolderBookmarkItem?)"/>.
+    /// </summary>
+    /// <param name="items">The items to create the fragment with.</param>
+    /// <returns>A data transfer fragment with the bookmark items.</returns>
+    Task<DataTransferFragment> SaveToFragment(IReadOnlyList<IBookmarkItem> items);
 
     /// <summary>
     /// Deletes the given bookmark item.
@@ -109,6 +126,8 @@ internal partial class AssetBookmarkService : IAssetBookmarkService, IDisposable
         _ = LoadBookmarksAsync();
     }
 
+    private record class BookmarksFile(List<BookmarkItem> Items);
+
     private async Task LoadBookmarksAsync()
     {
         Interlocked.Increment(ref _loadBookmarksTasks);
@@ -127,7 +146,7 @@ internal partial class AssetBookmarkService : IAssetBookmarkService, IDisposable
             {
                 using (var fileStream = new FileStream(_bookmarkLibraryFilename, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    loadedItems = await DeserializeBookmarksFromStreamAsync(fileStream, newCancellationToken.Token).ConfigureAwait(false);
+                    loadedItems = (await JsonSerializer.DeserializeAsync<BookmarksFile>(fileStream, cancellationToken: newCancellationToken.Token).ConfigureAwait(false))?.Items;
                 }
 
                 newCancellationToken.Token.ThrowIfCancellationRequested();
@@ -196,6 +215,17 @@ internal partial class AssetBookmarkService : IAssetBookmarkService, IDisposable
         var previousToken = Interlocked.Exchange(ref _bookmarkLibraryToken, newCancellationToken);
         await previousToken.CancelAsync().ConfigureAwait(false);
 
+        List<BookmarkItem> rootItemClones;
+        await _bookmarkLibraryLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            rootItemClones = _rootItemsSorted.Select(item => item.DeepClone(newGuid: false)).ToList();
+        }
+        finally
+        {
+            _bookmarkLibraryLock.Release();
+        }
+
         // Wait for any previous in-flight operations to finish
         await _diskOperationLock.WaitAsync().ConfigureAwait(false);
         try
@@ -204,7 +234,7 @@ internal partial class AssetBookmarkService : IAssetBookmarkService, IDisposable
             var tempFilename = Path.GetTempFileName();
             using (var fileStream = new FileStream(tempFilename, FileMode.Create, FileAccess.Write, FileShare.None))
             {
-                await SerializeBookmarksToStreamAsync(fileStream, newCancellationToken.Token).ConfigureAwait(false);
+                await JsonSerializer.SerializeAsync(fileStream, new BookmarksFile(rootItemClones), cancellationToken: newCancellationToken.Token).ConfigureAwait(false);
             }
 
             newCancellationToken.Token.ThrowIfCancellationRequested();
@@ -230,45 +260,49 @@ internal partial class AssetBookmarkService : IAssetBookmarkService, IDisposable
         }
     }
 
-    private record class BookmarksFile(List<BookmarkItem> Items);
-
-    private async Task SerializeBookmarksToStreamAsync(Stream stream, CancellationToken cancellationToken)
-    {
-        await JsonSerializer.SerializeAsync(stream, new BookmarksFile(_rootItemsSorted), cancellationToken: cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task<List<BookmarkItem>?> DeserializeBookmarksFromStreamAsync(Stream stream, CancellationToken cancellationToken)
-    {
-        var file = await JsonSerializer.DeserializeAsync<BookmarksFile>(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (file != null)
-        {
-            return file.Items;
-        }
-        else
-        {
-            return null;
-        }
-    }
-
-    public async Task<IFolderBookmarkItem> CreateFolderAsync(IFolderBookmarkItem? parent, string name)
+    public async Task<IFolderBookmarkItem> CreateFolderAsync(string name, IFolderBookmarkItem? parent)
     {
         var newItem = new FolderBookmarkItem(name);
         await AddNewItemAsync(parent, newItem);
         return newItem;
     }
 
-    public async Task<IGameResourceBookmarkItem> CreateGameResourceBookmarkAsync(IFolderBookmarkItem? parent, string resourceGamePath)
+    public async Task<IGameResourceBookmarkItem> CreateGameResourceBookmarkAsync(string resourceGamePath, IFolderBookmarkItem? parent)
     {
         var newItem = new GameResourceBookmarkItem(resourceGamePath);
         await AddNewItemAsync(parent, newItem).ConfigureAwait(false);
         return newItem;
     }
 
-    public async Task<IGameFolderBookmarkItem> CreateGameFolderBookmarkAsync(IFolderBookmarkItem? parent, string folderGamePath)
+    public async Task<IGameFolderBookmarkItem> CreateGameFolderBookmarkAsync(string folderGamePath, IFolderBookmarkItem? parent)
     {
         var newItem = new GameFolderBookmarkItem(folderGamePath);
         await AddNewItemAsync(parent, newItem).ConfigureAwait(false);
         return newItem;
+    }
+
+    public record class BookmarkDataTransferFragment(List<BookmarkItem> BookmarkItems) : DataTransferFragment()
+    { }
+
+    public async Task<IReadOnlyList<IBookmarkItem>> CreateFromFragment(DataTransferFragment fragment, IFolderBookmarkItem? parent)
+    {
+        List<IBookmarkItem> results = new();
+
+        if (fragment is BookmarkDataTransferFragment bookmarkFragment)
+        {
+            foreach (var item in bookmarkFragment.BookmarkItems)
+            {
+                var itemClone = item.DeepClone(newGuid: true);
+                await AddNewItemAsync(parent, itemClone);
+                results.Add(itemClone);
+            }
+        }
+        else
+        {
+            _logger.LogWarning("Tried to create bookmark item(s) from a non-bookmark fragment!");
+        }
+
+        return results;
     }
 
     private async Task AddNewItemAsync(IFolderBookmarkItem? parent, BookmarkItem newItem)
@@ -290,6 +324,29 @@ internal partial class AssetBookmarkService : IAssetBookmarkService, IDisposable
         {
             _bookmarkLibraryLock.Release();
         }
+    }
+
+    public async Task<DataTransferFragment> SaveToFragment(IReadOnlyList<IBookmarkItem> items)
+    {
+        List<BookmarkItem> itemClones = new();
+
+        await _bookmarkLibraryLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            foreach (var item in items)
+            {
+                if (item is BookmarkItem bookmarkItem)
+                {
+                    itemClones.Add(bookmarkItem.DeepClone(newGuid: false));
+                }
+            }
+        }
+        finally
+        {
+            _bookmarkLibraryLock.Release();
+        }
+
+        return new BookmarkDataTransferFragment(itemClones);
     }
 
     public async Task DeleteAsync(IBookmarkItem bookmark)
