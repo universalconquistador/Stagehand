@@ -88,7 +88,10 @@ public abstract class TreeViewComponent<TItem>
         public virtual bool IsLeafNode() => GetChildren().Count == 0;
         public virtual bool IsVisible() => GetText().Contains(TreeView.FilterText, StringComparison.CurrentCultureIgnoreCase);
 
-        public virtual void SetText(string newText) => new InvalidOperationException();
+        public virtual void SetText(string newText)
+        {
+            TreeView.InvalidateFilter(Item);
+        }
 
         public virtual bool CanAcceptDrop(TItem item) => false;
         public virtual bool TryAcceptDrop(TItem item) => false;
@@ -113,7 +116,11 @@ public abstract class TreeViewComponent<TItem>
     public string FilterText
     {
         get => _filterText;
-        set => _filterText = value;
+        set
+        {
+            _filterText = value;
+            InvalidateFilter();
+        }
     }
 
     public virtual TItem? RenamingItem { get; set; }
@@ -123,12 +130,36 @@ public abstract class TreeViewComponent<TItem>
     protected abstract IReadOnlyList<TItem> RootItems { get; }
 
     private readonly HashSet<TItem> _itemsToExpand = new();
+    private readonly Dictionary<TItem, bool> _isVisibleCache = new();
     private TItem? _dragItem = null;
+
+    public void InvalidateFilter()
+    {
+        _isVisibleCache.Clear();
+    }
+
+    public void InvalidateFilter(TItem item)
+    {
+        _isVisibleCache.Remove(item);
+        TItem? ancestor = item;
+        while (ancestor != null)
+        {
+            _isVisibleCache.Remove(ancestor);
+            var operations = GetItemOperations(ancestor);
+            ancestor = operations.GetParent();
+            operations.PopItem();
+        }
+    }
 
     public void Draw(Vector2 size)
     {
         var startY = ImGui.GetCursorPosY();
-        Utils.ImGuiExtensions.FilterBox("Filter"u8, ref _filterText, HasFilterPopup ? ImGui.GetContentRegionAvail().X - ImGui.GetFrameHeight() - ImGui.GetStyle().ItemInnerSpacing.X : -1.0f);
+        string filter = _filterText;
+        Utils.ImGuiExtensions.FilterBox("Filter"u8, ref filter, HasFilterPopup ? ImGui.GetContentRegionAvail().X - ImGui.GetFrameHeight() - ImGui.GetStyle().ItemInnerSpacing.X : -1.0f);
+        if (filter != _filterText)
+        {
+            FilterText = filter;
+        }
 
         if (HasFilterPopup)
         {
@@ -198,7 +229,7 @@ public abstract class TreeViewComponent<TItem>
     {
         var operations = GetItemOperations(item);
 
-        if (!operations.IsVisible())
+        if (!IsVisible(item, operations))
         {
             return;
         }
@@ -385,9 +416,25 @@ public abstract class TreeViewComponent<TItem>
 
     protected bool IsVisible(TItem item)
     {
+        if (_isVisibleCache.TryGetValue(item, out bool cachedIsVisible))
+        {
+            return cachedIsVisible;
+        }
         ITreeItemOperations<TItem> operations = GetItemOperations(item);
         var result = operations.IsVisible();
         operations.PopItem();
+        _isVisibleCache[item] = result;
+        return result;
+    }
+
+    private bool IsVisible(TItem item, ITreeItemOperations<TItem> operations)
+    {
+        if (_isVisibleCache.TryGetValue(item, out bool cachedIsVisible))
+        {
+            return cachedIsVisible;
+        }
+        var result = operations.IsVisible();
+        _isVisibleCache[item] = result;
         return result;
     }
 

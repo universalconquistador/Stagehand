@@ -159,3 +159,7 @@ Later down the road:
  - Adjusts light creation to place new lights at the camera's position and orient them along your view.
  - Tweaks a few of the default values for lights to be more practical.
  - Fixes autosave triggering an editor saved IPC event.
+
+## 0.4.10
+
+ - Adds visibility caching to the Game Resources tree to address performance issues with very large numbers of visible items.

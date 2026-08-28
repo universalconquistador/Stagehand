@@ -47,10 +47,12 @@ public partial class GameResourceTreeViewComponent : TreeViewComponent<IGameFile
                     if (visible)
                     {
                         HiddenAssetTypes.Add(assetType);
+                        InvalidateFilter();
                     }
                     else
                     {
                         HiddenAssetTypes.Remove(assetType);
+                        InvalidateFilter();
                     }
                 }
             }
