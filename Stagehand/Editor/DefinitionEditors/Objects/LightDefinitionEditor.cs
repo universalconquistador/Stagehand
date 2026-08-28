@@ -293,7 +293,7 @@ internal class LightDefinitionEditor : ObjectDefinitionEditor<LightDefinition>
         }
 
         var intensity = Intensity;
-        if (ImGui.DragFloat("Intensity", ref intensity, vSpeed: 0.01f, vMin: 0.0f, vMax: 20.0f))
+        if (ImGui.DragFloat("Intensity", ref intensity, vSpeed: 0.025f, vMin: 0.0f, vMax: 100.0f))
         {
             Intensity = intensity;
         }

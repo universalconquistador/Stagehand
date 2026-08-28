@@ -103,7 +103,7 @@ public class LightDefinition : ObjectDefinition
     /// <remarks>
     /// The closer this is to zero, the exponentially less depth precision the shadows will have, so set it as far away as you reasonably can.
     /// </remarks>
-    public float ShadowPlaneNear { get; set; } = 0.05f;
+    public float ShadowPlaneNear { get; set; } = 0.25f;
 
     /// <summary>
     /// The distance to the end of the shadow frustum, or the farthest distance that will cast a shadow.
@@ -150,12 +150,12 @@ public class LightDefinition : ObjectDefinition
     /// <remarks>
     /// This clamps the combination of <see cref="FalloffFunction"/> and <see cref="FalloffFactor"/> to determine the final falloff.
     /// </remarks>
-    public float Range { get; set; } = 100.0f;
+    public float Range { get; set; } = 15.0f;
 
     /// <summary>
     /// The distance that characters must be within to cast shadows.
     /// </summary>
-    public float CharacterShadowRange { get; set; } = 100.0f;
+    public float CharacterShadowRange { get; set; } = 50.0f;
 
     /// <inheritdoc/>
     public override ObjectDefinition Clone()
