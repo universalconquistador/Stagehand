@@ -343,92 +343,105 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
                             ImGui.TableNextColumn();
                             if (_selectedAssetInfo != null)
                             {
-                                Utils.ImGuiExtensions.PropertiesHeader(_selectedAssetInfo.DisplayName, _selectedAssetInfo.Type.DisplayName, _selectedAssetInfo.Type.Icon, _selectedAssetInfo.Type.DisplayDescription, out bool isNameHovered);
-
-                                if (isNameHovered)
+                                var startY = ImGui.GetCursorPosY();
+                                ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight());
+                                if (ImGuiComponents.IconButton(FontAwesomeIcon.Times, new Vector2(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
                                 {
-                                    using (ImRaii.Tooltip())
-                                    {
-                                        ImGui.TextUnformatted(_selectedAssetInfo.ID);
-                                        ImGui.Separator();
-                                        ImGui.TextDisabled("Click to copy");
-                                    }
+                                    _gameResourceTreeView.SelectedItem = null;
+                                    _bookmarkTreeView.SelectedItem = null;
+                                    _selectedAssetInfo = null;
                                 }
-
-                                _selectedAssetInfo.DrawProperties();
-
-                                var createWidth = 0.0f;
-                                if (CreateObject != null)
+                                else
                                 {
-                                    createWidth = ImGuiComponents.GetIconButtonWithTextWidth(FontAwesomeIcon.Plus, "Create");
-                                }
+                                    ImGui.SameLine(0.0f);
+                                    ImGui.SetCursorPosY(startY);
+                                    Utils.ImGuiExtensions.PropertiesHeader(_selectedAssetInfo.DisplayName, _selectedAssetInfo.Type.DisplayName, _selectedAssetInfo.Type.Icon, _selectedAssetInfo.Type.DisplayDescription, out bool isNameHovered);
 
-                                ImGui.SetCursorPosY(ImGui.GetContentRegionMax().Y - ImGui.GetFrameHeight());
-                                if (_activeSelectionCallback != null)
-                                {
-                                    var assignText = "Assign";
-                                    var assignWidth = ImGuiComponents.GetIconButtonWithTextWidth(FontAwesomeIcon.ArrowRight, assignText);
-                                    ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - assignWidth - (createWidth > 0 ? createWidth + ImGui.GetStyle().ItemInnerSpacing.X : 0.0f));
-                                    ImGui.SetNextItemWidth(assignWidth);
-                                    using (ImRaii.Disabled(_activeSelectionCallback.AssetType != _selectedAssetInfo.Type))
+                                    if (isNameHovered)
                                     {
-                                        if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.ArrowRight, assignText))
+                                        using (ImRaii.Tooltip())
                                         {
-                                            _activeSelectionCallback.TrySelect(_selectedAssetInfo);
+                                            ImGui.TextUnformatted(_selectedAssetInfo.ID);
+                                            ImGui.Separator();
+                                            ImGui.TextDisabled("Click to copy");
+                                        }
+                                    }
+
+                                    _selectedAssetInfo.DrawProperties();
+
+                                    var createWidth = 0.0f;
+                                    if (CreateObject != null)
+                                    {
+                                        createWidth = ImGuiComponents.GetIconButtonWithTextWidth(FontAwesomeIcon.Plus, "Create");
+                                    }
+
+                                    ImGui.SetCursorPosY(ImGui.GetContentRegionMax().Y - ImGui.GetFrameHeight());
+                                    if (_activeSelectionCallback != null)
+                                    {
+                                        var assignText = "Assign";
+                                        var assignWidth = ImGuiComponents.GetIconButtonWithTextWidth(FontAwesomeIcon.ArrowRight, assignText);
+                                        ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - assignWidth - (createWidth > 0 ? createWidth + ImGui.GetStyle().ItemInnerSpacing.X : 0.0f));
+                                        ImGui.SetNextItemWidth(assignWidth);
+                                        using (ImRaii.Disabled(_activeSelectionCallback.AssetType != _selectedAssetInfo.Type))
+                                        {
+                                            if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.ArrowRight, assignText))
+                                            {
+                                                _activeSelectionCallback.TrySelect(_selectedAssetInfo);
+                                            }
+                                            if (ImGui.IsItemHovered())
+                                            {
+                                                using (ImRaii.Tooltip())
+                                                {
+                                                    ImGui.TextUnformatted($"Assign to {_activeSelectionCallback.ObjectName}'s {_activeSelectionCallback.PropertyName}");
+                                                }
+                                            }
+                                        }
+                                        if (CreateObject != null)
+                                        {
+                                            ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - createWidth);
+                                    }
+
+                                    if (CreateObject != null)
+                                    {
+                                        ImGui.SetNextItemWidth(createWidth);
+                                        if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Plus, "Create"))
+                                        {
+                                            var rotation = Quaternion.Identity;
+                                            var position = Vector3.Zero;
+                                            if (HoverPreviewMode == HoverPreviewMode.NearPlayer && _objectTable.LocalPlayer != null)
+                                            {
+                                                rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, _objectTable.LocalPlayer.Rotation);
+                                                position = _objectTable.LocalPlayer.Position + Vector3.Transform(Vector3.UnitZ, rotation) * 2.0f;
+                                            }
+                                            if (HoverPreviewMode == HoverPreviewMode.AtTarget && _targetManager.Target != null)
+                                            {
+                                                rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, _targetManager.Target.Rotation);
+                                                position = _targetManager.Target.Position;
+                                            }
+
+                                            var newObjectDefinition = _selectedAssetInfo.CreateObjectDefinition(position, rotation);
+                                            if (newObjectDefinition != null)
+                                            {
+                                                if (_hoverPreviewObject != null)
+                                                {
+                                                    _hoverPreviewObject.Dispose();
+                                                    _hoverPreviewObject = null;
+                                                }
+
+                                                CreateObject.Invoke(newObjectDefinition);
+                                            }
                                         }
                                         if (ImGui.IsItemHovered())
                                         {
                                             using (ImRaii.Tooltip())
                                             {
-                                                ImGui.TextUnformatted($"Assign to {_activeSelectionCallback.ObjectName}'s {_activeSelectionCallback.PropertyName}");
+                                                ImGui.TextUnformatted("Add this to the Stage being edited");
                                             }
-                                        }
-                                    }
-                                    if (CreateObject != null)
-                                    {
-                                        ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
-                                    }
-                                }
-                                else
-                                {
-                                    ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - createWidth);
-                                }
-
-                                if (CreateObject != null)
-                                {
-                                    ImGui.SetNextItemWidth(createWidth);
-                                    if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Plus, "Create"))
-                                    {
-                                        var rotation = Quaternion.Identity;
-                                        var position = Vector3.Zero;
-                                        if (HoverPreviewMode == HoverPreviewMode.NearPlayer && _objectTable.LocalPlayer != null)
-                                        {
-                                            rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, _objectTable.LocalPlayer.Rotation);
-                                            position = _objectTable.LocalPlayer.Position + Vector3.Transform(Vector3.UnitZ, rotation) * 2.0f;
-                                        }
-                                        if (HoverPreviewMode == HoverPreviewMode.AtTarget && _targetManager.Target != null)
-                                        {
-                                            rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, _targetManager.Target.Rotation);
-                                            position = _targetManager.Target.Position;
-                                        }
-
-                                        var newObjectDefinition = _selectedAssetInfo.CreateObjectDefinition(position, rotation);
-                                        if (newObjectDefinition != null)
-                                        {
-                                            if (_hoverPreviewObject != null)
-                                            {
-                                                _hoverPreviewObject.Dispose();
-                                                _hoverPreviewObject = null;
-                                            }
-
-                                            CreateObject.Invoke(newObjectDefinition);
-                                        }
-                                    }
-                                    if (ImGui.IsItemHovered())
-                                    {
-                                        using (ImRaii.Tooltip())
-                                        {
-                                            ImGui.TextUnformatted("Add this to the Stage being edited");
                                         }
                                     }
                                 }

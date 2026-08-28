@@ -167,7 +167,6 @@ internal static class ImGuiExtensions
     public static void PropertiesHeader(string displayName, string typeDisplayName, FontAwesomeIcon icon, string typeDescription, out bool isDisplayNameHovered, bool spaceAfter = true)
     {
         ImGui.Indent(2.0f);
-        ImGuiHelpers.ScaledDummy(1);
         if (icon != FontAwesomeIcon.None)
         {
             using (ImRaii.PushFont(UiBuilder.IconFont))

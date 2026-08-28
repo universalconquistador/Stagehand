@@ -414,6 +414,7 @@ internal class EditorWindow : Window, IDisposable
         // Properties
         if (_selectionManager.SelectedEditor != null)
         {
+            ImGuiHelpers.ScaledDummy(1);
             Utils.ImGuiExtensions.PropertiesHeader(_selectionManager.SelectedEditor.DisplayName, _selectionManager.SelectedEditor.TypeInfo.DisplayName, _selectionManager.SelectedEditor.TypeInfo.Icon, _selectionManager.SelectedEditor.TypeInfo.Description, out _);
             using (var propertiesPanel = ImRaii.Child("###PropertiesPanel", ImGui.GetContentRegionAvail(), border: false))
             {
