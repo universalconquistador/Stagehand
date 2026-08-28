@@ -145,3 +145,17 @@ Later down the road:
 
  - Fixes bug getting the current location
  - Adds IPC event for when the user saves a stage in the editor
+
+## 0.4.9
+
+ - Adds bookmarks to the Asset Library! You can find them in the aptly-named Bookmarks tab.
+   - Create folders using the New Folder button up top (double click on a folder's name or right click on it to rename it)
+   - Add bookmarks to game resources and game folders by right clicking them in the Game Resources tab! You can bookmark something as many times as you like, so you can organize them however you please.
+   - Copy & paste via right clicking! You can even paste and send the text to someone over chat (although it's not particularly pretty)
+   - Drag and drop to move items between folders
+ - Adds asset type filtering to the Asset Library's Game Resources tab and the Bookmarks tab! This should make it much easier to browse sounds and VFX.
+ - The preview objects created by the asset library now stick around when you select an asset. To make them go away you can click in the empty space, select a folder, or click the square X button at the top right.
+ - Adds distinct creation options for each kind of light.
+ - Adjusts light creation to place new lights at the camera's position and orient them along your view.
+ - Tweaks a few of the default values for lights to be more practical.
+ - Fixes autosave triggering an editor saved IPC event.
