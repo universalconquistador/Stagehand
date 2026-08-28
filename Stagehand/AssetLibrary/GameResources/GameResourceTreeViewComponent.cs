@@ -42,7 +42,7 @@ public partial class GameResourceTreeViewComponent : TreeViewComponent<IGameFile
             bool visible = !HiddenAssetTypes.Contains(assetType);
             using (ImRaii.PushColor(ImGuiCol.Button, ImGui.GetStyle().Colors[(int)ImGuiCol.ButtonActive], visible))
             {
-                if (ImGuiComponents.IconButtonWithText(visible ? assetType.Icon : FontAwesomeIcon.Ban, assetType.DisplayName, new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
+                if (ImGuiComponents.IconButtonWithText(visible ? assetType.Icon : FontAwesomeIcon.Ban, assetType.DisplayName, new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetFrameHeight()) / ImGuiHelpers.GlobalScale))
                 {
                     if (visible)
                     {

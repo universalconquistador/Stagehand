@@ -61,7 +61,7 @@ public partial class BookmarkTreeViewComponent : TreeViewComponent<IBookmarkItem
             bool visible = !HiddenAssetTypes.Contains(assetType);
             using (ImRaii.PushColor(ImGuiCol.Button, ImGui.GetStyle().Colors[(int)ImGuiCol.ButtonActive], visible))
             {
-                if (ImGuiComponents.IconButtonWithText(visible ? assetType.Icon : FontAwesomeIcon.Ban, assetType.DisplayName, new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
+                if (ImGuiComponents.IconButtonWithText(visible ? assetType.Icon : FontAwesomeIcon.Ban, assetType.DisplayName, new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetFrameHeight()) / ImGuiHelpers.GlobalScale))
                 {
                     if (visible)
                     {
@@ -80,7 +80,7 @@ public partial class BookmarkTreeViewComponent : TreeViewComponent<IBookmarkItem
         bool foldersVisible = !HideFolderBookmarks;
         using (ImRaii.PushColor(ImGuiCol.Button, ImGui.GetStyle().Colors[(int)ImGuiCol.ButtonActive], foldersVisible))
         {
-            if (ImGuiComponents.IconButtonWithText(foldersVisible ? FontAwesomeIcon.ExternalLinkSquareAlt : FontAwesomeIcon.Ban, "Resource Folder Link", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
+            if (ImGuiComponents.IconButtonWithText(foldersVisible ? FontAwesomeIcon.ExternalLinkSquareAlt : FontAwesomeIcon.Ban, "Resource Folder Link", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetFrameHeight()) / ImGuiHelpers.GlobalScale))
             {
                 HideFolderBookmarks = !HideFolderBookmarks;
             }

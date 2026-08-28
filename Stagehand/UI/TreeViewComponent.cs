@@ -140,7 +140,7 @@ public abstract class TreeViewComponent<TItem>
                     ImGui.OpenPopup("###BookmarkFiltersList");
                 }
             }
-            ImGui.SetNextWindowSizeConstraints(new Vector2(200.0f, 0.0f), new Vector2(float.MaxValue, float.MaxValue));
+            ImGui.SetNextWindowSizeConstraints(new Vector2(200.0f * ImGuiHelpers.GlobalScale, 0.0f), new Vector2(400.0f * ImGuiHelpers.GlobalScale, float.MaxValue));
             using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(8.0f)))
             using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, new Vector2(8.0f)))
             using (var filtersList = ImRaii.Popup("###BookmarkFiltersList"))
