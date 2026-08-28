@@ -15,6 +15,7 @@ using Lumina.Excel.Sheets;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Stagehand.Api;
+using Stagehand.AssetLibrary;
 using Stagehand.Definitions;
 using Stagehand.Editor;
 using Stagehand.Services;
