@@ -10,6 +10,8 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Stagehand.AssetLibrary;
+using Stagehand.AssetLibrary.GameResources;
 using Stagehand.Editor;
 using Stagehand.Editor.Services;
 using Stagehand.Editor.Tools;
@@ -100,6 +102,8 @@ public sealed class Plugin : IDalamudPlugin
             services.AddSingleton(WindowSystem);
             services.AddSingleton(KeyState);
 
+            services.AddSingleton<IAssetBookmarkService, AssetBookmarkService>();
+            services.AddSingleton<IGameResourceAssetService, GameResourceAssetService>();
             services.AddSingleton<IKeybindService, KeybindService>();
             services.AddSingleton<IModelBvhCacheService, ModelBvhCacheService>();
             services.AddSingleton<IViewportInputService, ViewportInputService>();

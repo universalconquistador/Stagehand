@@ -1,4 +1,5 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Game.ClientState.Keys;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
@@ -6,10 +7,11 @@ using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
-using FFXIVClientStructs.FFXIV.Common.Lua;
 using Microsoft.Extensions.Hosting;
+using Stagehand.AssetLibrary.Assets;
+using Stagehand.AssetLibrary.Bookmarks;
+using Stagehand.AssetLibrary.GameResources;
 using Stagehand.Definitions.Objects;
-using Stagehand.Editor.DefinitionEditors.Objects;
 using Stagehand.Live;
 using Stagehand.Services;
 using Stagehand.Utils;
@@ -23,143 +25,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Stagehand.Windows;
-
-/// <summary>
-/// A type of asset in the asset library.
-/// </summary>
-/// <param name="DisplayName">The user-facing name of this asset type.</param>
-/// <param name="DisplayDescription">The description of this asset type.</param>
-/// <param name="Icon">The icon for this asset type.</param>
-public record class AssetType(string DisplayName, string DisplayDescription, FontAwesomeIcon Icon)
-{
-    public static readonly AssetType<MdlResourceAssetInfo> MdlResource = new("Model Resource", ".mdl", FontAwesomeIcon.Cube);
-    public static readonly AssetType<AvfxResourceAssetInfo> AvfxResource = new("VFX Resource", ".avfx", FontAwesomeIcon.WandSparkles);
-    public static readonly AssetType<ResourceAssetInfo> SgbResource = new("Shared Group Resource", ".sgb", FontAwesomeIcon.Archive);
-    public static readonly AssetType<ScdResourceAssetInfo> ScdResource = new("Sound Resource", ".scd", FontAwesomeIcon.VolumeUp);
-}
-
-public record class AssetType<TAssetInfo>(string DisplayName, string DisplayDescription, FontAwesomeIcon Icon) : AssetType(DisplayName, DisplayDescription, Icon);
-
-/// <summary>
-/// The base class for information about an asset in the asset library.
-/// </summary>
-public record class AssetInfo(string DisplayName, AssetType Type, string ID)
-{
-    /// <summary>
-    /// Draws the properties of this asset into the selected asset pane of the asset library.
-    /// </summary>
-    public virtual void DrawProperties()
-    { }
-
-    /// <summary>
-    /// Creates a live object at the given location and rotation to preview this asset.
-    /// </summary>
-    public virtual ILiveObject? CreatePreviewObject(ILiveObjectService liveObjectService, Vector3 location, Quaternion rotation)
-    {
-        return null;
-    }
-
-    /// <summary>
-    /// Creates a new object definition for adding this asset to a Stage definition.
-    /// </summary>
-    public virtual ObjectDefinition? CreateObjectDefinition(Vector3 location, Quaternion rotation)
-    {
-        return null;
-    }
-}
-
-/// <summary>
-/// Asset info for a resource in the game's files.
-/// </summary>
-public record class ResourceAssetInfo(string DisplayName, AssetType Type, string GamePath) : AssetInfo(DisplayName, Type, GamePath)
-{
-    public override void DrawProperties()
-    {
-        base.DrawProperties();
-
-        ImGui.LabelText("Game Path", GamePath);
-        if (ImGui.IsItemClicked())
-        {
-            ImGui.SetClipboardText(GamePath);
-        }
-        if (ImGui.IsItemHovered())
-        {
-            using (ImRaii.Tooltip())
-            {
-                ImGui.TextUnformatted(GamePath);
-                ImGui.Separator();
-                ImGui.TextDisabled("Click to copy");
-            }
-        }
-    }
-}
-
-/// <summary>
-/// Asset info for a model resource (*.mdl)
-/// </summary>
-public record class MdlResourceAssetInfo(string DisplayName, string GamePath) : ResourceAssetInfo(DisplayName, AssetType.MdlResource, GamePath)
-{
-    public override ILiveObject? CreatePreviewObject(ILiveObjectService liveObjectService, Vector3 location, Quaternion rotation)
-    {
-        return liveObjectService.CreateBgObject(GamePath, location, rotation, Vector3.One, modpack: null);
-    }
-
-    public override ObjectDefinition? CreateObjectDefinition(Vector3 location, Quaternion rotation)
-    {
-        return new BgObjectDefinition()
-        {
-            DisplayName = DisplayName,
-            ModelGamePath = GamePath,
-            Position = location,
-            RotationQuaternion = rotation,
-        };
-    }
-}
-
-/// <summary>
-/// Asset info for a VFX resource (*.avfx)
-/// </summary>
-public record class AvfxResourceAssetInfo(string DisplayName, string GamePath) : ResourceAssetInfo(DisplayName, AssetType.AvfxResource, GamePath)
-{
-    public override ILiveObject? CreatePreviewObject(ILiveObjectService liveObjectService, Vector3 location, Quaternion rotation)
-    {
-        return liveObjectService.CreateVfx(GamePath, location, rotation, Vector3.One, Vector4.One, modpack: null);
-    }
-
-    public override ObjectDefinition? CreateObjectDefinition(Vector3 location, Quaternion rotation)
-    {
-        return new VfxObjectDefinition()
-        {
-            DisplayName = DisplayName,
-            VfxGamePath = GamePath,
-            Position = location,
-            RotationQuaternion = rotation,
-        };
-    }
-}
-
-/// <summary>
-/// Asset info for a Sound resource (*.scd)
-/// </summary>
-public record class ScdResourceAssetInfo(string DisplayName, string GamePath) : ResourceAssetInfo(DisplayName, AssetType.ScdResource, GamePath)
-{
-    public override ILiveObject? CreatePreviewObject(ILiveObjectService liveObjectService, Vector3 location, Quaternion rotation)
-    {
-        return liveObjectService.CreateSound(GamePath, soundIndex: 0, volume: 1.0f, fadeInDuration: 0.0f, speed: 1.0f, isPositional: true, location, modpack: null);
-    }
-
-    public override ObjectDefinition? CreateObjectDefinition(Vector3 location, Quaternion rotation)
-    {
-        return new SoundObjectDefinition()
-        {
-            DisplayName = DisplayName,
-            SoundGamePath = GamePath,
-            Position = location,
-            RotationQuaternion = rotation,
-        };
-    }
-}
+namespace Stagehand.AssetLibrary;
 
 /// <summary>
 /// A window where users can browse the various assets available to them.
@@ -210,17 +76,6 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
 {
     private record class AssetLibraryTab(string DisplayName, Action DrawAction);
 
-    private record class PathCache(List<string> MdlPaths, List<string> AvfxPaths, List<string> ScdPaths);
-
-    private record class TreeNode(string DisplayName, FontAwesomeIcon Icon, IEnumerable<TreeNode> ChildNodes, bool CanSelect)
-    {
-        public bool IsVisibleInFilter { get; set; } = true;
-    }
-
-    private record class ResourceTreeNode(ResourceAssetInfo Resource) : TreeNode(Resource.DisplayName, Resource.Type.Icon, Array.Empty<TreeNode>(), CanSelect: true);
-
-    private record class FolderTreeNode(string DisplayName, List<FolderTreeNode> ChildFolderNodeList, List<TreeNode> ChildNodeList) : TreeNode(DisplayName, FontAwesomeIcon.Folder, ChildFolderNodeList.Concat(ChildNodeList), CanSelect: false);
-
     private interface ISelectionCallback
     {
         string ObjectName { get; }
@@ -255,13 +110,16 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
     private readonly IObjectTable _objectTable;
     private readonly ITargetManager _targetManager;
     private readonly IOverlayService _overlayService;
+    private readonly IGameResourceAssetService _gameResourceAssetService;
+    private readonly IAssetBookmarkService _assetBookmarkService;
     private readonly StagehandConfiguration _configuration;
     private readonly WindowSystem _windowSystem;
 
     private readonly AssetLibraryTab[] _allTabs;
+    private AssetLibraryTab? _selectedTab = null;
     private ISelectionCallback? _activeSelectionCallback;
-
-    private readonly IReadOnlyList<TreeNode> _gameResourceRootNodes;
+    private readonly GameResourceTreeViewComponent _gameResourceTreeView;
+    private readonly BookmarkTreeViewComponent _bookmarkTreeView;
 
     private HoverPreviewMode HoverPreviewMode
     {
@@ -273,7 +131,7 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
             _configuration.AssetLibraryPreviewMode = value;
             _configuration.Save();
 
-            if (value != HoverPreviewMode.NearPlayer)
+            if (value == HoverPreviewMode.None)
             {
                 _hoverPreviewObject?.Dispose();
                 _hoverPreviewObject = null;
@@ -281,7 +139,6 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
         }
     }
     private AssetInfo? _selectedAssetInfo;
-    private string _gameResourcesFilter = "";
 
     bool IAssetLibraryWindow.IsOpen => base.IsOpen;
 
@@ -316,7 +173,7 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
         }
     }
 
-    public AssetLibraryWindow(ILogger<AssetLibraryWindow> logger, ILiveObjectService liveObjectService, IObjectTable objectTable, ITargetManager targetManager, IOverlayService overlayService, StagehandConfiguration configuration, WindowSystem windowSystem)
+    public AssetLibraryWindow(ILogger<AssetLibraryWindow> logger, ILiveObjectService liveObjectService, IObjectTable objectTable, ITargetManager targetManager, IOverlayService overlayService, IGameResourceAssetService gameResourceAssetService, IAssetBookmarkService assetBookmarkService, StagehandConfiguration configuration, WindowSystem windowSystem)
         : base("Stagehand Asset Library")
     {
         _logger = logger;
@@ -324,6 +181,8 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
         _objectTable = objectTable;
         _targetManager = targetManager;
         _overlayService = overlayService;
+        _gameResourceAssetService = gameResourceAssetService;
+        _assetBookmarkService = assetBookmarkService;
         _configuration = configuration;
         _windowSystem = windowSystem;
 
@@ -333,6 +192,8 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
         [
             new("Game Resources", DrawGameResourcesTab),
             new("Housing", DrawHousingTab),
+            new("Bookmarks", DrawBookmarksTab),
+            new("Tags", DrawTagsTab),
         ];
 
         SizeConstraints = new WindowSizeConstraints()
@@ -341,116 +202,30 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
         };
         SizeCondition = ImGuiCond.FirstUseEver;
 
-        var pathCacheBytes = Properties.Resources.Paths;
-        var pathCache = JsonSerializer.Deserialize<PathCache>(pathCacheBytes);
-        if (pathCache != null)
+        _gameResourceTreeView = new(_gameResourceAssetService, _assetBookmarkService);
+
+        _bookmarkTreeView = new(_assetBookmarkService, _gameResourceAssetService);
+        _bookmarkTreeView.GameFolderDoubleClicked += OnGameFolderBookmarkDoubleClicked;
+        _bookmarkTreeView.GameResourceDoubleClicked += OnGameResourceBookmarkDoubleClicked;
+    }
+
+    private void OnGameResourceBookmarkDoubleClicked(IGameResourceBookmarkItem obj)
+    {
+        if (_gameResourceAssetService.TryGetResource(obj.ResourceGamePath, out var resource))
         {
-            List<FolderTreeNode> rootFolders = new();
-            List<TreeNode> rootNodes = new();
-            Dictionary<string, FolderTreeNode> folderNodes = new();
-
-            Func<string, FolderTreeNode> addOrGetFolderNode = null!;
-            addOrGetFolderNode = path =>
-            {
-                if (folderNodes.TryGetValue(path, out var existingNode))
-                {
-                    return existingNode;
-                }
-                else
-                {
-                    var newNode = new FolderTreeNode(Path.GetFileName(path), new(), new());
-
-                    var lastSlash = path.LastIndexOf('/');
-                    if (lastSlash > 0)
-                    {
-                        var parentNode = addOrGetFolderNode(path.Substring(0, lastSlash));
-                        parentNode.ChildNodeList.Add(newNode);
-                    }
-                    else
-                    {
-                        rootFolders.Add(newNode);
-                    }
-
-                    folderNodes[path] = newNode;
-
-                    return newNode;
-                }
-            };
-
-            foreach (var mdlPath in pathCache.MdlPaths)
-            {
-                var resource = new MdlResourceAssetInfo(Path.GetFileNameWithoutExtension(mdlPath), mdlPath);
-
-                var newNode = new ResourceTreeNode(resource);
-                var lastSlash = mdlPath.LastIndexOf('/');
-                if (lastSlash > 0)
-                {
-                    var parentNode = addOrGetFolderNode(mdlPath.Substring(0, lastSlash));
-                    parentNode.ChildNodeList.Add(newNode);
-                }
-                else
-                {
-                    rootNodes.Add(newNode);
-                }
-            }
-
-            foreach (var avfxPath in pathCache.AvfxPaths)
-            {
-                var resource = new AvfxResourceAssetInfo(Path.GetFileNameWithoutExtension(avfxPath), avfxPath);
-
-                var newNode = new ResourceTreeNode(resource);
-                var lastSlash = avfxPath.LastIndexOf('/');
-                if (lastSlash > 0)
-                {
-                    var parentNode = addOrGetFolderNode(avfxPath.Substring(0, lastSlash));
-                    parentNode.ChildNodeList.Add(newNode);
-                }
-                else
-                {
-                    rootNodes.Add(newNode);
-                }
-            }
-
-            foreach (var scdPath in pathCache.ScdPaths)
-            {
-                var resource = new ScdResourceAssetInfo(Path.GetFileNameWithoutExtension(scdPath), scdPath);
-
-                var newNode = new ResourceTreeNode(resource);
-                var lastSlash = scdPath.LastIndexOf('/');
-                if (lastSlash > 0)
-                {
-                    var parentNode = addOrGetFolderNode(scdPath.Substring(0, lastSlash));
-                    parentNode.ChildNodeList.Add(newNode);
-                }
-                else
-                {
-                    rootNodes.Add(newNode);
-                }
-            }
-
-            Action<FolderTreeNode> sortFolder = null!;
-            sortFolder = folder =>
-            {
-                folder.ChildNodeList.Sort((a, b) => a.DisplayName.CompareTo(b.DisplayName, StringComparison.CurrentCultureIgnoreCase));
-                folder.ChildFolderNodeList.Sort((a, b) => a.DisplayName.CompareTo(b.DisplayName, StringComparison.CurrentCultureIgnoreCase));
-
-                foreach (var childFolder in folder.ChildFolderNodeList)
-                {
-                    sortFolder(childFolder);
-                }
-            };
-            foreach (var rootFolder in rootFolders)
-            {
-                sortFolder(rootFolder);
-            }
-            rootNodes.Sort((a, b) => a.DisplayName.CompareTo(b.DisplayName, StringComparison.CurrentCultureIgnoreCase));
-
-            _gameResourceRootNodes = rootFolders.Concat(rootNodes).ToArray();
+            _selectedTab = _allTabs[0];
+            _gameResourceTreeView.ExpandItem(resource);
+            _gameResourceTreeView.SelectedItem = resource;
         }
-        else
+    }
+
+    private void OnGameFolderBookmarkDoubleClicked(IGameFolderBookmarkItem obj)
+    {
+        if (_gameResourceAssetService.TryGetFolder(obj.FolderGamePath, out var folder))
         {
-            _logger.LogError("Failed to parse path cache!");
-            _gameResourceRootNodes = Array.Empty<TreeNode>();
+            _selectedTab = _allTabs[0];
+            _gameResourceTreeView.ExpandItem(folder);
+            _gameResourceTreeView.SelectedItem = folder;
         }
     }
 
@@ -465,6 +240,12 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
         IsOpen = false;
     }
 
+    public override void OnClose()
+    {
+        base.OnClose();
+        HoveredAssetInfo = null;
+    }
+
     public override void Draw()
     {
         if (_activeSelectionCallback != null && !_activeSelectionCallback.IsValid)
@@ -476,10 +257,11 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
         {
             foreach (var tab in _allTabs)
             {
-                using (var tabItem = ImRaii.TabItem(tab.DisplayName))
+                using (var tabItem = ImRaii.TabItem(tab.DisplayName, tab == _selectedTab ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None))
                 {
                     if (tabItem.Success)
                     {
+                        _selectedTab = null;
                         var defaultCellPadding = ImGui.GetStyle().CellPadding;
                         using (ImRaii.PushStyle(ImGuiStyleVar.CellPadding, new Vector2(defaultCellPadding.X, 0.0f)))
                         using (ImRaii.Table($"###AssetTab{tab.DisplayName}", 2, ImGuiTableFlags.Resizable | ImGuiTableFlags.NoBordersInBodyUntilResize, ImGui.GetContentRegionAvail()))
@@ -663,114 +445,71 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
         _activeSelectionCallback = new SelectionCallback<TAssetInfo>(objectName, propertyName, assetType, stillValidCallback, selectCallback);
     }
 
-    private void RefreshNodeFilter(TreeNode node, string filter)
-    {
-        bool anyChildVisible = false;
-        foreach (var child in node.ChildNodes)
-        {
-            RefreshNodeFilter(child, filter);
-            if (child.IsVisibleInFilter)
-            {
-                anyChildVisible = true;
-            }
-        }
-
-        node.IsVisibleInFilter = anyChildVisible || node.DisplayName.Contains(filter, StringComparison.CurrentCultureIgnoreCase);
-    }
-
     private void DrawGameResourcesTab()
     {
-        string prevFilter = _gameResourcesFilter;
-        Utils.ImGuiExtensions.FilterBox("Filter"u8, ref _gameResourcesFilter);
-        if (_gameResourcesFilter != prevFilter)
-        {
-            foreach (var rootNode in _gameResourceRootNodes)
-            {
-                RefreshNodeFilter(rootNode, _gameResourcesFilter);
-            }
-        }
-
-        AssetInfo? hoveredAsset = null;
-
         float bottomBarHeight = ImGui.GetTextLineHeight() + ImGui.GetStyle().FramePadding.Y * 2.0f;
-        using (var listBox = ImRaii.ListBox("###GameResources", ImGui.GetContentRegionAvail() - new Vector2(0.0f, bottomBarHeight + ImGui.GetStyle().ItemSpacing.Y)))
+        var treeComponentSize = ImGui.GetContentRegionAvail() - new Vector2(0.0f, bottomBarHeight + ImGui.GetStyle().ItemSpacing.Y);
+        _gameResourceTreeView.Draw(treeComponentSize);
+
+        if (_gameResourceTreeView.SelectedItem is IGameFilesystemResource selectedGameResource)
         {
-            if (listBox.Success)
-            {
-                const ImGuiTreeNodeFlags commonFlags = ImGuiTreeNodeFlags.SpanFullWidth | ImGuiTreeNodeFlags.AllowItemOverlap /* | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.OpenOnDoubleClick */ | ImGuiTreeNodeFlags.FramePadding;
-
-                var defaultItemSpacing = ImGui.GetStyle().ItemSpacing;
-                using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, Vector2.Zero))
-                {
-                    Action<TreeNode> drawTreeNode = null!;
-                    drawTreeNode = node =>
-                    {
-                        if (!node.IsVisibleInFilter)
-                        {
-                            return;
-                        }
-
-                        var flags = commonFlags;
-                        if (!node.ChildNodes.Any(child => child.IsVisibleInFilter))
-                        {
-                            flags |= ImGuiTreeNodeFlags.Leaf;
-                        }
-
-                        if (node is ResourceTreeNode resourceNode && resourceNode.Resource == _selectedAssetInfo)
-                        {
-                            flags |= ImGuiTreeNodeFlags.Selected;
-                        }
-
-                        using (ImRaii.PushFont(UiBuilder.IconFont))
-                        using (var fileTreeNode = ImRaii.TreeNode($"{node.Icon.ToIconString()}###{node.DisplayName}", flags))
-                        {
-                            if (node.CanSelect && ImGui.IsItemClicked() && node is ResourceTreeNode resourceNodeSelect)
-                            {
-                                _selectedAssetInfo = resourceNodeSelect.Resource;
-                            }
-
-                            using (ImRaii.PushFont(UiBuilder.DefaultFont))
-                            {
-                                if (ImGui.IsItemHovered() && node is ResourceTreeNode resourceNodeHover)
-                                {
-                                    var resource = resourceNodeHover.Resource;
-                                    hoveredAsset = resource;
-
-                                    using (ImRaii.Tooltip())
-                                    using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, defaultItemSpacing))
-                                    {
-                                        ImGui.TextUnformatted(resource.GamePath);
-                                        ImGui.Separator();
-                                        ImGui.TextDisabled(resource.Type.DisplayName);
-                                    }
-                                }
-
-                                ImGui.SameLine();
-                                ImGui.TextUnformatted($"  {node.DisplayName}");
-                            }
-
-                            if (fileTreeNode.Success)
-                            {
-                                foreach (var child in node.ChildNodes)
-                                {
-                                    drawTreeNode(child);
-                                }
-                            }
-                        }
-                    };
-
-                    foreach (var rootNode in _gameResourceRootNodes)
-                    {
-                        drawTreeNode(rootNode);
-                    }
-                }
-            }
+            _selectedAssetInfo = selectedGameResource.AssetInfo;
+        }
+        else
+        {
+            _selectedAssetInfo = null;
         }
 
-        HoveredAssetInfo = hoveredAsset;
+        HoveredAssetInfo = (_gameResourceTreeView.HoveredItem as IGameFilesystemResource)?.AssetInfo ?? _selectedAssetInfo;
     }
 
     private void DrawHousingTab()
+    {
+        ImGui.TextDisabled("(Not yet implemented)");
+    }
+
+    private void DrawBookmarksTab()
+    {
+        if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.FolderPlus, "New Folder"))
+        {
+            _ = CreateAndSelectBookmarkFolderAsync(_bookmarkTreeView.SelectedItem as IFolderBookmarkItem, "New Folder");
+        }
+
+        float bottomBarHeight = ImGui.GetTextLineHeight() + ImGui.GetStyle().FramePadding.Y * 2.0f;
+        var treeComponentSize = ImGui.GetContentRegionAvail() - new Vector2(0.0f, bottomBarHeight + ImGui.GetStyle().ItemSpacing.Y);
+        _bookmarkTreeView.Draw(treeComponentSize);
+
+        if (_bookmarkTreeView.SelectedItem is IGameResourceBookmarkItem selectedGameResourceBookmark
+            && _gameResourceAssetService.TryGetResource(selectedGameResourceBookmark.ResourceGamePath, out var selectedResource))
+        {
+            _selectedAssetInfo = selectedResource.AssetInfo;
+        }
+        else
+        {
+            _selectedAssetInfo = null;
+        }
+
+        if (_bookmarkTreeView.HoveredItem is IGameResourceBookmarkItem hoveredGameResourceBookmark
+            && _gameResourceAssetService.TryGetResource(hoveredGameResourceBookmark.ResourceGamePath, out var hoveredResource))
+        {
+            HoveredAssetInfo = hoveredResource.AssetInfo ?? _selectedAssetInfo;
+        }
+        else
+        {
+            HoveredAssetInfo = _selectedAssetInfo;
+        }
+    }
+
+    private async Task CreateAndSelectBookmarkFolderAsync(IFolderBookmarkItem? parentItem, string name)
+    {
+        var newFolder = await _assetBookmarkService.CreateFolderAsync(parentItem, name).ConfigureAwait(false);
+        _bookmarkTreeView.ExpandItem(newFolder);
+        _bookmarkTreeView.RenamingItem = newFolder;
+        _bookmarkTreeView.SelectedItem = newFolder;
+        await _assetBookmarkService.SaveBookmarksAsync().ConfigureAwait(false);
+    }
+
+    private void DrawTagsTab()
     {
         ImGui.TextDisabled("(Not yet implemented)");
     }
