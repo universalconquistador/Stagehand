@@ -30,7 +30,6 @@ internal class LocalStageService : IHostedService
     private readonly IEditorService _editorService;
 
     private readonly ConcurrentDictionary<string, bool> _manualVisibilitySettings = new();
-    private StageLocation _lastLocation;
 
     public event Action? VisibleStagesChanged;
 

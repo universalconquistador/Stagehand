@@ -112,7 +112,7 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
         {
             return _dataManager.FileExists(path);
         }
-        catch(Exception ex)
+        catch(Exception)
         {
             return false;
         }

@@ -31,6 +31,7 @@ internal class EditorWindow : Window, IDisposable
     private static readonly TimeSpan _autosaveInterval = TimeSpan.FromSeconds(30.0f);
 
     private readonly IServiceScope _serviceScope;
+    private readonly ILogger _logger;
     private readonly IDalamudPluginInterface _pluginInterface;
     private readonly IFramework _framework;
     private readonly IToolManager _toolManager;
@@ -58,8 +59,9 @@ internal class EditorWindow : Window, IDisposable
         : base($"{Path.GetFileName(definitionFilename)} - Stagehand Editor###StagehandEditor")
     {
         _serviceScope = serviceScope;
-        _framework = _serviceScope.ServiceProvider.GetRequiredService<IFramework>();
+        _logger = serviceScope.ServiceProvider.GetRequiredService<ILogger<EditorWindow>>();
         _pluginInterface = _serviceScope.ServiceProvider.GetRequiredService<IDalamudPluginInterface>();
+        _framework = _serviceScope.ServiceProvider.GetRequiredService<IFramework>();
         _toolManager = _serviceScope.ServiceProvider.GetRequiredService<IToolManager>();
         _outliner = _serviceScope.ServiceProvider.GetRequiredService<IOutliner>();
         _selectionManager = _serviceScope.ServiceProvider.GetRequiredService<ISelectionManager>();
@@ -147,7 +149,7 @@ internal class EditorWindow : Window, IDisposable
         }
         catch (Exception ex)
         {
-            // TODO: Log failure!
+            _logger.LogError(ex, "Failed to save sage definition!");
             return false;
         }
     }

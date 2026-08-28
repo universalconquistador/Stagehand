@@ -33,7 +33,7 @@ internal class WeaponDefinitionEditor : ObjectDefinitionEditor<WeaponDefinition>
     private readonly EditorHitTestModel _hitTestModel;
 
     private record class WeaponOption(string DisplayName, int IconId, int ModelSetId, int SecondaryId, int Variant, int PrimaryDye, int SecondaryDye);
-    private static WeaponOption[] _allWeaponOptions;
+    private static WeaponOption[]? _allWeaponOptions;
 
     public int ModelSetId
     {
@@ -189,6 +189,11 @@ internal class WeaponDefinitionEditor : ObjectDefinitionEditor<WeaponDefinition>
     protected override void OnDrawProperties()
     {
         base.OnDrawProperties();
+
+        if (_allWeaponOptions == null)
+        {
+            return;
+        }
 
         int selectedWeaponOption = -1;
         for (int i = 0; i < _allWeaponOptions.Length; i++)

@@ -301,7 +301,7 @@ public class LocalDefinitionService : ILocalDefinitionService, IDisposable
                 }
                 return definition != null;
             }
-            catch (FileNotFoundException ex)
+            catch (FileNotFoundException)
             {
                 definition = null;
                 return false;

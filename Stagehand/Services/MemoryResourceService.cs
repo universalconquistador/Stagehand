@@ -73,7 +73,7 @@ internal unsafe partial class MemoryResourceService : IMemoryResourceService, ID
         _gameInteropProvider = gameInteropProvider;
         _config = config;
 
-        _modelResourceHandleReadExternalHook = gameInteropProvider.HookFromSignature<ModelResourceHandleReadExternal>("E8 ?? ?? ?? ?? EB 02 B0 F1", ModelResourceHandleReadExternalDetour, IGameInteropProvider.HookBackend.Reloaded);
+        _modelResourceHandleReadExternalHook = gameInteropProvider.HookFromSignature<ModelResourceHandleReadExternal>("E8 ?? ?? ?? ?? EB 02 B0 F1", ModelResourceHandleReadExternalDetour);
 
         _gameInteropProvider.InitializeFromAttributes(this);
         _fileDescriptorReadHook = gameInteropProvider.HookFromAddress<FileDescriptor.Delegates.Read>(FileDescriptor.Addresses.Read.Value, FileDescriptorReadDetour);

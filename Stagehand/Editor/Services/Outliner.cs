@@ -201,7 +201,7 @@ internal class Outliner : IOutliner
 {
     public OutlinerNode? RootNode { get; set; }
 
-    public string FilterText { get; set; }
+    public string FilterText { get; set; } = "";
 
     public void Update()
     {

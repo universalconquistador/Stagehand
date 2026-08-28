@@ -102,6 +102,11 @@ public interface IAssetBookmarkService
 
 internal partial class AssetBookmarkService : IAssetBookmarkService, IDisposable
 {
+    private static readonly JsonSerializerOptions _bookmarkSerializerOptions = new()
+    {
+        WriteIndented = true, // Bookmark files should be source-controllable
+    };
+
     private readonly ILogger _logger;
     private readonly IDalamudPluginInterface _dalamudPluginInterface;
 
@@ -114,7 +119,7 @@ internal partial class AssetBookmarkService : IAssetBookmarkService, IDisposable
     public bool IsLoadingBookmarks => Volatile.Read(ref _loadBookmarksTasks) > 0;
 
     private List<BookmarkItem> _rootItemsSorted = new();
-    public IReadOnlyList<IBookmarkItem> RootItemsSorted => (IReadOnlyList<IBookmarkItem>)(IReadOnlyList<BookmarkItem>)_rootItemsSorted;
+    public IReadOnlyList<IBookmarkItem> RootItemsSorted => _rootItemsSorted;
 
     public AssetBookmarkService(ILogger<AssetBookmarkService> logger, IDalamudPluginInterface dalamudPluginInterface)
     {
@@ -234,7 +239,7 @@ internal partial class AssetBookmarkService : IAssetBookmarkService, IDisposable
             var tempFilename = Path.GetTempFileName();
             using (var fileStream = new FileStream(tempFilename, FileMode.Create, FileAccess.Write, FileShare.None))
             {
-                await JsonSerializer.SerializeAsync(fileStream, new BookmarksFile(rootItemClones), cancellationToken: newCancellationToken.Token).ConfigureAwait(false);
+                await JsonSerializer.SerializeAsync(fileStream, new BookmarksFile(rootItemClones), options: _bookmarkSerializerOptions, cancellationToken: newCancellationToken.Token).ConfigureAwait(false);
             }
 
             newCancellationToken.Token.ThrowIfCancellationRequested();

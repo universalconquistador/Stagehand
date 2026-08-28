@@ -441,7 +441,7 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
         {
             Plugin.Log.Warning("No modpack exists with ID '{id}'!!!!", modpackId);
         }
-        else
+        else if (foundModpack != null)
         {
             Plugin.Log.Verbose("Parsed modpack with ID '{id}' ({debugName})", modpackId, foundModpack.DebugName);
         }

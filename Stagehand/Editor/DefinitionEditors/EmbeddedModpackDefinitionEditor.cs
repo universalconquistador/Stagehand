@@ -35,6 +35,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
         GameResource,
     }
 
+    private readonly ILogger _logger;
     private readonly IObjectTable _objectTable;
     private readonly ISelectionManager _selectionManager;
     private readonly IResourceRedirectionService _resourceRedirectionService;
@@ -71,6 +72,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
         Definition = definition;
         Stage = stage;
         Key = key;
+        _logger = serviceProvider.GetRequiredService<ILogger<EmbeddedModpackDefinitionEditor>>();
         _objectTable = serviceProvider.GetRequiredService<IObjectTable>();
         _selectionManager = serviceProvider.GetRequiredService<ISelectionManager>();
         _resourceRedirectionService = serviceProvider.GetRequiredService<IResourceRedirectionService>();
@@ -562,7 +564,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
         }
         catch (Exception ex)
         {
-            // TODO: Log!
+            _logger.LogError(ex, "Failed to update embedded resource {resource} in {modpack} from {sourceFile}!", gamePath, DisplayName, filePath);
             return false;
         }
     }
