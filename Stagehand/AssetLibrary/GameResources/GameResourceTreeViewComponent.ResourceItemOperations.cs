@@ -20,6 +20,8 @@ public partial class GameResourceTreeViewComponent
         public override bool IsLeafNode() => true;
         public override bool IsVisible() => Item.FullGamePath.Contains(TreeView.FilterText, StringComparison.CurrentCultureIgnoreCase) && !TreeView.HiddenAssetTypes.Contains(Item.AssetInfo.Type);
 
+        public override bool CanDrag() => true;
+
         private readonly IGameResourceAssetService _gameResourceAssetService;
         private readonly IAssetBookmarkService _assetBookmarkService;
 
@@ -28,6 +30,13 @@ public partial class GameResourceTreeViewComponent
         {
             _gameResourceAssetService = gameResourceAssetService;
             _assetBookmarkService = assetBookmarkService;
+        }
+
+        public override bool TryDrag(out ReadOnlySpan<byte> typeId, out byte[] payload)
+        {
+            typeId = GameResourceDragDrop.DataTypeId;
+            payload = GameResourceDragDrop.MakeGameResourcePayload(Item.FullGamePath);
+            return true;
         }
 
         public override void DrawContextMenu(string id)

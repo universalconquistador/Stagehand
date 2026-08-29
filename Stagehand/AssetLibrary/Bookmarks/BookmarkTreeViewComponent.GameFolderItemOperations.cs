@@ -31,6 +31,13 @@ public partial class BookmarkTreeViewComponent
             TreeView.GameFolderDoubleClicked?.Invoke(Item);
         }
 
+        public override bool TryDrag(out ReadOnlySpan<byte> typeId, out byte[] payload)
+        {
+            typeId = BookmarkDragDrop.DataTypeId;
+            payload = BookmarkDragDrop.MakeDragPayload(Item);
+            return true;
+        }
+
         public override void DrawContextMenu(string id)
         {
             ImGui.SetNextWindowSizeConstraints(new Vector2(200.0f, 0.0f), new Vector2(float.MaxValue, float.MaxValue));

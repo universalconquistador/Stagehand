@@ -827,7 +827,6 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
 
                                 if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Plus, "Add"))
                                 {
-                                    SelectableTerritory? _selectedTerritory = null;
                                     _localDefinitionService.SetAutomaticShowConditions(_selectedLocalDefinitionFilename, selectedMetadata.AutomaticShowConditions.Append(new AutomaticShowCondition()
                                     {
                                         TerritoryId = _allTerritories[_autoLoadNewTerritoryIndex].Id,

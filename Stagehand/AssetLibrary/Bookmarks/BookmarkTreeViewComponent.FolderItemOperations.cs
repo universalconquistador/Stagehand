@@ -1,6 +1,7 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
+using Stagehand.AssetLibrary.GameResources;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -35,15 +36,44 @@ public partial class BookmarkTreeViewComponent
             _ = TreeView.RenameBookmarkFolderAsync(Item, newText);
         }
 
-        public override bool CanAcceptDrop(IBookmarkItem item)
+        public override bool TryDrag(out ReadOnlySpan<byte> typeId, out byte[] payload)
         {
+            typeId = BookmarkDragDrop.DataTypeId;
+            payload = BookmarkDragDrop.MakeDragPayload(Item);
             return true;
         }
 
-        public override bool TryAcceptDrop(IBookmarkItem item)
+        public override bool CanAcceptDrop(ReadOnlySpan<byte> typeId)
         {
-            _ = TreeView.ReparentBookmarkItemAsync(item, Item);
-            return true;
+            return BookmarkDragDrop.IsBookmarkPayload(typeId)
+                || GameResourceDragDrop.IsGameResourcePayload(typeId)
+                || GameFolderDragDrop.IsGameFolderPayload(typeId);
+        }
+
+        public override bool TryAcceptDrop(ReadOnlySpan<byte> typeId, ReadOnlySpan<byte> payload)
+        {
+            if (BookmarkDragDrop.IsBookmarkPayload(typeId) && BookmarkDragDrop.TryParsePayload(payload, TreeView._assetBookmarkService, out var bookmarkItem))
+            {
+                _ = TreeView.ReparentBookmarkItemAsync(bookmarkItem, Item);
+
+                return true;
+            }
+            else if (GameResourceDragDrop.IsGameResourcePayload(typeId) && GameResourceDragDrop.TryParsePayload(payload, out var resourceGamePath))
+            {
+                _ = TreeView.CreateAndSelectResourceBookmarkAsync(Item, resourceGamePath);
+
+                return true;
+            }
+            else if (GameFolderDragDrop.IsGameFolderPayload(typeId) && GameFolderDragDrop.TryParsePayload(payload, out var folderGamePath))
+            {
+                _ = TreeView.CreateAndSelectFolderBookmarkAsync(Item, folderGamePath);
+
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
 
         public override void DrawContextMenu(string id)

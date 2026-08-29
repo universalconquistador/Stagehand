@@ -6,7 +6,6 @@ using Dalamud.Interface.Utility.Raii;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
-using System.Text;
 
 namespace Stagehand.UI;
 
@@ -45,8 +44,9 @@ public abstract class TreeViewComponent<TItem>
         bool CanRename();
 
         bool CanDrag();
-        bool CanAcceptDrop(TItem item);
-        bool TryAcceptDrop(TItem item);
+        bool TryDrag(out ReadOnlySpan<byte> typeId, out byte[] payload);
+        bool CanAcceptDrop(ReadOnlySpan<byte> typeId);
+        bool TryAcceptDrop(ReadOnlySpan<byte> typeId, ReadOnlySpan<byte> payload);
 
         void PopItem();
 
@@ -91,8 +91,15 @@ public abstract class TreeViewComponent<TItem>
             TreeView.InvalidateFilter(Item);
         }
 
-        public virtual bool CanAcceptDrop(TItem item) => false;
-        public virtual bool TryAcceptDrop(TItem item) => false;
+        public virtual bool TryDrag(out ReadOnlySpan<byte> typeId, out byte[] payload)
+        {
+            typeId = ReadOnlySpan<byte>.Empty;
+            payload = Array.Empty<byte>();
+            return false;
+        }
+
+        public virtual bool CanAcceptDrop(ReadOnlySpan<byte> typeId) => false;
+        public virtual bool TryAcceptDrop(ReadOnlySpan<byte> typeId, ReadOnlySpan<byte> payload) => false;
 
         public virtual void HandleClicked()
         { }
@@ -131,7 +138,6 @@ public abstract class TreeViewComponent<TItem>
 
     private readonly HashSet<TItem> _itemsToExpand = new();
     private readonly Dictionary<TItem, bool> _isVisibleCache = new();
-    private TItem? _dragItem = null;
 
     public void InvalidateFilter()
     {
@@ -198,7 +204,7 @@ public abstract class TreeViewComponent<TItem>
                     }
                 }
 
-                ImGui.Dummy(new Vector2(ImGui.GetContentRegionAvail().X, MathF.Max(ImGui.GetContentRegionAvail().Y, _dragItem != null ? ImGui.GetFrameHeight() : 0.0f)));
+                ImGui.Dummy(new Vector2(ImGui.GetContentRegionAvail().X, MathF.Max(ImGui.GetContentRegionAvail().Y, ImGui.GetDragDropPayload().IsNull ? 0.0f : ImGui.GetFrameHeight())));
                 if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
                 {
                     SelectedItem = null;
@@ -207,18 +213,22 @@ public abstract class TreeViewComponent<TItem>
                 {
                     ImGui.OpenPopup("###TreeEmptySpaceContextMenu");
                 }
-                if (_dragItem != null && CanAcceptDrop(_dragItem))
+                using (var dropTarget = ImRaii.DragDropTarget())
                 {
-                    using (var dropTarget = ImRaii.DragDropTarget())
+                    if (dropTarget.Success)
                     {
-                        if (dropTarget.Success)
+                        // while holding over the empty space dummy
+                        var draggingPayload = ImGui.GetDragDropPayload();
+                        if (!draggingPayload.IsNull && CanAcceptDrop(TrimAtFirstNull(draggingPayload.DataType)))
                         {
-                            var payload = ImGui.AcceptDragDropPayload("TREENODE", ImGuiDragDropFlags.None);
+                            var payload = ImGui.AcceptDragDropPayload(draggingPayload.DataType, ImGuiDragDropFlags.None);
                             if (!payload.IsNull)
                             {
-                                TryAcceptDrop(_dragItem);
-
-                                _dragItem = null;
+                                // dropped onto the dummy
+                                unsafe
+                                {
+                                    TryAcceptDrop(TrimAtFirstNull(payload.DataType), new ReadOnlySpan<byte>(payload.Data, payload.DataSize));
+                                }
                             }
                         }
                     }
@@ -326,30 +336,30 @@ public abstract class TreeViewComponent<TItem>
                 {
                     using (var dragSource = ImRaii.DragDropSource(ImGuiDragDropFlags.SourceAllowNullId))
                     {
-                        if (dragSource.Success)
+                        if (dragSource.Success && operations.TryDrag(out var typeId, out var payload))
                         {
-                            _dragItem = item;
-                            ImGui.SetDragDropPayload("TREENODE", ReadOnlySpan<byte>.Empty);
+                            ImGui.SetDragDropPayload(typeId, payload);
                             ImGui.TextUnformatted(operations.GetDescription() ?? operations.GetText());
                         }
                     }
                 }
 
-                if (_dragItem != null && operations.CanAcceptDrop(_dragItem))
+                using (var dropTarget = ImRaii.DragDropTarget())
                 {
-                    using (var dropTarget = ImRaii.DragDropTarget())
+                    if (dropTarget.Success)
                     {
-                        if (dropTarget.Success)
+                        // holding a drag over this tree node
+                        var draggingPayload = ImGui.GetDragDropPayload();
+                        if (!draggingPayload.IsNull && operations.CanAcceptDrop(TrimAtFirstNull(draggingPayload.DataType)))
                         {
-                            var payload = ImGui.AcceptDragDropPayload("TREENODE", ImGuiDragDropFlags.None);
+                            var payload = ImGui.AcceptDragDropPayload(draggingPayload.DataType, ImGuiDragDropFlags.None);
                             if (!payload.IsNull)
                             {
-                                if (_dragItem != item)
+                                // dropped onto this tree node
+                                unsafe
                                 {
-                                    operations.TryAcceptDrop(_dragItem);
+                                    operations.TryAcceptDrop(TrimAtFirstNull(payload.DataType), new ReadOnlySpan<byte>(payload.Data, payload.DataSize));
                                 }
-
-                                _dragItem = null;
                             }
                         }
                     }
@@ -403,6 +413,19 @@ public abstract class TreeViewComponent<TItem>
                     }
                 }
             }
+        }
+    }
+
+    private static ReadOnlySpan<byte> TrimAtFirstNull(ReadOnlySpan<byte> span)
+    {
+        var firstNull = span.IndexOf((byte)0);
+        if (firstNull >= 0)
+        {
+            return span.Slice(0, firstNull);
+        }
+        else
+        {
+            return span;
         }
     }
 
@@ -474,6 +497,6 @@ public abstract class TreeViewComponent<TItem>
         itemOperations.HandleDoubleClicked();
     }
 
-    protected virtual bool CanAcceptDrop(TItem item) => false;
-    protected virtual bool TryAcceptDrop(TItem item) => false;
+    protected virtual bool CanAcceptDrop(ReadOnlySpan<byte> typeId) => false;
+    protected virtual bool TryAcceptDrop(ReadOnlySpan<byte> typeId, ReadOnlySpan<byte> payload) => false;
 }

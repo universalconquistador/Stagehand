@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Text.Json.Serialization;
 
 namespace Stagehand.AssetLibrary;
@@ -9,6 +10,24 @@ public interface IBookmarkItemVisitor<TParam, TResult>
     static abstract TResult VisitFolderBookmarkItem(IFolderBookmarkItem folderBookmarkItem, ref TParam param);
     static abstract TResult VisitGameResourceBookmarkItem(IGameResourceBookmarkItem gameResourceBookmarkItem, ref TParam param);
     static abstract TResult VisitGameFolderBookmarkItem(IGameFolderBookmarkItem gameFolderBookmarkItem, ref TParam param);
+}
+
+public static class BookmarkItemExtensions
+{
+    public static string ToBookmarkPath(this IBookmarkItem bookmarkItem)
+    {
+        StringBuilder sb = new(bookmarkItem.Guid.ToString());
+
+        var item = bookmarkItem.ParentItem;
+        while (item != null)
+        {
+            sb.Append('.');
+            sb.Append(item.Guid.ToString());
+            item = item.ParentItem;
+        }
+
+        return sb.ToString();
+    }
 }
 
 /// <summary>

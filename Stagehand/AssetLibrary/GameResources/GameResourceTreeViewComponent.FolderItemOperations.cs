@@ -22,12 +22,21 @@ public partial class GameResourceTreeViewComponent
             || (TreeView.FilterText.Length == 0 && TreeView.HiddenAssetTypes.Count == 0)
             || Item.ChildItems.Any(TreeView.IsVisible);
 
+        public override bool CanDrag() => true;
+
         private readonly IAssetBookmarkService _assetBookmarkService;
 
         public FolderItemOperations(GameResourceTreeViewComponent treeView, IAssetBookmarkService assetBookmarkService)
             : base(treeView)
         {
             _assetBookmarkService = assetBookmarkService;
+        }
+
+        public override bool TryDrag(out ReadOnlySpan<byte> typeId, out byte[] payload)
+        {
+            typeId = GameFolderDragDrop.DataTypeId;
+            payload = GameFolderDragDrop.MakeGameFolderPayload(Item.FullGamePath);
+            return true;
         }
 
         public override void DrawContextMenu(string id)

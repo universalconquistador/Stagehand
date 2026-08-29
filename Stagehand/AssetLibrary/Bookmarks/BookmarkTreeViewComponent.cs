@@ -122,15 +122,36 @@ public partial class BookmarkTreeViewComponent : TreeViewComponent<IBookmarkItem
         }
     }
 
-    protected override bool CanAcceptDrop(IBookmarkItem item)
+    protected override bool CanAcceptDrop(ReadOnlySpan<byte> typeId)
     {
-        return true;
+        return BookmarkDragDrop.IsBookmarkPayload(typeId)
+            || GameResourceDragDrop.IsGameResourcePayload(typeId)
+            || GameFolderDragDrop.IsGameFolderPayload(typeId);
     }
 
-    protected override bool TryAcceptDrop(IBookmarkItem item)
+    protected override bool TryAcceptDrop(ReadOnlySpan<byte> typeId, ReadOnlySpan<byte> payload)
     {
-        _ = ReparentBookmarkItemAsync(item, null);
-        return true;
+        if (BookmarkDragDrop.IsBookmarkPayload(typeId) && BookmarkDragDrop.TryParsePayload(payload, _assetBookmarkService, out var bookmarkItem))
+        {
+            _ = ReparentBookmarkItemAsync(bookmarkItem, null);
+            return true;
+        }
+        else if (GameResourceDragDrop.IsGameResourcePayload(typeId) && GameResourceDragDrop.TryParsePayload(payload, out var resourceGamePath))
+        {
+            _ = CreateAndSelectResourceBookmarkAsync(null, resourceGamePath);
+
+            return true;
+        }
+        else if (GameFolderDragDrop.IsGameFolderPayload(typeId) && GameFolderDragDrop.TryParsePayload(payload, out var folderGamePath))
+        {
+            _ = CreateAndSelectFolderBookmarkAsync(null, folderGamePath);
+
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     private void OnSelectedBookmarkItemDeleted(IBookmarkItem obj)
@@ -143,6 +164,32 @@ public partial class BookmarkTreeViewComponent : TreeViewComponent<IBookmarkItem
         var newFolder = await _assetBookmarkService.CreateFolderAsync(name, parentFolder).ConfigureAwait(false);
         SelectedItem = newFolder;
         RenamingItem = newFolder;
+        if (parentFolder != null)
+        {
+            ExpandItem(parentFolder);
+        }
+        await _assetBookmarkService.SaveBookmarksAsync().ConfigureAwait(false);
+    }
+
+    public async Task CreateAndSelectResourceBookmarkAsync(IFolderBookmarkItem? parentFolder, string resourceGamePath)
+    {
+        var newItem = await _assetBookmarkService.CreateGameResourceBookmarkAsync(resourceGamePath, parentFolder).ConfigureAwait(false);
+        SelectedItem = newItem;
+        if (parentFolder != null)
+        {
+            ExpandItem(parentFolder);
+        }
+        await _assetBookmarkService.SaveBookmarksAsync().ConfigureAwait(false);
+    }
+
+    public async Task CreateAndSelectFolderBookmarkAsync(IFolderBookmarkItem? parentFolder, string folderGamePath)
+    {
+        var newItem = await _assetBookmarkService.CreateGameFolderBookmarkAsync(folderGamePath, parentFolder).ConfigureAwait(false);
+        SelectedItem = newItem;
+        if (parentFolder != null)
+        {
+            ExpandItem(parentFolder);
+        }
         await _assetBookmarkService.SaveBookmarksAsync().ConfigureAwait(false);
     }
 
