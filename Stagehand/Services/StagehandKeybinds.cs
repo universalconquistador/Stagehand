@@ -151,6 +151,10 @@ internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposab
             _keybindService.UnregisterAction(EditorHideObject);
             _keybindService.UnregisterAction(EditorDuplicateObject);
             _keybindService.UnregisterAction(EditorDeleteObject);
+
+            _keybindService.UnregisterAction(EditorPasteObject);
+            _keybindService.UnregisterAction(EditorCopyObject);
+            _keybindService.UnregisterAction(EditorCutObject);
         }
     }
 }
