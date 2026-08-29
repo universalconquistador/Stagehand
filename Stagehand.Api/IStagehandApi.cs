@@ -28,7 +28,7 @@ public static partial class StagehandApi
     /// <summary>
     /// The Stagehand API revision of this version of the Stagehand.Api library.
     /// </summary>
-    public static readonly ApiRevision LibraryApiRevision = new(Major: 1, Minor: 1);
+    public static readonly ApiRevision LibraryApiRevision = new(Major: 1, Minor: 2);
 }
 
 /// <summary>

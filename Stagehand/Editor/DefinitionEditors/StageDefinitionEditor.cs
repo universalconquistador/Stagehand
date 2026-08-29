@@ -65,6 +65,27 @@ public class StageDefinitionEditor : DefinitionEditorBase
         set => SetPropertyValue(value => Definition.Info = Definition.Info with { IntendedTerritoryType = value }, value, Definition.Info.IntendedTerritoryType);
     }
 
+    private Vector3 _editTranslation = Vector3.Zero;
+    public Vector3 EditTranslation
+    {
+        get => _editTranslation;
+        set => SetPropertyValue(SetEditTranslationInternal, value, _editTranslation, affectsDataModel: false);
+    }
+
+    private Quaternion _editRotation = Quaternion.Identity;
+    public Quaternion EditRotation
+    {
+        get => _editRotation;
+        set => SetPropertyValue(SetEditRotationInternal, value, _editRotation, affectsDataModel: false);
+    }
+
+    private float _editUniformScale = 1.0f;
+    public float EditUniformScale
+    {
+        get => _editUniformScale;
+        set => SetPropertyValue(SetEditUniformScaleInternal, value, _editUniformScale, affectsDataModel: false);
+    }
+
     public StageDefinitionEditor(IServiceProvider serviceProvider, StageDefinition definition)
         : base(serviceProvider)
     {
@@ -80,6 +101,33 @@ public class StageDefinitionEditor : DefinitionEditorBase
         // Maybe not the most theoretically elegant, but does the job.
         EmbeddedModpacks = new(definition.EmbeddedModpacks, OutlinerNode, CreateEditorForEmbeddedModpackDefinition, TransactionManager, _selectionManager);
         Objects = new(definition.Objects, OutlinerNode, CreateEditorForObjectDefinition, TransactionManager, _selectionManager);
+    }
+
+    protected virtual void SetEditTranslationInternal(Vector3 editTranslation)
+    {
+        _editTranslation = editTranslation;
+        foreach (var objectEditor in Objects.Values)
+        {
+            objectEditor.SetParentTransform(EditTranslation, EditRotation, EditUniformScale);
+        }
+    }
+
+    protected virtual void SetEditRotationInternal(Quaternion editRotation)
+    {
+        _editRotation = editRotation;
+        foreach (var objectEditor in Objects.Values)
+        {
+            objectEditor.SetParentTransform(EditTranslation, EditRotation, EditUniformScale);
+        }
+    }
+
+    protected virtual void SetEditUniformScaleInternal(float editUniformScale)
+    {
+        _editUniformScale = editUniformScale;
+        foreach (var objectEditor in Objects.Values)
+        {
+            objectEditor.SetParentTransform(EditTranslation, EditRotation, EditUniformScale);
+        }
     }
 
     private void OnOutlinerNodeClicked(OutlinerNode obj)
@@ -140,6 +188,44 @@ public class StageDefinitionEditor : DefinitionEditorBase
                 ImGui.TextUnformatted("Use current location");
             }
         }
+        ImGui.Separator();
+        Vector3 position = EditTranslation;
+        if (ImGui.DragFloat3("Translation", ref position, vSpeed: 0.01f))
+        {
+            EditTranslation = position;
+        }
+
+        // The formula I'm using for quat -> PYR is z-up, so swizzle the dimensions around
+        float x = EditRotation.Z;
+        float y = EditRotation.X;
+        float z = EditRotation.Y;
+        float w = EditRotation.W;
+
+        var roll = MathF.Atan2((2 * w * x) + (2 * y * z), 1 - (2 * x * x) - (2 * y * y));
+        var pitch = MathF.Asin((2 * w * y) - (2 * z * x));
+        var yaw = MathF.Atan2((2 * w * z) + (2 * x * y), 1 - (2 * y * y) - (2 * z * z));
+
+        Vector3 rotation = new Vector3(RadiansToDegrees(pitch), RadiansToDegrees(yaw), RadiansToDegrees(roll));
+        if (ImGui.DragFloat3("Rotation", ref rotation, vSpeed: 0.5f))
+        {
+            EditRotation = Quaternion.CreateFromYawPitchRoll(DegreesToRadians(rotation.Y), DegreesToRadians(rotation.X), DegreesToRadians(rotation.Z)); ;
+        }
+
+        float scale = EditUniformScale;
+        if (ImGui.DragFloat("Scale", ref scale, vSpeed: 0.1f, vMin: 0.01f, vMax: 10.0f))
+        {
+            EditUniformScale = scale;
+        }
+    }
+
+    private static float DegreesToRadians(float degrees)
+    {
+        return degrees * MathF.PI / 180.0f;
+    }
+
+    private static float RadiansToDegrees(float radians)
+    {
+        return radians * 180.0f / MathF.PI;
     }
 
     public override void Selected()
@@ -174,7 +260,9 @@ public class StageDefinitionEditor : DefinitionEditorBase
             Key = objectKey,
             Stage = this,
         };
-        return objectDefinition.Visit<ObjectDefinitionEditorFactory, ObjectDefinitionEditorFactoryParams, IObjectDefinitionEditor>(ref factoryParams);
+        var result = objectDefinition.Visit<ObjectDefinitionEditorFactory, ObjectDefinitionEditorFactoryParams, IObjectDefinitionEditor>(ref factoryParams);
+        result.SetParentTransform(EditTranslation, EditRotation, EditUniformScale);
+        return result;
     }
 
     private record struct ObjectDefinitionEditorFactoryParams(IServiceProvider ServiceProvider, string Key, StageDefinitionEditor Stage);

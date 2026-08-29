@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Text;
 
 namespace Stagehand.Api;
@@ -38,6 +39,49 @@ public partial interface IStagehandApi
     /// </returns>
     bool TryCreateOrUpdateTemporaryStage(string definitionString, string stageId, string debugName);
 
+
+    /// <summary>
+    /// Creates or updates the temporary Stage with the given ID, if the given definition string is valid,
+    /// with the given transform.
+    /// </summary>
+    /// <remarks>
+    /// To show the created stage, call <see cref="TrySetTemporaryStageVisible(string, bool)"/>.
+    /// </remarks>
+    /// <param name="definitionString">
+    /// A string containing the serialized Stage definition.
+    /// <br />
+    /// This should be obtained by calling <c>StageDefinition.ToDefinitionString()</c>.
+    /// </param>
+    /// <param name="stageId">
+    /// An ID to uniquely identify the temporary Stage you want to create or update.
+    /// <br />
+    /// Consider prefixing with your plugin ID if you don't want other plugins to mess with your temporary Stage.
+    /// <br />
+    /// It is invalid to specify the filename of one of the user's Stage, so I recommend not using filenames at all.
+    /// </param>
+    /// <param name="translation">The translation of the stage.</param>
+    /// <param name="rotation">The rotation of the stage.</param>
+    /// <param name="uniformScale">The scale of the stage.</param>
+    /// <param name="debugName">A display name to assign to the Stage to identify it when debugging.</param>
+    /// <returns>
+    /// True if the operation was a success, or false if it failed
+    /// (e.g. if the definition string could not be deserialized into a Stage definition.)
+    /// </returns>
+    bool TryCreateOrUpdateTemporaryStageWithTransform(string definitionString, string stageId, Vector3 translation, Quaternion rotation, float uniformScale, string debugName);
+
+    /// <summary>
+    /// Sets the transform of the temporary stage with the given ID, if one exists.
+    /// </summary>
+    /// <param name="stageId">The ID of the temporary stage to set the transform of.</param>
+    /// <param name="translation">The new translation of the stage.</param>
+    /// <param name="rotation">The new rotation of the stage.</param>
+    /// <param name="uniformScale">The new</param>
+    /// <returns>
+    /// True if the operation was a success, or false if it failed
+    /// (e.g. if no temporary stage with the given ID was found.)
+    /// </returns>
+    bool TrySetTemporaryStageTransform(string stageId, Vector3 translation, Quaternion rotation, float uniformScale);
+
     /// <summary>
     /// Sets whether the temporary stage with the given stage ID is visible, if it exists.
     /// </summary>
@@ -53,10 +97,6 @@ public partial interface IStagehandApi
     /// <summary>
     /// Destroys the temporary Stage, if any, with the given temporary ID.
     /// </summary>
-    /// <remarks>
-    /// This will also hide it immediately if it is visible. It is encouraged to fade out temporary Stages via
-    /// <see cref="TrySetStageVisibilityAsync(string, bool)"/> before destroying them.
-    /// </remarks>
     /// <param name="stageId">The ID of the temporary Stage to destroy.</param>
     /// <returns>Whether a temporary Stage was found with the given ID and destroyed.</returns>
     bool TryDestroyTemporaryStage(string stageId);

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -21,7 +22,7 @@ public interface ILiveStageService
     /// <param name="key">The key for the live Stage to create or update.</param>
     /// <param name="definition">The Stage definition for the live Stage.</param>
     /// <returns>The live Stage that was created or updated.</returns>
-    LiveStage CreateOrUpdateLiveStage(string key, StageDefinition definition);
+    LiveStage CreateOrUpdateLiveStage(string key, StageDefinition definition, Vector3 translation, Quaternion rotation, float uniformScale);
 
     /// <summary>
     /// Searches for a live Stage with the given key.
@@ -83,11 +84,11 @@ internal class LiveStageService : ILiveStageService, IDisposable
         _resourceRedirectionService = resourceRedirectionService;
     }
 
-    public LiveStage CreateOrUpdateLiveStage(string key, StageDefinition definition)
+    public LiveStage CreateOrUpdateLiveStage(string key, StageDefinition definition, Vector3 translation, Quaternion rotation, float uniformScale)
     {
-        return _liveStages.AddOrUpdate(key, k => new LiveStage(definition, _liveObjectService, _resourceRedirectionService), (k, existing) =>
+        return _liveStages.AddOrUpdate(key, k => new LiveStage(definition, _liveObjectService, _resourceRedirectionService, translation, rotation, uniformScale), (k, existing) =>
         {
-            existing.Update(definition);
+            existing.Update(definition, translation, rotation, uniformScale);
             return existing;
         });
     }

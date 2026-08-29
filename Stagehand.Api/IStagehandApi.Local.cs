@@ -1,10 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Text;
 
 namespace Stagehand.Api;
 
-public readonly record struct LocalStageDefinition(string Filename, string Name, string VersionString, bool IsVisible);
+public readonly record struct LocalStageDefinition(string Filename, string Name, string VersionString, bool IsVisible, Vector3 Translation, Quaternion Rotation, float UniformScale);
 
 public partial interface IStagehandApi
 {

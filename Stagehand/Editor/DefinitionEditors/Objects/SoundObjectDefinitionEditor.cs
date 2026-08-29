@@ -76,7 +76,13 @@ internal class SoundObjectDefinitionEditor : ObjectDefinitionEditor<SoundObjectD
     protected override void SetPositionInternal(Vector3 position)
     {
         base.SetPositionInternal(position);
-        _hitTestSphere.Sphere = _hitTestSphere.Sphere with { CenterPoint = position };
+        _hitTestSphere.Sphere = _hitTestSphere.Sphere with { CenterPoint = WorldPosition };
+    }
+
+    public override void SetParentTransform(Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale)
+    {
+        base.SetParentTransform(parentTranslation, parentRotation, parentUniformScale);
+        _hitTestSphere.Sphere = _hitTestSphere.Sphere with { CenterPoint = WorldPosition };
     }
 
     public override void RemovedFromStage()
@@ -155,13 +161,13 @@ internal class SoundObjectDefinitionEditor : ObjectDefinitionEditor<SoundObjectD
     {
         var color = ComputeOverlayColor();
 
-        var transform = TransformNoScale;
+        var transform = WorldTransformNoScale;
         var localX = transform.X.AsVector3();
         var localY = transform.Y.AsVector3();
         var localZ = transform.Z.AsVector3();
 
-        obj.DrawCircle(Position, localX, localY, HitTestRadius * 0.55f, IsSelected ? 2.0f : 1.0f, color);
-        obj.DrawCircle(Position, localY, localZ, HitTestRadius * 0.55f, IsSelected ? 2.0f : 1.0f, color);
-        obj.DrawCircle(Position, localZ, localX, HitTestRadius * 0.55f, IsSelected ? 2.0f : 1.0f, color);
+        obj.DrawCircle(WorldPosition, localX, localY, HitTestRadius * 0.55f, IsSelected ? 2.0f : 1.0f, color);
+        obj.DrawCircle(WorldPosition, localY, localZ, HitTestRadius * 0.55f, IsSelected ? 2.0f : 1.0f, color);
+        obj.DrawCircle(WorldPosition, localZ, localX, HitTestRadius * 0.55f, IsSelected ? 2.0f : 1.0f, color);
     }
 }

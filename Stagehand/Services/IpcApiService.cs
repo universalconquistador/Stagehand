@@ -8,6 +8,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,6 +18,13 @@ namespace Stagehand.Services;
 internal class IpcApiService : IHostedService, IStagehandApi
 {
     private static readonly TimeSpan _localDefinitionDebounceTime = TimeSpan.FromSeconds(0.5f);
+
+    private record IpcTemporaryStage(StageDefinition Definition, Vector3 Translation, Quaternion Rotation, float UniformScale, string DebugName, string PluginInternalName)
+    {
+        public Vector3 Translation { get; set; } = Translation;
+        public Quaternion Rotation { get; set; } = Rotation;
+        public float UniformScale { get; set; } = UniformScale;
+    }
 
     private readonly ILogger _logger;
     private readonly IDalamudPluginInterface _dalamudPluginInterface;
@@ -29,7 +37,7 @@ internal class IpcApiService : IHostedService, IStagehandApi
 
     private IDisposable? _apiProvider;
 
-    private readonly ConcurrentDictionary<string, StageDefinition> _temporaryStageDefinitions = new();
+    private readonly ConcurrentDictionary<string, IpcTemporaryStage> _temporaryStages = new();
 
     private LocalStageDefinition[] _localStageDefinitions = Array.Empty<LocalStageDefinition>();
     private int _updatingLocalDefinitions = 0;
@@ -64,7 +72,7 @@ internal class IpcApiService : IHostedService, IStagehandApi
     private void OnLocationChanged(StageLocation location)
     {
         // Hide all the temporary stages
-        foreach (var temporaryStageKey in _temporaryStageDefinitions.Keys)
+        foreach (var temporaryStageKey in _temporaryStages.Keys)
         {
             _liveStageService.TryDestroyLiveStage(temporaryStageKey);
         }
@@ -92,7 +100,7 @@ internal class IpcApiService : IHostedService, IStagehandApi
             {
                 if (!_shutdownTokenSource.IsCancellationRequested)
                 {
-                    var result = _localDefinitionService.LocalDefinitions.Select(pair => new LocalStageDefinition(pair.Key, pair.Value.Info.Name, pair.Value.Info.VersionString, _liveStageService.TryGetLiveStage(LiveStageHelpers.MakeLocalStageKey(pair.Key), out _)));
+                    var result = _localDefinitionService.LocalDefinitions.Select(pair => new LocalStageDefinition(pair.Key, pair.Value.Info.Name, pair.Value.Info.VersionString, _liveStageService.TryGetLiveStage(LiveStageHelpers.MakeLocalStageKey(pair.Key), out var liveStage), liveStage?.Translation ?? Vector3.Zero, liveStage?.Rotation ?? Quaternion.Identity, liveStage?.UniformScale ?? 1.0f));
                     _localStageDefinitions = result.ToArray();
                     LocalStageDefinitionsChanged?.Invoke();
                 }
@@ -131,12 +139,17 @@ internal class IpcApiService : IHostedService, IStagehandApi
 
     public bool TryCreateOrUpdateTemporaryStage(string definitionString, string stageId, string debugName)
     {
+        return TryCreateOrUpdateTemporaryStageWithTransform(definitionString, stageId, translation: Vector3.Zero, rotation: Quaternion.Identity, uniformScale: 1.0f, debugName);
+    }
+    
+    public bool TryCreateOrUpdateTemporaryStageWithTransform(string definitionString, string stageId, Vector3 translation, Quaternion rotation, float uniformScale, string debugName)
+    {
         if (StageDefinition.TryParseDefinitionString(definitionString, out var definition))
         {
-            // TODO: Store debug name and calling plugin in a class
             var key = LiveStageHelpers.MakeTemporaryStageKey(stageId, "temp");
-            _temporaryStageDefinitions[key] = definition;
-            _liveStageService.CreateOrUpdateLiveStage(key, definition);
+            string pluginInternalName = ""; // TODO: Get calling plugin name!
+            _temporaryStages[key] = new(definition, translation, rotation, uniformScale, debugName, pluginInternalName);
+            _liveStageService.CreateOrUpdateLiveStage(key, definition, translation, rotation, uniformScale);
             return true;
         }
         else
@@ -145,10 +158,24 @@ internal class IpcApiService : IHostedService, IStagehandApi
         }
     }
 
+    public bool TrySetTemporaryStageTransform(string stageId, Vector3 translation, Quaternion rotation, float uniformScale)
+    {
+        var key = LiveStageHelpers.MakeTemporaryStageKey(stageId, "temp");
+        if (!_temporaryStages.TryGetValue(key, out var existingTemporaryStage) || !_liveStageService.TryGetLiveStage(key, out var liveStage))
+        {
+            return false;
+        }
+        existingTemporaryStage.Translation = translation;
+        existingTemporaryStage.Rotation = rotation;
+        existingTemporaryStage.UniformScale = uniformScale;
+        liveStage.Update(existingTemporaryStage.Definition, translation, rotation, uniformScale);
+        return true;
+    }
+
     public bool TryDestroyTemporaryStage(string stageId)
     {
         var key = LiveStageHelpers.MakeTemporaryStageKey(stageId, "temp");
-        var found = _temporaryStageDefinitions.TryRemove(key, out _);
+        var found = _temporaryStages.TryRemove(key, out _);
         if (found)
         {
             _liveStageService.TryDestroyLiveStage(key);
@@ -161,9 +188,9 @@ internal class IpcApiService : IHostedService, IStagehandApi
         var key = LiveStageHelpers.MakeTemporaryStageKey(stageId, "temp");
         if (visible)
         {
-            if (_temporaryStageDefinitions.TryGetValue(key, out var definition))
+            if (_temporaryStages.TryGetValue(key, out var tempStage))
             {
-                _liveStageService.CreateOrUpdateLiveStage(key, definition);
+                _liveStageService.CreateOrUpdateLiveStage(key, tempStage.Definition, tempStage.Translation, tempStage.Rotation, tempStage.UniformScale);
                 return true;
             }
             else

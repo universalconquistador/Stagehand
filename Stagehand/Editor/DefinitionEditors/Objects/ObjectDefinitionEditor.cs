@@ -26,26 +26,43 @@ namespace Stagehand.Editor.DefinitionEditors.Objects;
 public interface IObjectDefinitionEditor : IChildDefinitionEditor
 {
     /// <summary>
-    /// This object's position in world space.
+    /// This object's position in local space.
     /// </summary>
     Vector3 Position { get; set; }
 
     /// <summary>
-    /// This object's rotation in world space as pitch, yaw, and roll angles in degrees.
+    /// This object's position in world space.
+    /// </summary>
+    Vector3 WorldPosition { get; set; }
+
+    /// <summary>
+    /// This object's rotation in local space as pitch, yaw, and roll angles in degrees.
     /// </summary>
     Vector3 RotationPitchYawRollDegrees { get; set; }
 
     /// <summary>
-    /// This object's rotation in world space as a quaternion.
+    /// This object's rotation in local space as a quaternion.
     /// </summary>
     Quaternion RotationQuaternion { get; set; }
 
     /// <summary>
-    /// This object's scale in world space.
+    /// This object's rotation in world space as a quaternion.
+    /// </summary>
+    Quaternion WorldRotationQuaternion { get; set; }
+
+    /// <summary>
+    /// This object's scale in local space.
     /// </summary>
     Vector3 Scale { get; set; }
 
+    /// <summary>
+    /// This object's scale in world space.
+    /// </summary>
+    Vector3 WorldScale { get; set; }
+
     string ModpackId { get; set; }
+
+    void SetParentTransform(Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale);
 
     void RefreshPreviewObject();
 }
@@ -67,6 +84,12 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
     public ILiveObject? PreviewLiveObject { get; protected set; }
     public bool IsInStage { get; private set; }
 
+    protected Vector3 ParentTranslation { get; private set; } = Vector3.Zero;
+    protected Quaternion ParentRotation { get; private set; } = Quaternion.Identity;
+    protected float ParentUniformScale { get; private set; } = 1.0f;
+    protected Matrix4x4 ParentToWorldMatrix { get; private set; } = Matrix4x4.Identity;
+    protected Matrix4x4 WorldToParentMatrix { get; private set; } = Matrix4x4.Identity;
+
     public override string DisplayName => Definition.DisplayName;
 
     public bool IsDisabled
@@ -81,6 +104,12 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         set => SetPropertyValue(SetPositionInternal, value, Definition.Position);
     }
 
+    public Vector3 WorldPosition
+    {
+        get => Vector3.Transform(Position, ParentToWorldMatrix);
+        set => Position = Vector3.Transform(value, WorldToParentMatrix);
+    }
+
     public Vector3 RotationPitchYawRollDegrees
     {
         get => Definition.RotationPitchYawRollDegrees;
@@ -93,15 +122,29 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         set => SetPropertyValue(SetRotationQuaternionInternal, value, Definition.RotationQuaternion);
     }
 
+    public Quaternion WorldRotationQuaternion
+    {
+        get => ParentRotation * RotationQuaternion;
+        set => RotationQuaternion = Quaternion.Inverse(ParentRotation) * value;
+    }
+
     public Vector3 Scale
     {
         get => Definition.Scale;
         set => SetPropertyValue(SetScaleInternal, value, Definition.Scale);
     }
 
+    public Vector3 WorldScale
+    {
+        get => Scale * ParentUniformScale;
+        set => Scale = value / ParentUniformScale;
+    }
+
     public Matrix4x4 TransformNoScale => Matrix4x4.CreateFromQuaternion(RotationQuaternion) * Matrix4x4.CreateTranslation(Position);
+    public Matrix4x4 WorldTransformNoScale => Matrix4x4.CreateFromQuaternion(WorldRotationQuaternion) * Matrix4x4.CreateTranslation(WorldPosition);
 
     public Matrix4x4 Transform => Matrix4x4.CreateScale(Scale) * TransformNoScale;
+    public Matrix4x4 WorldTransform => Matrix4x4.CreateScale(WorldScale) * WorldTransformNoScale;
 
     public string ModpackId
     {
@@ -138,6 +181,26 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
     protected virtual void SetModpackIdInternal(string modpackId)
     {
         Definition.ModpackId = modpackId;
+    }
+
+    // Non transacted
+    public virtual void SetParentTransform(Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale)
+    {
+        ParentTranslation = parentTranslation;
+        ParentRotation = parentRotation;
+        ParentUniformScale = parentUniformScale;
+
+        ParentToWorldMatrix = Matrix4x4.CreateScale(ParentUniformScale) * Matrix4x4.CreateFromQuaternion(ParentRotation) * Matrix4x4.CreateTranslation(ParentTranslation);
+        if (Matrix4x4.Invert(ParentToWorldMatrix, out var worldToParentMatrix))
+        {
+            WorldToParentMatrix = worldToParentMatrix;
+        }
+        else
+        {
+            WorldToParentMatrix = Matrix4x4.Identity;
+        }
+
+        RefreshPreviewObject();
     }
 
     protected ObjectDefinitionEditor(IServiceProvider serviceProvider, TDefinition definition, string key, StageDefinitionEditor stage) : base(serviceProvider)
@@ -342,7 +405,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         }
     }
 
-    protected override void SetPropertyValue<TValue>(Action<TValue> setter, TValue newValue, TValue oldValue, [CallerMemberName] string? propertyName = null)
+    protected override void SetPropertyValue<TValue>(Action<TValue> setter, TValue newValue, TValue oldValue, [CallerMemberName] string? propertyName = null, bool affectsDataModel = true)
     {
         base.SetPropertyValue(val =>
         {
@@ -386,14 +449,14 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
 
     public virtual void AddedToStage()
     {
-        PreviewLiveObject = LiveObjectService.CreateObject(Definition, GetPreviewModpack());
+        RefreshPreviewObject();
         OverlayService.DrawOverlays += DrawOverlays;
         IsInStage = true;
     }
 
     public virtual void RefreshPreviewObject()
     {
-        PreviewLiveObject = PreviewLiveObject != null ? LiveObjectService.UpdateOrRecreateObject(PreviewLiveObject, Definition, GetPreviewModpack()) : LiveObjectService.CreateObject(Definition, GetPreviewModpack());
+        PreviewLiveObject = PreviewLiveObject != null ? LiveObjectService.UpdateOrRecreateObject(PreviewLiveObject, Definition, ParentTranslation, ParentRotation, ParentUniformScale, GetPreviewModpack()) : LiveObjectService.CreateObject(Definition, ParentTranslation, ParentRotation, ParentUniformScale, GetPreviewModpack());
     }
 
     protected ILiveModpack? GetPreviewModpack()

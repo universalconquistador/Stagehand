@@ -10,6 +10,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -92,7 +93,8 @@ internal class LocalStageService : IHostedService
                         var definition = JsonSerializer.Deserialize<StageDefinition>(stream, StageDefinition.StandardSerializerOptions);
                         if (definition != null)
                         {
-                            _liveStageService.CreateOrUpdateLiveStage(liveKey, definition);
+                            // TODO: Get saved transform of stage show condition!
+                            _liveStageService.CreateOrUpdateLiveStage(liveKey, definition, Vector3.Zero, Quaternion.Identity, 1.0f);
                             VisibleStagesChanged?.Invoke();
                         }
                     }
@@ -127,7 +129,7 @@ internal class LocalStageService : IHostedService
             foreach (var added in addedDefinitions)
             {
                 if (_localDefinitionService.LocalDefinitions.TryGetValue(added, out var metadata)
-                    && metadata.AutomaticShowConditions.Any(condition => condition.Evaluate(_gameStateService.Location)))
+                    && metadata.AutomaticShowConditions.FirstOrDefault(condition => condition.Evaluate(_gameStateService.Location)) is AutomaticShowCondition condition && condition != default)
                 {
                     try
                     {
@@ -136,7 +138,7 @@ internal class LocalStageService : IHostedService
                             var definition = JsonSerializer.Deserialize<StageDefinition>(stream, StageDefinition.StandardSerializerOptions);
                             if (definition != null)
                             {
-                                _liveStageService.CreateOrUpdateLiveStage(LiveStageHelpers.MakeLocalStageKey(added), definition);
+                                _liveStageService.CreateOrUpdateLiveStage(LiveStageHelpers.MakeLocalStageKey(added), definition, condition.Translation, condition.Rotation, condition.UniformScale);
                             }
                         }
 
@@ -162,7 +164,7 @@ internal class LocalStageService : IHostedService
                             var definition = JsonSerializer.Deserialize<StageDefinition>(stream, StageDefinition.StandardSerializerOptions);
                             if (definition != null)
                             {
-                                liveStage.Update(definition);
+                                liveStage.Update(definition, liveStage.Translation, liveStage.Rotation, liveStage.UniformScale);
                             }
                         }
                         visibleChanged = true;
@@ -188,7 +190,7 @@ internal class LocalStageService : IHostedService
 
         bool shouldBeVisible = path != _editorService.OpenEditorFilename
             && _manualVisibilitySettings.GetValueOrDefault(path, _localDefinitionService.LocalDefinitions.TryGetValue(path, out var metadata)
-            && metadata.AutomaticShowConditions.Any(condition => condition.Evaluate(_gameStateService.Location)));
+            && metadata.AutomaticShowConditions.FirstOrDefault(condition => condition.Evaluate(_gameStateService.Location)) is AutomaticShowCondition condition && condition != default);
 
         if (currentlyVisible && !shouldBeVisible)
         {
@@ -209,7 +211,8 @@ internal class LocalStageService : IHostedService
                         var definition = JsonSerializer.Deserialize<StageDefinition>(stream, StageDefinition.StandardSerializerOptions);
                         if (definition != null)
                         {
-                            _liveStageService.CreateOrUpdateLiveStage(liveKey, definition);
+                            // TODO: Get saved transform of stage show condition!
+                            _liveStageService.CreateOrUpdateLiveStage(liveKey, definition, Vector3.Zero, Quaternion.Identity, 1.0f);
                             VisibleStagesChanged?.Invoke();
                         }
                     }
@@ -242,7 +245,8 @@ internal class LocalStageService : IHostedService
                         var definition = JsonSerializer.Deserialize<StageDefinition>(stream, StageDefinition.StandardSerializerOptions);
                         if (definition != null)
                         {
-                            _liveStageService.CreateOrUpdateLiveStage(LiveStageHelpers.MakeLocalStageKey(localDefinition.Key), definition);
+                            // TODO: Get saved transform of stage show condition!
+                            _liveStageService.CreateOrUpdateLiveStage(LiveStageHelpers.MakeLocalStageKey(localDefinition.Key), definition, Vector3.Zero, Quaternion.Identity, 1.0f);
                         }
                     }
                 }

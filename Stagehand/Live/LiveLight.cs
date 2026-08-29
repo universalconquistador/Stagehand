@@ -94,7 +94,7 @@ internal sealed unsafe class LiveLight : LiveDrawObject
         base.Dispose();
     }
 
-    public override bool TryUpdate(ObjectDefinition definition, ILiveModpack? modpack)
+    public override bool TryUpdate(ObjectDefinition definition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, ILiveModpack? modpack)
     {
         if (definition.IsDisabled)
         {
@@ -157,9 +157,14 @@ internal sealed unsafe class LiveLight : LiveDrawObject
             Range = lightDefinition.Range;
             CharacterShadowRange = lightDefinition.CharacterShadowRange;
 
-            Position = lightDefinition.Position;
-            Rotation = lightDefinition.RotationQuaternion;
-            Scale = lightDefinition.Scale;
+            var position = lightDefinition.Position;
+            var rotation = lightDefinition.RotationQuaternion;
+            var scale = lightDefinition.Scale;
+            LiveObject.ApplyParentTransform(ref position, ref rotation, ref scale, parentTranslation, parentRotation, parentUniformScale);
+
+            Position = position;
+            Rotation = rotation;
+            Scale = scale;
             SceneLightPtr->UpdateTransforms(false);
 
             Update();

@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -26,6 +27,13 @@ public record struct AutomaticShowCondition
     public ushort WardId { get; set; }
     public ushort HouseId { get; set; }
     public ushort RoomId { get; set; }
+
+    public Vector3 Translation { get; set; } = Vector3.Zero;
+    public Quaternion Rotation { get; set; } = Quaternion.Identity;
+    public float UniformScale { get; set; } = 1.0f;
+
+    public AutomaticShowCondition()
+    { }
 
     public bool Evaluate(StageLocation location)
     {

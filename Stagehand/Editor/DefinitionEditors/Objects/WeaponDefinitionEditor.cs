@@ -125,25 +125,33 @@ internal class WeaponDefinitionEditor : ObjectDefinitionEditor<WeaponDefinition>
     protected override void SetPositionInternal(Vector3 position)
     {
         base.SetPositionInternal(position);
-        _hitTestModel.Position = Position;
+        _hitTestModel.Position = WorldPosition;
     }
 
     protected override void SetRotationPitchYawRollDegreesInternal(Vector3 rotationPYRDegrees)
     {
         base.SetRotationPitchYawRollDegreesInternal(rotationPYRDegrees);
-        _hitTestModel.Rotation = RotationQuaternion;
+        _hitTestModel.Rotation = WorldRotationQuaternion;
     }
 
     protected override void SetRotationQuaternionInternal(Quaternion rotationQuaternion)
     {
         base.SetRotationQuaternionInternal(rotationQuaternion);
-        _hitTestModel.Rotation = RotationQuaternion;
+        _hitTestModel.Rotation = WorldRotationQuaternion;
     }
 
     protected override void SetScaleInternal(Vector3 scale)
     {
         base.SetScaleInternal(scale);
-        _hitTestModel.Scale = Scale;
+        _hitTestModel.Scale = WorldScale;
+    }
+
+    public override void SetParentTransform(Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale)
+    {
+        base.SetParentTransform(parentTranslation, parentRotation, parentUniformScale);
+        _hitTestModel.Position = WorldPosition;
+        _hitTestModel.Rotation = WorldRotationQuaternion;
+        _hitTestModel.Scale = WorldScale;
     }
 
     protected virtual void SetModelSetIdInternal(int modelSetId)

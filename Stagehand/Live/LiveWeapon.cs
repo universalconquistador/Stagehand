@@ -3,6 +3,7 @@ using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using Stagehand.Definitions.Objects;
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Text;
 
 namespace Stagehand.Live;
@@ -29,7 +30,7 @@ internal sealed unsafe class LiveWeapon : LiveDrawObject
         base.Dispose();
     }
 
-    public override bool TryUpdate(ObjectDefinition definition, ILiveModpack? modpack)
+    public override bool TryUpdate(ObjectDefinition definition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, ILiveModpack? modpack)
     {
         if (definition.IsDisabled)
         {
@@ -70,9 +71,14 @@ internal sealed unsafe class LiveWeapon : LiveDrawObject
                 WeaponPtr->OnAddedToWorld();
             }
 
-            Position = weaponDefinition.Position;
-            Rotation = weaponDefinition.RotationQuaternion;
-            Scale = weaponDefinition.Scale;
+            var position = weaponDefinition.Position;
+            var rotation = weaponDefinition.RotationQuaternion;
+            var scale = weaponDefinition.Scale;
+            LiveObject.ApplyParentTransform(ref position, ref rotation, ref scale, parentTranslation, parentRotation, parentUniformScale);
+
+            Position = position;
+            Rotation = rotation;
+            Scale = scale;
             WeaponPtr->UpdateTransforms(false);
 
             return true;

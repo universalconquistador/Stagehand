@@ -17,8 +17,9 @@ public interface ILiveObject : IDisposable
     /// Attempts to take on the property values in the given object definition.
     /// </summary>
     /// <param name="definition">The object definition, whose concrete type must match this live object.</param>
+    /// <param name="modpack">The modpack to use for the object.</param>
     /// <returns>True if the update was successful, or false if this live object cannot be updated with the given object definition.</returns>
-    bool TryUpdate(ObjectDefinition definition, ILiveModpack? modpack);
+    bool TryUpdate(ObjectDefinition definition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, ILiveModpack? modpack);
 
     /// <summary>
     /// Attempts to get the oriented bounds of this live object.
@@ -54,7 +55,23 @@ internal abstract unsafe class LiveObject : ILiveObject
         ObjectPtr = null;
     }
 
-    public abstract bool TryUpdate(ObjectDefinition definition, ILiveModpack? modpack);
+    public static void ApplyParentTransform(ref Vector3 localTranslation, ref Quaternion localRotation, ref Vector3 localScale, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale)
+    {
+        var rotation = parentRotation * localRotation;
+
+        var translation = Vector3.Transform(localTranslation, parentRotation);
+        translation *= parentUniformScale;
+
+        var scale = localScale * parentUniformScale;
+
+        translation += parentTranslation;
+
+        localTranslation = translation;
+        localRotation = rotation;
+        localScale = scale;
+    }
+
+    public abstract bool TryUpdate(ObjectDefinition definition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, ILiveModpack? modpack);
 
     public abstract bool TryGetOrientedBounds(out FFXIVClientStructs.FFXIV.Common.Math.OrientedBounds orientedBounds);
 }

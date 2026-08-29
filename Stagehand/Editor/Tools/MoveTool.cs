@@ -1,6 +1,7 @@
 using Dalamud.Interface;
 using Dalamud.Plugin.Services;
 using Microsoft.Extensions.Logging;
+using Stagehand.Editor.DefinitionEditors;
 using Stagehand.Editor.DefinitionEditors.Objects;
 using Stagehand.Editor.Services;
 using Stagehand.Services;
@@ -34,12 +35,22 @@ internal class MoveTool : SelectToolBase
     {
         if (_selectionManager.SelectedEditor is IObjectDefinitionEditor objectDefinitionEditor)
         {
-            var translation = objectDefinitionEditor.Position;
-            var rotation = objectDefinitionEditor.RotationQuaternion;
-            var scale = objectDefinitionEditor.Scale;
+            var translation = objectDefinitionEditor.WorldPosition;
+            var rotation = objectDefinitionEditor.WorldRotationQuaternion;
+            var scale = objectDefinitionEditor.WorldScale;
             if (context.DrawGizmo("###MoveToolGizmo", ref translation, ref rotation, ref scale, Dalamud.Bindings.ImGuizmo.ImGuizmoOperation.Translate, Dalamud.Bindings.ImGuizmo.ImGuizmoMode.Local))
             {
-                objectDefinitionEditor.Position = translation;
+                objectDefinitionEditor.WorldPosition = translation;
+            }
+        }
+        else if (_selectionManager.SelectedEditor is StageDefinitionEditor stageDefinitionEditor)
+        {
+            var translation = stageDefinitionEditor.EditTranslation;
+            var rotation = stageDefinitionEditor.EditRotation;
+            var scale = new Vector3(stageDefinitionEditor.EditUniformScale);
+            if (context.DrawGizmo("###MoveToolGizmo", ref translation, ref rotation, ref scale, Dalamud.Bindings.ImGuizmo.ImGuizmoOperation.Translate, Dalamud.Bindings.ImGuizmo.ImGuizmoMode.Local))
+            {
+                stageDefinitionEditor.EditTranslation = translation;
             }
         }
     }

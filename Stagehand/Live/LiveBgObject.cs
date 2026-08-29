@@ -134,7 +134,7 @@ internal sealed unsafe class LiveBgObject : LiveDrawObject
         base.Dispose();
     }
 
-    public override bool TryUpdate(ObjectDefinition definition, ILiveModpack? modpack)
+    public override bool TryUpdate(ObjectDefinition definition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, ILiveModpack? modpack)
     {
         if (definition.IsDisabled)
         {
@@ -162,9 +162,14 @@ internal sealed unsafe class LiveBgObject : LiveDrawObject
             }
             else
             {
-                Position = bgObjectDefinition.Position;
-                Rotation = bgObjectDefinition.RotationQuaternion;
-                Scale = bgObjectDefinition.Scale;
+                var position = bgObjectDefinition.Position;
+                var rotation = bgObjectDefinition.RotationQuaternion;
+                var scale = bgObjectDefinition.Scale;
+                LiveObject.ApplyParentTransform(ref position, ref rotation, ref scale, parentTranslation, parentRotation, parentUniformScale);
+                
+                Position = position;
+                Rotation = rotation;
+                Scale = scale;
                 DyeColor = bgObjectDefinition.DyeColor;
                 Transparency = 1.0f - bgObjectDefinition.Opacity;
                 if (BgObjectPtr->ModelResourceHandle != null && BgObjectPtr->ModelResourceHandle->LoadState >= 7)

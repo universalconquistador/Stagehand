@@ -139,11 +139,17 @@ internal class LightDefinitionEditor : ObjectDefinitionEditor<LightDefinition>
 
         _hitTestService.AddShape(_hitTestSphere);
     }
-
+    
     protected override void SetPositionInternal(Vector3 position)
     {
         base.SetPositionInternal(position);
-        _hitTestSphere.Sphere = _hitTestSphere.Sphere with { CenterPoint = position };
+        _hitTestSphere.Sphere = _hitTestSphere.Sphere with { CenterPoint = WorldPosition };
+    }
+
+    public override void SetParentTransform(Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale)
+    {
+        base.SetParentTransform(parentTranslation, parentRotation, parentUniformScale);
+        _hitTestSphere.Sphere = _hitTestSphere.Sphere with { CenterPoint = WorldPosition };
     }
 
     public override void RemovedFromStage()
@@ -158,7 +164,7 @@ internal class LightDefinitionEditor : ObjectDefinitionEditor<LightDefinition>
         var color = ComputeOverlayColor();
         if (Shape == LightShape.Ambient)
         {
-            var transform = TransformNoScale;
+            var transform = WorldTransformNoScale;
             var localX = transform.X.AsVector3() * HitTestRadius;
             var localY = transform.Y.AsVector3() * HitTestRadius;
             var localZ = transform.Z.AsVector3() * HitTestRadius;
@@ -178,21 +184,21 @@ internal class LightDefinitionEditor : ObjectDefinitionEditor<LightDefinition>
         else if (Shape == LightShape.Point)
         {
             // Selection icon
-            var transform = TransformNoScale;
+            var transform = WorldTransformNoScale;
             var localX = transform.X.AsVector3();
             var localY = transform.Y.AsVector3();
             var localZ = transform.Z.AsVector3();
 
-            obj.DrawCircle(Position, localX, localY, HitTestRadius * 0.55f, IsSelected ? 2.0f : 1.0f, color);
-            obj.DrawCircle(Position, localY, localZ, HitTestRadius * 0.55f, IsSelected ? 2.0f : 1.0f, color);
-            obj.DrawCircle(Position, localZ, localX, HitTestRadius * 0.55f, IsSelected ? 2.0f : 1.0f, color);
+            obj.DrawCircle(WorldPosition, localX, localY, HitTestRadius * 0.55f, IsSelected ? 2.0f : 1.0f, color);
+            obj.DrawCircle(WorldPosition, localY, localZ, HitTestRadius * 0.55f, IsSelected ? 2.0f : 1.0f, color);
+            obj.DrawCircle(WorldPosition, localZ, localX, HitTestRadius * 0.55f, IsSelected ? 2.0f : 1.0f, color);
 
             if (IsSelected)
             {
                 // Range sphere
-                obj.DrawCircle(Position, localX, localY, Range, 2.0f, color);
-                obj.DrawCircle(Position, localY, localZ, Range, 2.0f, color);
-                obj.DrawCircle(Position, localZ, localX, Range, 2.0f, color);
+                obj.DrawCircle(WorldPosition, localX, localY, Range, 2.0f, color);
+                obj.DrawCircle(WorldPosition, localY, localZ, Range, 2.0f, color);
+                obj.DrawCircle(WorldPosition, localZ, localX, Range, 2.0f, color);
             }
         }
         else if (Shape == LightShape.Spot)
@@ -200,45 +206,45 @@ internal class LightDefinitionEditor : ObjectDefinitionEditor<LightDefinition>
             if (IsSelected)
             {
                 // Primary cone
-                obj.DrawCone(TransformNoScale, 0.5f * SpotLightAngleDegrees * MathF.PI / 180.0f, Range, 2.0f, color);
+                obj.DrawCone(WorldTransformNoScale, 0.5f * SpotLightAngleDegrees * MathF.PI / 180.0f, Range, 2.0f, color);
 
                 // Falloff cone
-                obj.DrawCone(TransformNoScale, 0.5f * (SpotLightAngleDegrees + AngularFalloffDegrees) * MathF.PI / 180.0f, Range, 1.0f, color with { W = color.W * 0.4f });
+                obj.DrawCone(WorldTransformNoScale, 0.5f * (SpotLightAngleDegrees + AngularFalloffDegrees) * MathF.PI / 180.0f, Range, 1.0f, color with { W = color.W * 0.4f });
             }
             else
             {
                 // Selection icon
-                obj.DrawCone(TransformNoScale, 0.5f * SpotLightAngleDegrees * MathF.PI / 180.0f, HitTestRadius * 0.85f, 1.0f, color);
+                obj.DrawCone(WorldTransformNoScale, 0.5f * SpotLightAngleDegrees * MathF.PI / 180.0f, HitTestRadius * 0.85f, 1.0f, color);
             }
         }
         else if (Shape == LightShape.Flat)
         {
             // Selection plane
 #if false   // Use rotation for skew
-            var transform = Matrix4x4.CreateRotationX(FlatLightSkewAngleDegrees.X * MathF.PI / 180.0f) * Matrix4x4.CreateRotationY(FlatLightSkewAngleDegrees.Y * MathF.PI / 180.0f) * Transform;
+            var transform = Matrix4x4.CreateRotationX(FlatLightSkewAngleDegrees.X * MathF.PI / 180.0f) * Matrix4x4.CreateRotationY(FlatLightSkewAngleDegrees.Y * MathF.PI / 180.0f) * WorldTransform;
 #else
-            var transform = Transform;
+            var transform = WorldTransform;
 #endif
             var localHalfX = transform.X.AsVector3() * 0.5f;
             var localHalfY = transform.Y.AsVector3() * 0.5f;
             var localZ = transform.Z.AsVector3();
 
-            obj.DrawLine(Position + localHalfX + localHalfY, Position + localHalfX - localHalfY, IsSelected ? 2.0f : 1.0f, color);
-            obj.DrawLine(Position + localHalfX - localHalfY, Position - localHalfX - localHalfY, IsSelected ? 2.0f : 1.0f, color);
-            obj.DrawLine(Position - localHalfX - localHalfY, Position - localHalfX + localHalfY, IsSelected ? 2.0f : 1.0f, color);
-            obj.DrawLine(Position - localHalfX + localHalfY, Position + localHalfX + localHalfY, IsSelected ? 2.0f : 1.0f, color);
+            obj.DrawLine(WorldPosition + localHalfX + localHalfY, WorldPosition + localHalfX - localHalfY, IsSelected ? 2.0f : 1.0f, color);
+            obj.DrawLine(WorldPosition + localHalfX - localHalfY, WorldPosition - localHalfX - localHalfY, IsSelected ? 2.0f : 1.0f, color);
+            obj.DrawLine(WorldPosition - localHalfX - localHalfY, WorldPosition - localHalfX + localHalfY, IsSelected ? 2.0f : 1.0f, color);
+            obj.DrawLine(WorldPosition - localHalfX + localHalfY, WorldPosition + localHalfX + localHalfY, IsSelected ? 2.0f : 1.0f, color);
 
             var skewVectorX = Vector3.Normalize(transform.X.AsVector3()) * Range * MathF.Tan(FlatLightSkewAngleDegrees.Y * MathF.PI / 180.0f);
             var skewVectorY = -Vector3.Normalize(transform.Y.AsVector3()) * Range * MathF.Tan(FlatLightSkewAngleDegrees.X * MathF.PI / 180.0f);
 
-            obj.DrawLine(Position, Position + Vector3.Normalize(localZ) * HitTestRadius, IsSelected ? 2.0f : 1.0f, color);
+            obj.DrawLine(WorldPosition, WorldPosition + Vector3.Normalize(localZ) * HitTestRadius, IsSelected ? 2.0f : 1.0f, color);
 
             if (IsSelected)
             {
 #if false       // Use rotation for skew
-                Vector3 farSide = Position + localZ * Range;
+                Vector3 farSide = WorldPosition + localZ * Range;
 #else
-                Vector3 farSide = Position + localZ * Range + skewVectorX + skewVectorY;
+                Vector3 farSide = WorldPosition + localZ * Range + skewVectorX + skewVectorY;
 #endif
 
                 obj.DrawLine(farSide + localHalfX + localHalfY, farSide + localHalfX - localHalfY, 2.0f, color);
@@ -246,10 +252,10 @@ internal class LightDefinitionEditor : ObjectDefinitionEditor<LightDefinition>
                 obj.DrawLine(farSide - localHalfX - localHalfY, farSide - localHalfX + localHalfY, 2.0f, color);
                 obj.DrawLine(farSide - localHalfX + localHalfY, farSide + localHalfX + localHalfY, 2.0f, color);
 
-                obj.DrawLine(Position + localHalfX + localHalfY, farSide + localHalfX + localHalfY, 2.0f, color);
-                obj.DrawLine(Position + localHalfX - localHalfY, farSide + localHalfX - localHalfY, 2.0f, color);
-                obj.DrawLine(Position - localHalfX - localHalfY, farSide - localHalfX - localHalfY, 2.0f, color);
-                obj.DrawLine(Position - localHalfX + localHalfY, farSide - localHalfX + localHalfY, 2.0f, color);
+                obj.DrawLine(WorldPosition + localHalfX + localHalfY, farSide + localHalfX + localHalfY, 2.0f, color);
+                obj.DrawLine(WorldPosition + localHalfX - localHalfY, farSide + localHalfX - localHalfY, 2.0f, color);
+                obj.DrawLine(WorldPosition - localHalfX - localHalfY, farSide - localHalfX - localHalfY, 2.0f, color);
+                obj.DrawLine(WorldPosition - localHalfX + localHalfY, farSide - localHalfX + localHalfY, 2.0f, color);
             }
         }
     }

@@ -56,7 +56,7 @@ internal sealed unsafe class LiveVfxObject : LiveDrawObject
         base.Dispose();
     }
 
-    public override bool TryUpdate(ObjectDefinition definition, ILiveModpack? modpack)
+    public override bool TryUpdate(ObjectDefinition definition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, ILiveModpack? modpack)
     {
         if (definition.IsDisabled)
         {
@@ -85,13 +85,18 @@ internal sealed unsafe class LiveVfxObject : LiveDrawObject
             }
             else
             {
-                bool transformChanged = !vfxDefinition.Position.Equals(Position)
-                    || !vfxDefinition.RotationQuaternion.Equals(Rotation)
-                    || !vfxDefinition.Scale.Equals(Scale);
+                var position = vfxDefinition.Position;
+                var rotation = vfxDefinition.RotationQuaternion;
+                var scale = vfxDefinition.Scale;
+                LiveObject.ApplyParentTransform(ref position, ref rotation, ref scale, parentTranslation, parentRotation, parentUniformScale);
 
-                Position = vfxDefinition.Position;
-                Rotation = vfxDefinition.RotationQuaternion;
-                Scale = vfxDefinition.Scale;
+                bool transformChanged = !position.Equals(Position)
+                    || !rotation.Equals(Rotation)
+                    || !scale.Equals(Scale);
+
+                Position = position;
+                Rotation = rotation;
+                Scale = scale;
                 Color = vfxDefinition.Color;
 
                 if (transformChanged)

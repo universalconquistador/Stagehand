@@ -29,17 +29,17 @@ public abstract class ObjectDefinition
     public bool IsDisabled { get; set; } = false;
 
     /// <summary>
-    /// The position of this object in world space.
+    /// The position of this object in local space.
     /// </summary>
     public Vector3 Position { get; set; } = Vector3.Zero;
 
     /// <summary>
-    /// The rotation of this object in world space, given as pitch, yaw, and roll angles in degrees.
+    /// The rotation of this object in local space, given as pitch, yaw, and roll angles in degrees.
     /// </summary>
     public Vector3 RotationPitchYawRollDegrees { get; set; } = Vector3.Zero;
 
     /// <summary>
-    /// The world-space scale of this object along its X, Y, and Z axes.
+    /// The local-space scale of this object along its X, Y, and Z axes.
     /// </summary>
     public Vector3 Scale { get; set; } = Vector3.One;
 

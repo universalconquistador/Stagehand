@@ -65,7 +65,7 @@ public abstract class DefinitionEditorBase : IDefinitionEditor
         TransactionManager = ServiceProvider.GetRequiredService<ITransactionManager>();
     }
 
-    protected virtual void SetPropertyValue<TValue>(Action<TValue> setter, TValue newValue, TValue oldValue, [CallerMemberName] string? propertyName = null)
+    protected virtual void SetPropertyValue<TValue>(Action<TValue> setter, TValue newValue, TValue oldValue, [CallerMemberName] string? propertyName = null, bool affectsDataModel = true)
     {
         // UBER HACK: Dragging a property should be a transaction group! There's not really a great way to detect this right now, so this is what we've got.
         // Really this does not belong here, and even more importantly this is not necessarily called from an ImGui draw or even the right thread!
@@ -75,7 +75,7 @@ public abstract class DefinitionEditorBase : IDefinitionEditor
             TransactionManager.PushTransactionGroup($"Set {DisplayName}'s {propertyName} to {newValue}");
         }
 
-        TransactionManager.DoTransaction(new SetPropertyTransaction<IDefinitionEditor, TValue>(DisplayName, propertyName ?? string.Empty, this, newValue, oldValue, (@new, old) => setter.Invoke(@new)));
+        TransactionManager.DoTransaction(new SetPropertyTransaction<IDefinitionEditor, TValue>(DisplayName, propertyName ?? string.Empty, this, newValue, oldValue, (@new, old) => setter.Invoke(@new), affectsDataModel));
     }
 
     public void DrawProperties()

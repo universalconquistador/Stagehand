@@ -80,7 +80,7 @@ public interface ILiveObjectService
     /// </summary>
     /// <param name="definition">The object definition specifying the object to create.</param>
     /// <returns>The new live object, or null if it could not be created.</returns>
-    ILiveObject? CreateObject(ObjectDefinition definition, ILiveModpack? modpack);
+    ILiveObject? CreateObject(ObjectDefinition definition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, ILiveModpack? modpack);
 
     /// <summary>
     /// Updates the given live object with the given new definition, or disposes and creates a new live object if the new
@@ -90,7 +90,7 @@ public interface ILiveObjectService
     /// <param name="newDefinition">The object definition to apply.</param>
     /// <returns>Either the given live object if it was successfully created, a new live object if the given one was
     /// not compatible and destroyed, or null if a new live object could not be created.</returns>
-    ILiveObject? UpdateOrRecreateObject(ILiveObject obj, ObjectDefinition newDefinition, ILiveModpack? modpack);
+    ILiveObject? UpdateOrRecreateObject(ILiveObject obj, ObjectDefinition newDefinition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, ILiveModpack? modpack);
 }
 
 internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposable
@@ -323,13 +323,16 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
         // TODO: Emergency cleanup of any leftover live objects
     }
 
-    public ILiveObject? CreateObject(ObjectDefinition definition, ILiveModpack? modpack)
+    public ILiveObject? CreateObject(ObjectDefinition definition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, ILiveModpack? modpack)
     {
         if (!definition.IsDisabled)
         {
             LiveObjectFactoryParams factoryParams = new()
             {
                 LiveObjectService = this,
+                ParentTranslation = parentTranslation,
+                ParentRotation = parentRotation,
+                ParentUniformScale = parentUniformScale,
                 Modpack = modpack,
             };
             return definition.Visit<LiveObjectFactory, LiveObjectFactoryParams, ILiveObject?>(ref factoryParams);
@@ -340,26 +343,31 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
         }
     }
 
-    public ILiveObject? UpdateOrRecreateObject(ILiveObject obj, ObjectDefinition newDefinition, ILiveModpack? modpack)
+    public ILiveObject? UpdateOrRecreateObject(ILiveObject obj, ObjectDefinition newDefinition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, ILiveModpack? modpack)
     {
         ILiveObject? result = obj;
-        if (!obj.TryUpdate(newDefinition, modpack))
+        if (!obj.TryUpdate(newDefinition, parentTranslation, parentRotation, parentUniformScale, modpack))
         {
             obj.Dispose();
-            result = CreateObject(newDefinition, modpack);
+            result = CreateObject(newDefinition, parentTranslation, parentRotation, parentUniformScale, modpack);
         }
 
         return result;
     }
 
-    private record struct LiveObjectFactoryParams(ILiveObjectService LiveObjectService, ILiveModpack? Modpack);
+    private record struct LiveObjectFactoryParams(ILiveObjectService LiveObjectService, Vector3 ParentTranslation, Quaternion ParentRotation, float ParentUniformScale, ILiveModpack? Modpack);
 
     private sealed class LiveObjectFactory : IObjectVisitor<LiveObjectFactoryParams, ILiveObject?>
     {
         public static ILiveObject? VisitBgObjectDefinition(BgObjectDefinition definition, ref LiveObjectFactoryParams param)
         {
-            var bgObject = param.LiveObjectService.CreateBgObject(definition.ModelGamePath, definition.Position, definition.RotationQuaternion, definition.Scale, param.Modpack);
-            bool updated = bgObject?.TryUpdate(definition, param.Modpack) ?? false;
+            var position = definition.Position;
+            var rotation = definition.RotationQuaternion;
+            var scale = definition.Scale;
+            LiveObject.ApplyParentTransform(ref position, ref rotation, ref scale, param.ParentTranslation, param.ParentRotation, param.ParentUniformScale);
+
+            var bgObject = param.LiveObjectService.CreateBgObject(definition.ModelGamePath, position, rotation, scale, param.Modpack);
+            bool updated = bgObject?.TryUpdate(definition, param.ParentTranslation, param.ParentRotation, param.ParentUniformScale, param.Modpack) ?? false;
             // If TryUpdate had to create a new object, that's a dev problem. The creation above should produce a bgobject that can be updated to the given
             // definition without needing to be recreated.
             Debug.Assert(updated);
@@ -369,7 +377,7 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
         public static ILiveObject? VisitLightDefinition(LightDefinition definition, ref LiveObjectFactoryParams param)
         {
             var light = param.LiveObjectService.CreateLight(definition.Shape switch { LightShape.Ambient => RenderLightShape.WorldLight, LightShape.Point => RenderLightShape.PointLight, LightShape.Spot => RenderLightShape.SpotLight, LightShape.Flat => RenderLightShape.FlatLight, _ => RenderLightShape.PointLight }, param.Modpack);
-            bool updated = light?.TryUpdate(definition, param.Modpack) ?? false;
+            bool updated = light?.TryUpdate(definition, param.ParentTranslation, param.ParentRotation, param.ParentUniformScale, param.Modpack) ?? false;
             // If TryUpdate had to create a new object, that's a dev problem. The creation above should produce a light that can be updated to the given
             // definition without needing to be recreated.
             Debug.Assert(updated);
@@ -378,21 +386,36 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
 
         public static ILiveObject? VisitSoundObjectDefinition(SoundObjectDefinition definition, ref LiveObjectFactoryParams param)
         {
-            var sound = param.LiveObjectService.CreateSound(definition.SoundGamePath, definition.SoundIndex, definition.Volume, definition.FadeInDurationSeconds, definition.Speed, definition.IsPositional, definition.Position, param.Modpack);
+            var position = definition.Position;
+            var rotation = definition.RotationQuaternion;
+            var scale = definition.Scale;
+            LiveObject.ApplyParentTransform(ref position, ref rotation, ref scale, param.ParentTranslation, param.ParentRotation, param.ParentUniformScale);
+            
+            var sound = param.LiveObjectService.CreateSound(definition.SoundGamePath, definition.SoundIndex, definition.Volume, definition.FadeInDurationSeconds, definition.Speed, definition.IsPositional, position, param.Modpack);
             //sound?.TryUpdate(definition, param.Modpack);
             return sound;
         }
 
         public static ILiveObject? VisitVfxObjectDefinition(VfxObjectDefinition definition, ref LiveObjectFactoryParams param)
         {
-            var vfxObject = param.LiveObjectService.CreateVfx(definition.VfxGamePath, definition.Position, definition.RotationQuaternion, definition.Scale, definition.Color, param.Modpack);
+            var position = definition.Position;
+            var rotation = definition.RotationQuaternion;
+            var scale = definition.Scale;
+            LiveObject.ApplyParentTransform(ref position, ref rotation, ref scale, param.ParentTranslation, param.ParentRotation, param.ParentUniformScale);
+            
+            var vfxObject = param.LiveObjectService.CreateVfx(definition.VfxGamePath, position, rotation, scale, definition.Color, param.Modpack);
             //vfxObject?.TryUpdate(definition, param.Modpack);
             return vfxObject;
         }
 
         public static ILiveObject? VisitWeaponDefinition(WeaponDefinition definition, ref LiveObjectFactoryParams param)
         {
-            var weaponObject = param.LiveObjectService.CreateWeapon((ushort)definition.ModelSetId, (ushort)definition.SecondaryId, (ushort)definition.Variant, (byte)definition.PrimaryDye, (byte)definition.SecondaryDye, definition.Position, definition.RotationQuaternion, definition.Scale, param.Modpack);
+            var position = definition.Position;
+            var rotation = definition.RotationQuaternion;
+            var scale = definition.Scale;
+            LiveObject.ApplyParentTransform(ref position, ref rotation, ref scale, param.ParentTranslation, param.ParentRotation, param.ParentUniformScale);
+            
+            var weaponObject = param.LiveObjectService.CreateWeapon((ushort)definition.ModelSetId, (ushort)definition.SecondaryId, (ushort)definition.Variant, (byte)definition.PrimaryDye, (byte)definition.SecondaryDye, position, rotation, scale, param.Modpack);
             //weaponObject?.TryUpdate(definition, param.Modpack);
             return weaponObject;
         }

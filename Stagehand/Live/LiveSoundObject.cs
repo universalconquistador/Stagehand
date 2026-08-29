@@ -1,12 +1,11 @@
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Sound;
-using FFXIVClientStructs.FFXIV.Common.Math;
 using Stagehand.Definitions.Objects;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Numerics;
 using System.Text;
-using static FFXIVClientStructs.FFXIV.Client.UI.Agent.AgentMJIFarmManagement;
 
 namespace Stagehand.Live;
 
@@ -87,7 +86,7 @@ internal sealed unsafe class LiveSoundObject : ILiveObject
         }
     }
 
-    public bool TryGetOrientedBounds(out OrientedBounds orientedBounds)
+    public bool TryGetOrientedBounds(out FFXIVClientStructs.FFXIV.Common.Math.OrientedBounds orientedBounds)
     {
         // Sounds don't really have physical bounds.
         // We can update this to return a sort of bounds for the 'widget', but really
@@ -96,7 +95,7 @@ internal sealed unsafe class LiveSoundObject : ILiveObject
         return false;
     }
 
-    public bool TryUpdate(ObjectDefinition definition, ILiveModpack? modpack)
+    public bool TryUpdate(ObjectDefinition definition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, ILiveModpack? modpack)
     {
         if (definition.IsDisabled)
         {
@@ -139,8 +138,14 @@ internal sealed unsafe class LiveSoundObject : ILiveObject
                     {
                         SoundDataPtr->GetSoundController()->SetIsNonPositional(false);
                     }
-                    var position = new Vector4(soundDefinition.Position.X, soundDefinition.Position.Y, soundDefinition.Position.Z, 1.0f);
-                    SoundDataPtr->GetSoundController()->SetPosition(&position);
+                    var position = soundDefinition.Position;
+                    var rotation = soundDefinition.RotationQuaternion;
+                    var scale = soundDefinition.Scale;
+                    LiveObject.ApplyParentTransform(ref position, ref rotation, ref scale, parentTranslation, parentRotation, parentUniformScale);
+
+                    Position = position;
+                    var position4 = new FFXIVClientStructs.FFXIV.Common.Math.Vector4(soundDefinition.Position.X, soundDefinition.Position.Y, soundDefinition.Position.Z, 1.0f);
+                    SoundDataPtr->GetSoundController()->SetPosition(&position4);
                     SoundDataPtr->SetPosition(isPositional: true, soundDefinition.Position.X, soundDefinition.Position.Y, soundDefinition.Position.Z);
                 }
                 else if (!soundDefinition.IsPositional)
@@ -148,8 +153,8 @@ internal sealed unsafe class LiveSoundObject : ILiveObject
                     if (SoundDataPtr->IsPositional)
                     {
                         SoundDataPtr->GetSoundController()->SetIsNonPositional(true);
-                        var position = new Vector4(0.0f, 0.0f, 0.0f, 1.0f);
-                        SoundDataPtr->GetSoundController()->SetPosition(&position);
+                        var position4 = new FFXIVClientStructs.FFXIV.Common.Math.Vector4(0.0f, 0.0f, 0.0f, 1.0f);
+                        SoundDataPtr->GetSoundController()->SetPosition(&position4);
                     }
                     SoundDataPtr->SetPosition(isPositional: false, 0.0f, 0.0f, 0.0f);
                 }

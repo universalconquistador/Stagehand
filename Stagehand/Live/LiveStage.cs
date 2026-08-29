@@ -17,19 +17,27 @@ public class LiveStage : IDisposable
     private readonly ILiveObjectService _liveObjectService;
     private readonly IResourceRedirectionService _resourceRedirectionService;
 
+    public Vector3 Translation { get; private set; }
+    public Quaternion Rotation { get; private set; }
+    public float UniformScale { get; private set; }
+
     private readonly object _modificationLock = new();
 
-    public LiveStage(StageDefinition definition, ILiveObjectService liveObjectService, IResourceRedirectionService resourceRedirectionService)
+    public LiveStage(StageDefinition definition, ILiveObjectService liveObjectService, IResourceRedirectionService resourceRedirectionService, Vector3 translation, Quaternion rotation, float uniformScale)
     {
         _liveObjectService = liveObjectService;
         _resourceRedirectionService = resourceRedirectionService;
-        Update(definition);
+        Update(definition, translation, rotation, uniformScale);
     }
 
-    public void Update(StageDefinition newDefinition)
+    public void Update(StageDefinition newDefinition, Vector3 translation, Quaternion rotation, float uniformScale)
     {
         lock (_modificationLock)
         {
+            Translation = translation;
+            Rotation = rotation;
+            UniformScale = uniformScale;
+
             // Remove any modpacks that are not in the new definition
             foreach (var existingModpack in _liveModpacks)
             {
@@ -76,7 +84,7 @@ public class LiveStage : IDisposable
                 }
                 if (_liveObjects.TryGetValue(newObject.Key, out var existingObject))
                 {
-                    var obj = _liveObjectService.UpdateOrRecreateObject(existingObject, newObject.Value, newModpack);
+                    var obj = _liveObjectService.UpdateOrRecreateObject(existingObject, newObject.Value, translation, rotation, uniformScale, newModpack);
                     if (obj != null)
                     {
                         _liveObjects[newObject.Key] = obj;
@@ -88,7 +96,7 @@ public class LiveStage : IDisposable
                 }
                 else
                 {
-                    var obj = _liveObjectService.CreateObject(newObject.Value, newModpack);
+                    var obj = _liveObjectService.CreateObject(newObject.Value, translation, rotation, uniformScale, newModpack);
                     if (obj != null)
                     {
                         _liveObjects.Add(newObject.Key, obj);
