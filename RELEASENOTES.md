@@ -167,4 +167,6 @@ Later down the road:
  - Adds drop support to model, vfx, and sound path properties in the editor. Now you can drag game resources & bookmarks onto them from the Asset Library.
  - Adds visibility caching to the Game Resources tree to address performance issues with very large numbers of visible items.
  - Adds New Folder context menu item to bookmark folders, and adds New Folder and Paste context menu items to the empty space in the bookmark tree.
+ - Adjusts the New Folder button in the bookmarks tree to always create it at the outermost level, rather than as a child of the selected folder.
+   To make a new folder in an existing one, use the right-click menu instead.
  - Adds under-the-hood code that will make groups, stage instances, and .sgb objects possible.

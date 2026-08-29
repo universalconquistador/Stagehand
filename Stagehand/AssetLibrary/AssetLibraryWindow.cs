@@ -528,7 +528,7 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
     {
         if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.FolderPlus, "New Folder"))
         {
-            _ = CreateAndSelectBookmarkFolderAsync(_bookmarkTreeView.SelectedItem as IFolderBookmarkItem, "New Folder");
+            _ = CreateAndSelectBookmarkFolderAsync(null, "New Folder");
         }
 
         float bottomBarHeight = ImGui.GetTextLineHeight() + ImGui.GetStyle().FramePadding.Y * 2.0f;
