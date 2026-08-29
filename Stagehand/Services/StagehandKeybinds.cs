@@ -13,6 +13,11 @@ namespace Stagehand.Services;
 /// </summary>
 public interface IStagehandKeybinds
 {
+    // Editor (Clipboard)
+    IKeybindAction EditorCutObject { get; }
+    IKeybindAction EditorCopyObject { get; }
+    IKeybindAction EditorPasteObject { get; }
+
     // Editor (Objects)
     IKeybindAction EditorDeleteObject { get; }
     IKeybindAction EditorDuplicateObject { get; }
@@ -27,12 +32,17 @@ public interface IStagehandKeybinds
 
 internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposable
 {
+    private const string EditorClipboardGroupName = "Stage Editor (Clipboard)";
     private const string EditorObjectsGroupName = "Stage Editor (Objects)";
     private const string EditorGroupName = "Stage Editor";
 
     private readonly IKeybindService _keybindService;
 
     private bool _isDisposed = false;
+
+    public IKeybindAction EditorCutObject { get; }
+    public IKeybindAction EditorCopyObject { get; }
+    public IKeybindAction EditorPasteObject { get; }
 
     public IKeybindAction EditorDeleteObject { get; }
     public IKeybindAction EditorDuplicateObject { get; }
@@ -46,6 +56,27 @@ internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposab
     public StagehandKeybinds(IKeybindService keybindService)
     {
         _keybindService = keybindService;
+
+        //
+        // Editor (Clipboard)
+        //
+        EditorCutObject = _keybindService.RegisterAction(new(nameof(EditorCutObject),
+            "Cut Object",
+            EditorClipboardGroupName,
+            "Removes the selected object from the stage and places it on the system clipboard.",
+            new Keybind(VirtualKey.X, KeybindModifierKeys.Control)));
+
+        EditorCopyObject = _keybindService.RegisterAction(new(nameof(EditorCopyObject),
+            "Copy Object",
+            EditorClipboardGroupName,
+            "Copies the selected object onto the system clipboard.",
+            new Keybind(VirtualKey.C, KeybindModifierKeys.Control)));
+
+        EditorPasteObject = _keybindService.RegisterAction(new(nameof(EditorPasteObject),
+            "Paste Object",
+            EditorClipboardGroupName,
+            "Adds an object to the stage from the system clipboard.",
+            new Keybind(VirtualKey.V, KeybindModifierKeys.Control)));
 
         //
         // Editor (Objects)

@@ -170,3 +170,8 @@ Later down the road:
  - Adjusts the New Folder button in the bookmarks tree to always create it at the outermost level, rather than as a child of the selected folder.
    To make a new folder in an existing one, use the right-click menu instead.
  - Adds under-the-hood code that will make groups, stage instances, and .sgb objects possible.
+
+## 0.4.11
+
+ - Adds cut, copy, and paste support for stage objects. You can copy an object between stages or even paste it into chat and send it to people.
+   By default these are bound to Ctrl+X, Ctrl+C, and Ctrl+V while the editor is open. You can modify or remove these keybinds in the Stagehand settings.

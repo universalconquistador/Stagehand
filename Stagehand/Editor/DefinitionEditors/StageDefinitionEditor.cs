@@ -10,6 +10,8 @@ using Stagehand.Definitions;
 using Stagehand.Definitions.Objects;
 using Stagehand.Editor.DefinitionEditors.Objects;
 using Stagehand.Editor.Services;
+using Stagehand.Services;
+using Stagehand.Utils;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -24,6 +26,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
     private readonly IDataManager _dataManager;
     private readonly ISelectionManager _selectionManager;
     private readonly IClientState _clientState;
+    private readonly IStagehandKeybinds _stagehandKeybinds;
 
     private StageDefinition Definition { get; }
 
@@ -93,14 +96,23 @@ public class StageDefinitionEditor : DefinitionEditorBase
         _dataManager = serviceProvider.GetRequiredService<IDataManager>();
         _selectionManager = serviceProvider.GetRequiredService<ISelectionManager>();
         _clientState = serviceProvider.GetRequiredService<IClientState>();
+        _stagehandKeybinds = serviceProvider.GetRequiredService<IStagehandKeybinds>();
 
         OutlinerNode = new OutlinerNode(DisplayName, Guid.NewGuid().ToString(), TypeInfo.Icon, TypeInfo.DisplayName, TypeInfo.Description);
         OutlinerNode.Clicked += OnOutlinerNodeClicked;
+        OutlinerNode.ContextMenuItems = GenerateContextMenuItems();
 
         // NOTE: We need to load the modpacks before the object because the objects need to be able to find the modpacks when creating their live preview objects.
         // Maybe not the most theoretically elegant, but does the job.
         EmbeddedModpacks = new(definition.EmbeddedModpacks, OutlinerNode, CreateEditorForEmbeddedModpackDefinition, TransactionManager, _selectionManager);
         Objects = new(definition.Objects, OutlinerNode, CreateEditorForObjectDefinition, TransactionManager, _selectionManager);
+
+        _stagehandKeybinds.EditorPasteObject.Pressed += Paste;
+    }
+
+    private IEnumerable<OutlinerContextMenuItem> GenerateContextMenuItems()
+    {
+        yield return new KeybindOutlinerContextMenuItem(_stagehandKeybinds.EditorPasteObject, _ => Paste());
     }
 
     protected virtual void SetEditTranslationInternal(Vector3 editTranslation)
@@ -133,6 +145,17 @@ public class StageDefinitionEditor : DefinitionEditorBase
     private void OnOutlinerNodeClicked(OutlinerNode obj)
     {
         _selectionManager.SelectedEditor = this;
+    }
+
+    private void Paste()
+    {
+        if (DataTransferFragment.FromDataString(ImGui.GetClipboardText()) is ObjectDefinitionDataTransferFragment objectDefinitionFragment)
+        {
+            using (TransactionManager.BeginTransactionGroup($"Paste {objectDefinitionFragment.ObjectDefinition.DisplayName}"))
+            {
+                Objects.Add(objectDefinitionFragment.ObjectDefinition);
+            }
+        }
     }
 
     protected override void OnDrawProperties()
@@ -241,6 +264,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
     public override void Dispose()
     {
         IsDisposing = true;
+        _stagehandKeybinds.EditorPasteObject.Pressed -= Paste;
         EmbeddedModpacks.Dispose();
         Objects.Dispose();
 

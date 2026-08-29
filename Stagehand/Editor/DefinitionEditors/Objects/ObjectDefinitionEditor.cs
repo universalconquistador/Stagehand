@@ -423,6 +423,8 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
 
     protected virtual IEnumerable<OutlinerContextMenuItem> GenerateContextMenuItems()
     {
+        yield return new KeybindOutlinerContextMenuItem(StagehandKeybinds.EditorCutObject, _ => Cut());
+        yield return new KeybindOutlinerContextMenuItem(StagehandKeybinds.EditorCopyObject, _ => Copy());
         yield return new KeybindOutlinerContextMenuItem(StagehandKeybinds.EditorDuplicateObject, _ => Duplicate());
         yield return new KeybindOutlinerContextMenuItem(StagehandKeybinds.EditorDeleteObject, _ => Delete());
     }
@@ -433,10 +435,27 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
 
         OutlinerNode.IsSelected = true;
 
+        StagehandKeybinds.EditorCutObject.Pressed += Cut;
+        StagehandKeybinds.EditorCopyObject.Pressed += Copy;
         StagehandKeybinds.EditorDeleteObject.Pressed += Delete;
         StagehandKeybinds.EditorDuplicateObject.Pressed += Duplicate;
         StagehandKeybinds.EditorHideObject.Pressed += Hide;
         StagehandKeybinds.EditorUnhideObject.Pressed += Unhide;
+    }
+
+    private void Cut()
+    {
+        using (TransactionManager.BeginTransactionGroup($"Cut {DisplayName}"))
+        {
+            TransactionManager.DoTransaction(new DelegateTransaction("Copy", Copy, () => { }, affectsDataModel: false));
+            Stage.Objects.Remove(this);
+        }
+    }
+
+    private void Copy()
+    {
+        var fragment = new ObjectDefinitionDataTransferFragment(Definition);
+        ImGui.SetClipboardText(fragment.ToDataString());
     }
 
     private void Unhide()
@@ -508,6 +527,8 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
 
         OutlinerNode.IsSelected = false;
 
+        StagehandKeybinds.EditorCutObject.Pressed -= Cut;
+        StagehandKeybinds.EditorCopyObject.Pressed -= Copy;
         StagehandKeybinds.EditorDeleteObject.Pressed -= Delete;
         StagehandKeybinds.EditorDuplicateObject.Pressed -= Duplicate;
         StagehandKeybinds.EditorHideObject.Pressed -= Hide;
