@@ -119,7 +119,7 @@ internal class SoundObjectDefinitionEditor : ObjectDefinitionEditor<SoundObjectD
         base.OnDrawProperties();
 
         string soundGamePath = SoundGamePath;
-        if (DrawResourceGamePath("Sound Path", ref soundGamePath))
+        if (DrawResourceGamePath("Sound Path", ref soundGamePath, AssetType.ScdResource))
         {
             SoundGamePath = soundGamePath;
         }

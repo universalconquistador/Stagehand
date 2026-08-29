@@ -136,7 +136,7 @@ internal class BgObjectDefinitionEditor : ObjectDefinitionEditor<BgObjectDefinit
         base.OnDrawProperties();
 
         string modelGamePath = ModelGamePath;
-        if (DrawResourceGamePath("Model Path", ref modelGamePath))
+        if (DrawResourceGamePath("Model Path", ref modelGamePath, AssetType.MdlResource))
         {
             ModelGamePath = modelGamePath;
         }

@@ -7,6 +7,9 @@ using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Stagehand.AssetLibrary;
+using Stagehand.AssetLibrary.Assets;
+using Stagehand.AssetLibrary.Bookmarks;
+using Stagehand.AssetLibrary.GameResources;
 using Stagehand.Definitions.Objects;
 using Stagehand.Editor.Services;
 using Stagehand.Live;
@@ -76,6 +79,8 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
     protected IAssetLibraryWindow AssetLibraryWindow { get; }
     protected IDataManager DataManager { get; }
     protected IStagehandKeybinds StagehandKeybinds { get; }
+    protected IAssetBookmarkService AssetBookmarkService { get; }
+    protected IGameResourceAssetService GameResourceAssetService { get; }
 
     protected TDefinition Definition { get; }
     public string Key { get; }
@@ -211,6 +216,8 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         AssetLibraryWindow = serviceProvider.GetRequiredService<IAssetLibraryWindow>();
         DataManager = serviceProvider.GetRequiredService<IDataManager>();
         StagehandKeybinds = serviceProvider.GetRequiredService<IStagehandKeybinds>();
+        AssetBookmarkService = serviceProvider.GetRequiredService<IAssetBookmarkService>();
+        GameResourceAssetService = serviceProvider.GetRequiredService<IGameResourceAssetService>();
 
         Definition = definition;
         Key = key;
@@ -312,7 +319,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         ImGuiHelpers.ScaledDummy(4.0f);
     }
 
-    protected bool DrawResourceGamePath(string propertyName, ref string gamePath)
+    protected bool DrawResourceGamePath(string propertyName, ref string gamePath, AssetType assetType)
     {
         var result = false;
         if (ImGui.InputText(propertyName, ref gamePath, 1024, ImGuiInputTextFlags.EnterReturnsTrue))
@@ -320,9 +327,56 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
             result = true;
         }
 
+        using (var dropTarget = ImRaii.DragDropTarget())
+        {
+            if (dropTarget.Success)
+            {
+                // holding a drag over this tree node
+                var draggingPayload = ImGui.GetDragDropPayload();
+                if (!draggingPayload.IsNull && GameResourceDragDrop.IsGameResourcePayload(TrimAtFirstNull(draggingPayload.DataType)) || BookmarkDragDrop.IsBookmarkPayload(TrimAtFirstNull(draggingPayload.DataType)))
+                {
+                    var payload = ImGui.AcceptDragDropPayload(draggingPayload.DataType, ImGuiDragDropFlags.None);
+                    if (!payload.IsNull)
+                    {
+                        // dropped onto this tree node
+                        unsafe
+                        {
+                            var payloadData = new ReadOnlySpan<byte>(payload.Data, payload.DataSize);
+                            if (GameResourceDragDrop.IsGameResourcePayload(TrimAtFirstNull(payload.DataType))
+                                && GameResourceDragDrop.TryParsePayload(payloadData, out var resourceGamePath))
+                            {
+                                // If we have metadata about it, verify the type
+                                if (GameResourceAssetService.TryGetResource(resourceGamePath, out var resource))
+                                {
+                                    if (resource.AssetInfo.Type == assetType)
+                                    {
+                                        gamePath = resource.FullGamePath;
+                                        result = true;
+                                    }
+                                }
+                                else
+                                {
+                                    gamePath = resourceGamePath;
+                                }
+                            }
+                            else if (BookmarkDragDrop.IsBookmarkPayload(TrimAtFirstNull(payload.DataType))
+                                && BookmarkDragDrop.TryParsePayload(payloadData, AssetBookmarkService, out var bookmarkItem))
+                            {
+                                if (bookmarkItem is IGameResourceBookmarkItem resourceBookmarkItem)
+                                {
+                                    gamePath = resourceBookmarkItem.ResourceGamePath;
+                                    result = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         bool existsModded = !string.IsNullOrEmpty(ModpackId) && GetPreviewModpack() is ILiveModpack liveModpack && liveModpack.ModdedResourceExists(gamePath);
-        string modpackName = (!string.IsNullOrEmpty(ModpackId) && Stage.EmbeddedModpacks.TryGetValue(ModpackId, out var modpack)) ? modpack.DisplayName : string.Empty;
         bool existsVanilla = DataManager.GameData.FileExists(gamePath);
+        string modpackName = (!string.IsNullOrEmpty(ModpackId) && Stage.EmbeddedModpacks.TryGetValue(ModpackId, out var modpack)) ? modpack.DisplayName : string.Empty;
         var icon = existsModded ? FontAwesomeIcon.PlusCircle : existsVanilla ? FontAwesomeIcon.CheckCircle : FontAwesomeIcon.ExclamationCircle;
         float propertiesColumnWidth = (ImGui.GetContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) * 0.333f;
         ImGui.SameLine(ImGui.GetContentRegionMax().X - propertiesColumnWidth - 16.0f * ImGuiHelpers.GlobalScale);
@@ -352,6 +406,19 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         }
 
         return result;
+    }
+
+    private static ReadOnlySpan<byte> TrimAtFirstNull(ReadOnlySpan<byte> span)
+    {
+        var firstNull = span.IndexOf((byte)0);
+        if (firstNull >= 0)
+        {
+            return span.Slice(0, firstNull);
+        }
+        else
+        {
+            return span;
+        }
     }
 
     protected virtual IEnumerable<OutlinerContextMenuItem> GenerateContextMenuItems()
