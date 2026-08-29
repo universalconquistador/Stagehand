@@ -162,5 +162,9 @@ Later down the road:
 
 ## 0.4.10
 
+ - Moves the Bookmarks tree to its own column of the Asset Library.
+ - Adds drag support from the Game Resources tree. Now you can drag straight from there into your bookmarks!
+ - Adds drop support to model, vfx, and sound path properties in the editor. Now you can drag game resources & bookmarks onto them from the Asset Library.
  - Adds visibility caching to the Game Resources tree to address performance issues with very large numbers of visible items.
  - Adds New Folder context menu item to bookmark folders, and adds New Folder and Paste context menu items to the empty space in the bookmark tree.
+ - Adds under-the-hood code that will make groups, stage instances, and .sgb objects possible.
