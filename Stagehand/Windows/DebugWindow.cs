@@ -67,6 +67,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
     private readonly IOverlayService _overlayService;
     private readonly ILiveObjectService _liveObjectService;
     private readonly IModelBvhCacheService _modelBvhCacheService;
+    private readonly IResourceRedirectionService _resourceRedirectionService;
 
     private List<ILiveObject> createdObjects = new List<ILiveObject>();
 
@@ -90,7 +91,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
 
     private bool _suppressInput = false;
 
-    public DebugWindow(ILogger<DebugWindow> logger, IFramework framework, ICommandManager commandManager, IGameInteropProvider gameInteropProvider, IObjectTable objectTable, IGameGui gameGui, IClientState clientState, IPlayerState playerState, WindowSystem windowSystem, IOverlayService overlayService, ILiveObjectService liveObjectService, IModelBvhCacheService modelBvhCacheService)
+    public DebugWindow(ILogger<DebugWindow> logger, IFramework framework, ICommandManager commandManager, IGameInteropProvider gameInteropProvider, IObjectTable objectTable, IGameGui gameGui, IClientState clientState, IPlayerState playerState, WindowSystem windowSystem, IOverlayService overlayService, ILiveObjectService liveObjectService, IModelBvhCacheService modelBvhCacheService, IResourceRedirectionService resourceRedirectionService)
         : base("Stagehand Debug", ImGuiWindowFlags.None)
     {
         SizeConstraints = new WindowSizeConstraints
@@ -112,6 +113,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
         _overlayService = overlayService;
         _liveObjectService = liveObjectService;
         _modelBvhCacheService = modelBvhCacheService;
+        _resourceRedirectionService = resourceRedirectionService;
 
 #if ENABLE_RENDER_HOOK_TESTS
 
@@ -830,7 +832,18 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
                             var localSpaceStart = Vector3.Transform(mouseRay.Origin, inverseMatrix);
                             var localSpaceDirection = Vector3.TransformNormal(mouseRay.Direction, inverseMatrix);
 
-                            if (_modelBvhCacheService.TryIntersectModel(bgObject->ModelResourceHandle->FileName.ToString(), modpack: null, localSpaceStart, localSpaceDirection, out var intersectionPoint, out var intersectionNormal))
+                            // Reverse resolve the modpack and original input resource name from the final BgObject resource handle path
+                            ILiveModpack? modpack = null;
+                            string modelPath = bgObject->ModelResourceHandle->FileName.ToString();
+                            if (_resourceRedirectionService.TryParseModpackPath(modelPath, out modpack, out var gamePath))
+                            {
+                                if (modpack.ReverseResolveResourcePath(gamePath, out var originalModelPath))
+                                {
+                                    modelPath = originalModelPath;
+                                }
+                            }
+
+                            if (_modelBvhCacheService.TryIntersectModel(modelPath, modpack, localSpaceStart, localSpaceDirection, out var intersectionPoint, out var intersectionNormal))
                             {
                                 preciseHit = true;
                                 var worldSpaceIntersection = Vector3.Transform(intersectionPoint, matrix);

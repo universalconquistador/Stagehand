@@ -116,6 +116,7 @@ public sealed class Plugin : IDalamudPlugin
             services.AddSingleton<ILiveStageService, LiveStageService>();
             services.AddSingleton<IEditorService, EditorService>();
             services.AddSingleton<IGameStateService, GameStateService>();
+            services.AddSingleton<IViewportPickerService, ViewportPickerService>();
             services.AddHostedService<IpcApiService>();
             services.AddSingleton<StagehandKeybinds>();
             services.AddSingleton<IStagehandKeybinds>(services => services.GetRequiredService<StagehandKeybinds>());

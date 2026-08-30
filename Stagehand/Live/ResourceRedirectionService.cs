@@ -30,6 +30,7 @@ public interface ILiveModpack : IDisposable
     uint EffectsHash { get; }
     IReadOnlyDictionary<string, Redirection> AllRedirections { get; }
     bool ModdedResourceExists(string gamePath);
+    bool ReverseResolveResourcePath(string resourcePath, [NotNullWhen(true)] out string? gamePath);
 }
 
 public readonly struct ModpackReadScope : IDisposable
@@ -149,7 +150,7 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
 {
     private record struct LiveMemoryResource(string MemoryResourcePath, byte[] Data);
 
-    private record class LiveModpack(string ID, string DebugName, uint EffectsHash, IReadOnlyDictionary<string, Redirection> AllRedirections, IReadOnlyDictionary<string, LiveMemoryResource> MemoryResources, IReadOnlyDictionary<string, string> GameResources, IReadOnlyDictionary<string, string> DiskResources, ResourceRedirectionService ResourceRedirectionService) : ILiveModpack
+    private record class LiveModpack(string ID, string DebugName, uint EffectsHash, IReadOnlyDictionary<string, Redirection> AllRedirections, IReadOnlyDictionary<string, string> ReverseRedirections, IReadOnlyDictionary<string, LiveMemoryResource> MemoryResources, IReadOnlyDictionary<string, string> GameResources, IReadOnlyDictionary<string, string> DiskResources, ResourceRedirectionService ResourceRedirectionService) : ILiveModpack
     {
         public void Dispose()
         {
@@ -164,6 +165,11 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
         public bool ModdedResourceExists(string gamePath)
         {
             return AllRedirections.ContainsKey(gamePath);
+        }
+
+        public bool ReverseResolveResourcePath(string resourcePath, [NotNullWhen(true)] out string? gamePath)
+        {
+            return ReverseRedirections.TryGetValue(resourcePath, out gamePath);
         }
     }
 
@@ -347,6 +353,7 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
 
         var newId = Interlocked.Increment(ref nextModpackId).ToString();
         Dictionary<string, Redirection> allRedirections = new(redirections.Count + memoryReplacements.Count + fileReplacements.Count);
+        Dictionary<string, string> reverseRedirections = new();
         Span<byte> filename = stackalloc byte[1024];
         foreach (var redirection in redirections)
         {
@@ -359,6 +366,7 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
                 _getResourceCategory(&category, filenamePointer);
             }
             allRedirections[redirection.Key] = new Redirection(redirection.Value, category);
+            reverseRedirections[redirection.Value] = redirection.Key;
         }
         Dictionary<string, LiveMemoryResource> memoryResources = new(memoryReplacements.Count);
         foreach (var replacement in memoryReplacements)
@@ -374,6 +382,7 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
                 _getResourceCategory(&category, filenamePointer);
             }
             allRedirections[replacement.Key] = new(path, category);
+            reverseRedirections[path] = replacement.Key;
         }
         foreach (var replacement in fileReplacements)
         {
@@ -386,9 +395,10 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
                 _getResourceCategory(&category, filenamePointer);
             }
             allRedirections[replacement.Key] = new(replacement.Value, category);
+            reverseRedirections[replacement.Value] = replacement.Key;
         }
 
-        var newModpack = new LiveModpack(newId, debugName, ResourceRedirectionHelpers.HashModpackEffects(moddedResources), allRedirections, memoryResources, extractContext.Redirections, extractContext.DiskReplacements, this);
+        var newModpack = new LiveModpack(newId, debugName, ResourceRedirectionHelpers.HashModpackEffects(moddedResources), allRedirections, reverseRedirections, memoryResources, extractContext.Redirections, extractContext.DiskReplacements, this);
         var success = _liveModpacks.TryAdd(newId, newModpack);
         Plugin.Log.Verbose("Modpack '{id}' ({debugName}) created. _liveModpacks addition: {success}", newModpack.ID, newModpack.DebugName, success ? "SUCCESS" : "FAILURE");
         Debug.Assert(success);

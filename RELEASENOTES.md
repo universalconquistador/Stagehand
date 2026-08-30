@@ -175,3 +175,6 @@ Later down the road:
 
  - Adds cut, copy, and paste support for stage objects. You can copy an object between stages or even paste it into chat and send it to people.
    By default these are bound to Ctrl+X, Ctrl+C, and Ctrl+V while the editor is open. You can modify or remove these keybinds in the Stagehand settings.
+ - Adds an eyedropper to the Model Path property of BgObjects! Now you can click it and select an object from anywhere in the world.
+   To cancel picking, use the right mouse button or the Cancel Picking hotkey (defaults to Escape).
+   This copies the model path and the dye color. To only copy the model path and leave the selected object's dye color unchanged, hold the Shift key when you click the object to copy.

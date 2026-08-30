@@ -28,6 +28,9 @@ public interface IStagehandKeybinds
     IKeybindAction EditorUndo { get; }
     IKeybindAction EditorRedo { get; }
     IKeybindAction EditorSave { get; }
+
+    // Picking
+    IKeybindAction StopPicking { get; }
 }
 
 internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposable
@@ -35,6 +38,7 @@ internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposab
     private const string EditorClipboardGroupName = "Stage Editor (Clipboard)";
     private const string EditorObjectsGroupName = "Stage Editor (Objects)";
     private const string EditorGroupName = "Stage Editor";
+    private const string PickingGroupName = "Picking";
 
     private readonly IKeybindService _keybindService;
 
@@ -52,6 +56,8 @@ internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposab
     public IKeybindAction EditorUndo { get; }
     public IKeybindAction EditorRedo { get; }
     public IKeybindAction EditorSave { get; }
+
+    public IKeybindAction StopPicking { get; }
 
     public StagehandKeybinds(IKeybindService keybindService)
     {
@@ -125,6 +131,15 @@ internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposab
             EditorGroupName,
             "Saves the stage being edited.",
             new Keybind(VirtualKey.S, KeybindModifierKeys.Control)));
+
+        //
+        // Picking
+        //
+        StopPicking = _keybindService.RegisterAction(new(nameof(StopPicking),
+            "Stop Picking",
+            PickingGroupName,
+            "Cancels the current pick-from-world action.",
+            new Keybind(VirtualKey.ESCAPE, KeybindModifierKeys.None)));
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -142,6 +157,8 @@ internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposab
         if (!_isDisposed)
         {
             _isDisposed = true;
+
+            _keybindService.UnregisterAction(StopPicking);
 
             _keybindService.UnregisterAction(EditorSave);
             _keybindService.UnregisterAction(EditorRedo);

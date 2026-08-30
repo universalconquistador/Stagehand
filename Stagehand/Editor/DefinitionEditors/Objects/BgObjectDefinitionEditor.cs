@@ -136,7 +136,7 @@ internal class BgObjectDefinitionEditor : ObjectDefinitionEditor<BgObjectDefinit
         base.OnDrawProperties();
 
         string modelGamePath = ModelGamePath;
-        if (DrawResourceGamePath("Model Path", ref modelGamePath, AssetType.MdlResource))
+        if (DrawResourceGamePath("Model Path", ref modelGamePath, AssetType.MdlResource, OnObjectPicked))
         {
             ModelGamePath = modelGamePath;
         }
@@ -151,6 +151,23 @@ internal class BgObjectDefinitionEditor : ObjectDefinitionEditor<BgObjectDefinit
         if (ImGui.ColorEdit4("Dye Color", ref dyeColor))
         {
             DyeColor = dyeColor;
+        }
+    }
+
+    private void OnObjectPicked(PickedObjectInfo pickedObject)
+    {
+        if (pickedObject is PickedBgObjectInfo pickedBgObject)
+        {
+            ModelGamePath = pickedBgObject.ModelGamePath;
+            if (!ImGui.IsKeyDown(ImGuiKey.ModShift) && pickedBgObject.DyeColor != null)
+            {
+                var srgbColor = new Vector4(
+                    pickedBgObject.DyeColor.Value.R / 255.0f,
+                    pickedBgObject.DyeColor.Value.G / 255.0f,
+                    pickedBgObject.DyeColor.Value.B / 255.0f,
+                    pickedBgObject.DyeColor.Value.A / 255.0f);
+                DyeColor = srgbColor * srgbColor;
+            }
         }
     }
 }

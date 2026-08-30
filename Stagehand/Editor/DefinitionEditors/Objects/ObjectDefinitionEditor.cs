@@ -81,6 +81,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
     protected IStagehandKeybinds StagehandKeybinds { get; }
     protected IAssetBookmarkService AssetBookmarkService { get; }
     protected IGameResourceAssetService GameResourceAssetService { get; }
+    protected IViewportPickerService ViewportPickerService { get; }
 
     protected TDefinition Definition { get; }
     public string Key { get; }
@@ -218,6 +219,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         StagehandKeybinds = serviceProvider.GetRequiredService<IStagehandKeybinds>();
         AssetBookmarkService = serviceProvider.GetRequiredService<IAssetBookmarkService>();
         GameResourceAssetService = serviceProvider.GetRequiredService<IGameResourceAssetService>();
+        ViewportPickerService = serviceProvider.GetRequiredService<IViewportPickerService>();
 
         Definition = definition;
         Key = key;
@@ -319,7 +321,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         ImGuiHelpers.ScaledDummy(4.0f);
     }
 
-    protected bool DrawResourceGamePath(string propertyName, ref string gamePath, AssetType assetType)
+    protected bool DrawResourceGamePath(string propertyName, ref string gamePath, AssetType assetType, ViewportPickerObjectDelegate? picker = null)
     {
         var result = false;
         if (ImGui.InputText(propertyName, ref gamePath, 1024, ImGuiInputTextFlags.EnterReturnsTrue))
@@ -402,6 +404,31 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
             using (ImRaii.Tooltip())
             {
                 ImGui.TextUnformatted("Open the Asset Library");
+            }
+        }
+        if (picker != null)
+        {
+            ImGui.SameLine(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight() * 2 - ImGui.GetStyle().ItemInnerSpacing.X);
+            using (ImRaii.PushColor(ImGuiCol.Button, ImGui.GetStyle().Colors[(int)ImGuiCol.ButtonActive], ViewportPickerService.IsPicking))
+            {
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.EyeDropper, new Vector2(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
+                {
+                    if (ViewportPickerService.IsPicking)
+                    {
+                        ViewportPickerService.CancelPicking();
+                    }
+                    else
+                    {
+                        ViewportPickerService.TryStartPicking(objectHoverDelegate: null, picker);
+                    }
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    using (ImRaii.Tooltip())
+                    {
+                        ImGui.TextUnformatted(ViewportPickerService.IsPicking ? "Stop picking"u8 : "Pick from world"u8);
+                    }
+                }
             }
         }
 
