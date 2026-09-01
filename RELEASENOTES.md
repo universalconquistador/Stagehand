@@ -178,3 +178,5 @@ Later down the road:
  - Adds an eyedropper to the Model Path property of BgObjects! Now you can click it and select an object from anywhere in the world.
    To cancel picking, use the right mouse button or the Cancel Picking hotkey (defaults to Escape).
    This copies the model path and the dye color. To only copy the model path and leave the selected object's dye color unchanged, hold the Shift key when you click the object to copy.
+ - Adds Snap to Ground command for models! You can right click a model and use the Snap Object to Ground command, or the version that also snaps rotation.
+   It aligns the object's local origin with whatever model or terrain is beneath it, no matter how far.
