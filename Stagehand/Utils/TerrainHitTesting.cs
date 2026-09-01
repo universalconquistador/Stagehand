@@ -17,6 +17,16 @@ namespace Stagehand.Utils;
 
 public static class TerrainHitTesting
 {
+    /// <summary>
+    /// The X and Z coordinates of a tile on a terrain grid.
+    /// </summary>
+    [GenerateInterop]
+    [StructLayout(LayoutKind.Explicit, Size = 0x4)]
+    public partial struct TerrainGridCoordinates
+    {
+        [FieldOffset(0x0)] public short TileX;
+        [FieldOffset(0x2)] public short TileZ;
+    }
 
     // Client::Graphics::Render::TerrainGroundPlate
     //   Client::Graphics::Render::RenderObject
