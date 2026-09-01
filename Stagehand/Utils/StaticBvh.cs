@@ -262,7 +262,7 @@ public class StaticBvh : IDisposable
             baseTriangle += (int)mesh.IndexCount / 3;
         }
 
-        return new SizedMemoryOwner<BvhTriangle>(triangleMemory, indices.Length / 3);
+        return new SizedMemoryOwner<BvhTriangle>(triangleMemory, baseTriangle);
     }
 
     private static unsafe SizedMemoryOwner<BvhVertex> LoadVertices(ReadOnlySpan<byte> vertexBuffer, uint vertexStride, uint positionOffset)

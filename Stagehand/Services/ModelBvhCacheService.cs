@@ -32,7 +32,7 @@ public interface IModelBvhCacheService
     /// True if the model was in the cache and was hit by the ray, false if the model
     /// is still being loaded or was not hit by the ray.
     /// </returns>
-    bool TryIntersectModel(string modelResourcePath, ILiveModpack? modpack, Vector3 rayStart, Vector3 rayDirection, out Vector3 intersectionPoint, out Vector3 intersectionNormal);
+    bool TryIntersectModel(string modelResourcePath, ILiveModpack? modpack, Vector3 rayStart, Vector3 rayDirection, out Vector3 intersectionPoint, out Vector3 intersectionNormal, bool forceLoad = false);
 
     /// <summary>
     /// Gets the axis-aligned bounds of the vertices in the .mdl resource with the given path if it has been
@@ -49,6 +49,11 @@ internal class ModelBvhCacheService : IModelBvhCacheService, IDisposable
 {
     private class CachedStaticBvh : IDisposable
     {
+        private readonly string _filename;
+        private readonly ILiveModpack? _modpack;
+        private readonly IResourceRedirectionService _resourceRedirectionService;
+        private readonly ILogger _logger;
+
         private bool _isDisposed = false;
         private int _concurrentUsages = 0;
         private ManualResetEventSlim _disposeGate = new ManualResetEventSlim(true);
@@ -62,16 +67,29 @@ internal class ModelBvhCacheService : IModelBvhCacheService, IDisposable
         private Task _loadTask;
         private CancellationTokenSource _cts = new CancellationTokenSource();
 
-        public CachedStaticBvh(string filename, ILiveModpack? modpack, IResourceRedirectionService dataManager, ILogger logger)
+        public CachedStaticBvh(string filename, ILiveModpack? modpack, IResourceRedirectionService resourceRedirectionService, ILogger logger, bool forceLoad)
         {
-            _loadTask = Task.Run(() => LoadBvh(filename, modpack, dataManager, logger));
+            _filename = filename;
+            _modpack = modpack;
+            _resourceRedirectionService = resourceRedirectionService;
+            _logger = logger;
+
+            if (forceLoad)
+            {
+                LoadBvh();
+                _loadTask = Task.CompletedTask;
+            }
+            else
+            {
+                _loadTask = Task.Run(LoadBvh);
+            }
         }
 
-        private async Task LoadBvh(string filename, ILiveModpack? modpack, IResourceRedirectionService resourceRedirectionService, ILogger logger)
+        private void LoadBvh()
         {
             try
             {
-                var model = resourceRedirectionService.GetFile<MdlFile>(filename, modpack);
+                var model = _resourceRedirectionService.GetFile<MdlFile>(_filename, _modpack);
                 _bvh = new StaticBvh(model!);
                 _bvh.GetBounds(out var boundsMin, out var boundsMax);
                 BoundsMin = boundsMin;
@@ -80,11 +98,11 @@ internal class ModelBvhCacheService : IModelBvhCacheService, IDisposable
             }
             catch (OperationCanceledException)
             {
-                logger.LogInformation("BVH build cancelled for {path}.", filename);
+                _logger.LogInformation("BVH build cancelled for {path}.", _filename);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to build BVH for {path}!", filename);
+                _logger.LogError(ex, "Failed to build BVH for {path}!", _filename);
             }
         }
 
@@ -94,8 +112,13 @@ internal class ModelBvhCacheService : IModelBvhCacheService, IDisposable
         // This is probably mega overkill, right? Can we count on no threads still performing intersection
         // when we dispose?
 
-        public bool IntersectsRay(Vector3 rayStart, Vector3 rayDirection, out Vector3 intersectionPoint, out Vector3 intersectionNormal)
+        public bool IntersectsRay(Vector3 rayStart, Vector3 rayDirection, out Vector3 intersectionPoint, out Vector3 intersectionNormal, bool forceLoad)
         {
+            if (forceLoad && _bvh == null)
+            {
+                LoadBvh();
+            }
+
             if (_bvh != null)
             {
                 int concurrentUsages = Interlocked.Increment(ref _concurrentUsages);
@@ -185,7 +208,7 @@ internal class ModelBvhCacheService : IModelBvhCacheService, IDisposable
         });
     }
 
-    public bool TryIntersectModel(string modelResourcePath, ILiveModpack? modpack, Vector3 rayStart, Vector3 rayDirection, out Vector3 intersectionPoint, out Vector3 intersectionNormal)
+    public bool TryIntersectModel(string modelResourcePath, ILiveModpack? modpack, Vector3 rayStart, Vector3 rayDirection, out Vector3 intersectionPoint, out Vector3 intersectionNormal, bool forceLoad = false)
     {
         if (modpack?.ModdedResourceExists(modelResourcePath) != true && !_dataManager.FileExists(modelResourcePath))
         {
@@ -201,8 +224,8 @@ internal class ModelBvhCacheService : IModelBvhCacheService, IDisposable
             {
                 finalPath = redirection.NewPath;
             }
-            var cachedBvh = _bvhCache.GetOrAdd(finalPath, path => new CachedStaticBvh(modelResourcePath, modpack, _resourceRedirectionService, _logger));
-            return cachedBvh.IntersectsRay(rayStart, rayDirection, out intersectionPoint, out intersectionNormal);
+            var cachedBvh = _bvhCache.GetOrAdd(finalPath, path => new CachedStaticBvh(modelResourcePath, modpack, _resourceRedirectionService, _logger, forceLoad));
+            return cachedBvh.IntersectsRay(rayStart, rayDirection, out intersectionPoint, out intersectionNormal, forceLoad);
         }
     }
 

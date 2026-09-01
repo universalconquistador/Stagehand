@@ -122,8 +122,8 @@ internal class ViewportPickerService : IViewportPickerService
         var worldObject = World.Instance();
         var cameraManager = CameraManager.Instance();
         var pickingOperation = _pickingOperation;
-
-        bool isOverNonOverlayWindow = ImGui.IsWindowHovered(ImGuiHoveredFlags.AnyWindow | ImGuiHoveredFlags.AllowWhenDisabled | ImGuiHoveredFlags.AllowWhenBlockedByActiveItem | ImGuiHoveredFlags.AllowWhenDisabled)
+        
+        bool isOverNonOverlayWindow = ImGui.IsWindowHovered(ImGuiHoveredFlags.AnyWindow | ImGuiHoveredFlags.AllowWhenBlockedByActiveItem)
             && !ImGui.IsWindowHovered();
         if (worldObject != null && cameraManager != null && pickingOperation != null
             && (pickingOperation.ObjectClickDelegate != null || pickingOperation.ObjectHoverDelegate != null))
@@ -207,7 +207,7 @@ internal class ViewportPickerService : IViewportPickerService
                             var localSpaceDirection = Vector3.TransformNormal(mouseRay.Direction, inverseMatrix);
 
                             // Reverse resolve the modpack and original input resource name from the final BgObject resource handle path
-                            ParseSourceGamePathAndModpack(bgObject->ModelResourceHandle->FileName.ToString(), out var modelPath, out var modpack);
+                            _resourceRedirectionService.ParseSourceGamePathAndModpack(bgObject->ModelResourceHandle->FileName.ToString(), out var modelPath, out var modpack);
                             if (_modelBvhCacheService.TryIntersectModel(modelPath, modpack, localSpaceStart, localSpaceDirection, out var intersectionPoint, out var intersectionNormal))
                             {
                                 var worldSpaceIntersection = Vector3.Transform(intersectionPoint, matrix);
@@ -248,18 +248,6 @@ internal class ViewportPickerService : IViewportPickerService
         }
     }
 
-    private void ParseSourceGamePathAndModpack(string fullPath, out string gamePath, out ILiveModpack? liveModpack)
-    {
-        gamePath = fullPath;
-        if (_resourceRedirectionService.TryParseModpackPath(gamePath, out liveModpack, out var resourcePath))
-        {
-            if (liveModpack.ReverseResolveResourcePath(resourcePath, out var originalModelPath))
-            {
-                gamePath = originalModelPath;
-            }
-        }
-    }
-
     private unsafe PickedObjectInfo MakeObjectInfo(Object* sceneObject)
     {
         ObjectType objectType = sceneObject->GetObjectType();
@@ -275,7 +263,7 @@ internal class ViewportPickerService : IViewportPickerService
             ILiveModpack? modpack = null;
             if (bgObject->ModelResourceHandle != null)
             {
-                ParseSourceGamePathAndModpack(bgObject->ModelResourceHandle->FileName.ToString(), out modelGamePath, out modpack);
+                _resourceRedirectionService.ParseSourceGamePathAndModpack(bgObject->ModelResourceHandle->FileName.ToString(), out modelGamePath, out modpack);
             }
             return new PickedBgObjectInfo((IntPtr)sceneObject, bgObject->Position, bgObject->Rotation, bgObject->Scale, modelGamePath, modpack, bgObject->GetTransparency(), dyeColor);
         }
@@ -294,7 +282,7 @@ internal class ViewportPickerService : IViewportPickerService
                     if (vfxResourceHandle != null)
                     {
                         vfxGamePath = vfxResourceHandle->FileName.ToString();
-                        ParseSourceGamePathAndModpack(vfxResourceHandle->FileName.ToString(), out vfxGamePath, out modpack);
+                        _resourceRedirectionService.ParseSourceGamePathAndModpack(vfxResourceHandle->FileName.ToString(), out vfxGamePath, out modpack);
                     }
                 }
             }

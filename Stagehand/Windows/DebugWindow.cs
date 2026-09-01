@@ -803,7 +803,7 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
         var yDir = Vector3.Transform(Vector3.UnitY, obj->Rotation);
         var zDir = Vector3.Transform(Vector3.UnitZ, obj->Rotation);
 
-        if (type == ObjectType.BgObject || type == ObjectType.Light || type == ObjectType.CharacterBase || type == ObjectType.VfxObject || type == ObjectType.Decal || type == ObjectType.EnvSpace || type == ObjectType.EnvLocation)
+        if (type == ObjectType.BgObject || type == ObjectType.Light || type == ObjectType.CharacterBase || type == ObjectType.VfxObject || type == ObjectType.Decal || type == ObjectType.EnvSpace || type == ObjectType.EnvLocation || type == ObjectType.Terrain)
         {
             var drawObj = (DrawObject*)obj;
 

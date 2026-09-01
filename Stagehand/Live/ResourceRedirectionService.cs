@@ -63,6 +63,18 @@ public interface IResourceRedirectionService
 
 public static class ResourceRedirectionHelpers
 {
+    public static void ParseSourceGamePathAndModpack(this IResourceRedirectionService resourceRedirectionService, string fullPath, out string gamePath, out ILiveModpack? liveModpack)
+    {
+        gamePath = fullPath;
+        if (resourceRedirectionService.TryParseModpackPath(gamePath, out liveModpack, out var resourcePath))
+        {
+            if (liveModpack.ReverseResolveResourcePath(resourcePath, out var originalModelPath))
+            {
+                gamePath = originalModelPath;
+            }
+        }
+    }
+
     public static uint HashModpackEffects(IReadOnlyDictionary<string, ModResourceDefinition> moddedResources)
     {
         var hashParams = new ModdedResourceHasherParams();

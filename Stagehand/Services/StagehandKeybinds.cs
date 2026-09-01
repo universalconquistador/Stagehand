@@ -23,6 +23,8 @@ public interface IStagehandKeybinds
     IKeybindAction EditorDuplicateObject { get; }
     IKeybindAction EditorHideObject { get; }
     IKeybindAction EditorUnhideObject { get; }
+    IKeybindAction EditorSnapObjectToGround { get; }
+    IKeybindAction EditorSnapRotateObjectToGround { get; }
 
     // Editor
     IKeybindAction EditorUndo { get; }
@@ -52,6 +54,8 @@ internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposab
     public IKeybindAction EditorDuplicateObject { get; }
     public IKeybindAction EditorHideObject { get; }
     public IKeybindAction EditorUnhideObject { get; }
+    public IKeybindAction EditorSnapObjectToGround { get; }
+    public IKeybindAction EditorSnapRotateObjectToGround { get; }
 
     public IKeybindAction EditorUndo { get; }
     public IKeybindAction EditorRedo { get; }
@@ -111,6 +115,18 @@ internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposab
             "Unhides the selected object.",
             new Keybind(VirtualKey.H, KeybindModifierKeys.Control | KeybindModifierKeys.Shift)));
 
+        EditorSnapObjectToGround = _keybindService.RegisterAction(new(nameof(EditorSnapObjectToGround),
+            "Snap Object to Ground",
+            EditorObjectsGroupName,
+            "Moves the object downwards so that its origin point lies on whatever is directly below it.",
+            new Keybind(VirtualKey.DOWN, KeybindModifierKeys.Control)));
+
+        EditorSnapRotateObjectToGround = _keybindService.RegisterAction(new(nameof(EditorSnapRotateObjectToGround),
+            "Snap & Rotate Object to Ground",
+            EditorObjectsGroupName,
+            "Moves the object downwards and rotates it so that its origin point lies on whatever is directly below it.",
+            new Keybind(VirtualKey.DOWN, KeybindModifierKeys.Control | KeybindModifierKeys.Shift)));
+
         //
         // Editor
         //
@@ -163,7 +179,9 @@ internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposab
             _keybindService.UnregisterAction(EditorSave);
             _keybindService.UnregisterAction(EditorRedo);
             _keybindService.UnregisterAction(EditorUndo);
-            
+
+            _keybindService.UnregisterAction(EditorSnapRotateObjectToGround);
+            _keybindService.UnregisterAction(EditorSnapObjectToGround);
             _keybindService.UnregisterAction(EditorUnhideObject);
             _keybindService.UnregisterAction(EditorHideObject);
             _keybindService.UnregisterAction(EditorDuplicateObject);

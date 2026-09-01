@@ -134,6 +134,11 @@ internal sealed unsafe class LiveBgObject : LiveDrawObject
         base.Dispose();
     }
 
+    public bool Equals(BgObject* other)
+    {
+        return BgObjectPtr == other;
+    }
+
     public override bool TryUpdate(ObjectDefinition definition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, ILiveModpack? modpack)
     {
         if (definition.IsDisabled)
