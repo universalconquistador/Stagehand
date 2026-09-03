@@ -390,7 +390,7 @@ internal class TransactionManager : ITransactionManager, IDisposable
 
     public void PushTransactionGroup(string title)
     {
-        ThrowIfInTransaction("Cannot enter or exit a transaction group while doing or undoing a transaction!");
+        ThrowIfInTransaction($"Cannot enter or exit a transaction group '{title}' while doing or undoing a transaction!");
 
         var newGroupTransaction = new GroupTransaction(title, _currentGroupTransaction);
         _currentGroupTransaction = newGroupTransaction;
@@ -398,7 +398,7 @@ internal class TransactionManager : ITransactionManager, IDisposable
 
     public void PopTransactionGroup(bool adoptLastTitle = false)
     {
-        ThrowIfInTransaction("Cannot enter or exit a transaction group while doing or undoing a transaction!");
+        ThrowIfInTransaction($"Cannot enter or exit a transaction group '{_currentGroupTransaction?.Title}' while doing or undoing a transaction!");
 
         var group = _currentGroupTransaction;
         if (group == null)
