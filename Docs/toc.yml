@@ -2,7 +2,7 @@
   href: /#install
 - name: About
   href: about.md
-- name: Guides
-  href: guides/
+#- name: Guides
+#  href: guides/
 - name: API Reference
   href: api/
