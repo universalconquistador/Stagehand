@@ -329,7 +329,7 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
         // We strip the shnd and mem prefixes when reading the resource. However, sometimes this is called outside that.
 
         // If this path is already a modpack path, use the modpack to resolve the final path
-        if (Utf8StringStartsWith(modelResourceHandle->FileName.BasicString.First, StagehandPathIdentifier) && TryParseModpackPath(modelResourceHandle->FileName.ToString(), out var modpack, out var gamePath))
+        if (Utf8StringStartsWith(SkipCollectionTag(modelResourceHandle->FileName.BasicString.First), StagehandPathIdentifier) && TryParseModpackPath(modelResourceHandle->FileName.ToString(), out var modpack, out var gamePath))
         {
             _currentThreadModpack.Value = modpack;
             _logger.LogDebug("Using modpack {pack} for materials of {path}", modpack.DebugName, modelResourceHandle->FileName.ToString());
@@ -440,6 +440,8 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
 
     public bool TryParseModpackPath(string modpackPath, [NotNullWhen(true)] out ILiveModpack? modpack, [NotNullWhen(true)] out string? gamePath)
     {
+        modpackPath = SkipCollectionTag(modpackPath);
+
         if (!modpackPath.StartsWith(StagehandPathIdentifier))
         {
             modpack = null;
@@ -527,10 +529,12 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
     private ResourceHandle* GetResourceHandler(bool isSync, ResourceManager* resourceManager, ResourceCategory* categoryId,
         ResourceType* resourceType, int* resourceHash, byte* path, GetResourceParameters* pGetResParams, byte hasHandleLock, byte* file, uint line)
     {
-        string pathString = ReadUtf8String(path);
-        
+        // Tagged names reach the outer-modpack branch below as an AllRedirections key, not just as log text, so strip
+        // the tag once here rather than at each use.
+        string pathString = SkipCollectionTag(ReadUtf8String(path));
+
         // If this path is already a modpack path, use the modpack to resolve the final path
-        if (Utf8StringStartsWith(path, StagehandPathIdentifier) && TryParseModpackPath(ReadUtf8String(path), out var modpack, out var gamePath))
+        if (Utf8StringStartsWith(SkipCollectionTag(path), StagehandPathIdentifier) && TryParseModpackPath(pathString, out var modpack, out var gamePath))
         {
             if (_config.LogModpackResourceHandled)
             {
@@ -686,6 +690,46 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
         ResourceType* resourceType, int* resourceHash, byte* path, GetResourceParameters* pGetResParams, byte hasHandleLock, byte* file, uint line)
     {
         return isSync ? _getResourceSyncHook.OriginalDisposeSafe.Invoke(resourceManager, categoryId, resourceType, resourceHash, path, pGetResParams, file, line) : _getResourceAsyncHook.OriginalDisposeSafe.Invoke(resourceManager, categoryId, resourceType, resourceHash, path, pGetResParams, hasHandleLock, file, line);
+    }
+
+    /// <summary>
+    /// Returns <paramref name="path"/> with a leading redirector tag removed, if it has one.
+    /// </summary>
+    /// <remarks>
+    /// Penumbra prefixes resource handle names with a tag of its own, e.g.
+    /// "|3_3_522250EA_00B0|shnd://2/mem://2/chara/...mtrl". A tagged name no longer starts with our identifier, so
+    /// without skipping the tag we do not recognise our own path: the request falls through to sqpack under a name no
+    /// archive contains and fails, which is why a modpack's materials fail to load while its models load fine. Game
+    /// paths never contain '|', so this is a no-op for anything the game asks for itself.
+    /// </remarks>
+    private static string SkipCollectionTag(string path)
+    {
+        if (path.Length == 0 || path[0] != '|')
+        {
+            return path;
+        }
+
+        var tagEnd = path.IndexOf('|', 1);
+        return tagEnd > 0 ? path[(tagEnd + 1)..] : path;
+    }
+
+    /// <inheritdoc cref="SkipCollectionTag(string)"/>
+    private static byte* SkipCollectionTag(byte* path)
+    {
+        if (path == null || path[0] != (byte)'|')
+        {
+            return path;
+        }
+
+        for (var i = 1; path[i] != 0; i++)
+        {
+            if (path[i] == (byte)'|')
+            {
+                return path + i + 1;
+            }
+        }
+
+        return path;
     }
 
     private static bool Utf8StringStartsWith(byte* str, string value)
