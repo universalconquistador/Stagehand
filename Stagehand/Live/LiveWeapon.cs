@@ -18,12 +18,18 @@ internal sealed unsafe class LiveWeapon : LiveDrawObject
     public byte PrimaryDye { get => WeaponPtr->Stain0; set => WeaponPtr->Stain0 = value; }
     public byte SecondaryDye { get => WeaponPtr->Stain1; set => WeaponPtr->Stain1 = value; }
 
-    public LiveWeapon(Weapon* weaponPtr, ILiveModpack? modpack) : base((DrawObject*)weaponPtr, modpack)
+    private readonly IResourceRedirectionService _resourceRedirectionService;
+
+    public LiveWeapon(IResourceRedirectionService resourceRedirectionService, Weapon* weaponPtr, ILiveModpack? modpack) : base((DrawObject*)weaponPtr, modpack)
     {
+        _resourceRedirectionService = resourceRedirectionService;
     }
 
     public override void Dispose()
     {
+        // Must happen before the weapon is freed, as its address can be handed straight back out to a later allocation
+        _resourceRedirectionService.UnregisterDrawObjectModpack((nint)WeaponPtr);
+
         WeaponPtr->CleanupRender();
         WeaponPtr->Dtor(DestroyFlagsFree);
 
@@ -46,6 +52,13 @@ internal sealed unsafe class LiveWeapon : LiveDrawObject
 
         if (definition is WeaponDefinition weaponDefinition)
         {
+            // Point the registration at the modpack instance we were just handed, in case an equivalent one replaced
+            // the one we were created with. The checks above have already established that it has the same effects.
+            if (modpack != null)
+            {
+                _resourceRedirectionService.RegisterDrawObjectModpack((nint)WeaponPtr, modpack);
+            }
+
             if (weaponDefinition.ModelSetId != ModelSetId
                 || weaponDefinition.SecondaryId != SecondaryId
                 || weaponDefinition.Variant != Variant
@@ -65,7 +78,11 @@ internal sealed unsafe class LiveWeapon : LiveDrawObject
                     },
                     AnimationVariant = (byte)weaponDefinition.AnimationVariant,
                 };
-                WeaponPtr->Initialize(&newModel);
+
+                using (_resourceRedirectionService.OpenModpackScope(modpack))
+                {
+                    WeaponPtr->Initialize(&newModel);
+                }
 
                 World.Instance()->AddChild((FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object*)WeaponPtr);
                 WeaponPtr->OnAddedToWorld();

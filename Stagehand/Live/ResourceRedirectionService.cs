@@ -59,6 +59,27 @@ public interface IResourceRedirectionService
         where T : FileResource;
 
     ILiveModpack? SetCurrentModpack(ILiveModpack? modpack);
+
+    /// <summary>
+    /// Associates a draw object with the modpack to use when the game resolves resource paths on its behalf.
+    /// </summary>
+    /// <remarks>
+    /// Objects whose resources are loaded from a path we hand the game (background objects, VFX, sounds) carry their
+    /// modpack in that path. Objects the game builds paths for itself (weapons and other character models) have no such
+    /// path, so they are registered here instead and looked up by draw object when the game resolves a path for them.
+    /// </remarks>
+    void RegisterDrawObjectModpack(nint drawObject, ILiveModpack modpack);
+
+    /// <summary>
+    /// Removes the modpack association for a draw object. Must be called before the draw object's memory is freed,
+    /// as the address may be reused by a later allocation.
+    /// </summary>
+    void UnregisterDrawObjectModpack(nint drawObject);
+
+    /// <summary>
+    /// Gets the modpack associated with the given draw object by <see cref="RegisterDrawObjectModpack"/>, if any.
+    /// </summary>
+    bool TryGetDrawObjectModpack(nint drawObject, [NotNullWhen(true)] out ILiveModpack? modpack);
 }
 
 public static class ResourceRedirectionHelpers
@@ -305,6 +326,8 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
     private readonly ConcurrentDictionary<string, LiveModpack> _liveModpacks = new();
 
     private readonly ThreadLocal<ILiveModpack?> _currentThreadModpack = new();
+
+    private readonly ConcurrentDictionary<nint, ILiveModpack> _drawObjectModpacks = new();
 
     public ResourceRedirectionService(ILogger<ResourceRedirectionService> logger, IGameInteropProvider gameInteropProvider, IDataManager dataManager, IMemoryResourceService memoryResourceService, StagehandConfiguration config)
     {
@@ -755,6 +778,49 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
         return Encoding.UTF8.GetString(str, i);
     }
 
+    public void RegisterDrawObjectModpack(nint drawObject, ILiveModpack modpack)
+    {
+        if (drawObject == 0)
+        {
+            return;
+        }
+
+        // Live objects re-register on every update, so the common case is a repeat of the association we already
+        // hold. Bail out on that before touching the dictionary, so the log records real changes rather than frames.
+        if (_drawObjectModpacks.TryGetValue(drawObject, out var existing) && ReferenceEquals(existing, modpack))
+        {
+            return;
+        }
+
+        _drawObjectModpacks[drawObject] = modpack;
+        _logger.LogDebug("Registered draw object {drawObject:X} with modpack {pack}", drawObject, modpack.DebugName);
+    }
+
+    public void UnregisterDrawObjectModpack(nint drawObject)
+    {
+        if (drawObject == 0)
+        {
+            return;
+        }
+
+        if (_drawObjectModpacks.TryRemove(drawObject, out var modpack))
+        {
+            _logger.LogDebug("Unregistered draw object {drawObject:X} from modpack {pack}", drawObject, modpack.DebugName);
+        }
+    }
+
+    public bool TryGetDrawObjectModpack(nint drawObject, [NotNullWhen(true)] out ILiveModpack? modpack)
+    {
+        if (_drawObjectModpacks.TryGetValue(drawObject, out var found))
+        {
+            modpack = found;
+            return true;
+        }
+
+        modpack = null;
+        return false;
+    }
+
     public ILiveModpack? SetCurrentModpack(ILiveModpack? modpack)
     {
         // We don't need to do Interlocked or anything as this is a thread local, which by definition will not be accessed concurrently
@@ -770,5 +836,6 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
         _getResourceSyncHook?.Dispose();
         _getResourceAsyncHook?.Dispose();
         _modelResourceHandleLoadMaterialsHook.Dispose();
+        _drawObjectModpacks.Clear();
     }
 }
