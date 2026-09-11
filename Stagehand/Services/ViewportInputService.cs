@@ -54,12 +54,16 @@ internal unsafe class ViewportInputService : IViewportInputService, IDisposable
 {
     private record class RegisteredInputHandler(IViewportInputHandler InputHandler, float Priority);
 
+    private readonly ILogger _logger;
+
     private Hook<AtkModule.Delegates.HandleInput> _atkModuleHandleUpdateHook;
     private LinkedList<RegisteredInputHandler> _inputHandlers = new();
     private SpinLock _handlerListLock = new();
 
-    public ViewportInputService(IGameInteropProvider gameInteropProvider)
+    public ViewportInputService(ILogger<ViewportInputService> logger, IGameInteropProvider gameInteropProvider)
     {
+        _logger = logger;
+
         _atkModuleHandleUpdateHook = gameInteropProvider.HookFromAddress<AtkModule.Delegates.HandleInput>(AtkModule.MemberFunctionPointers.HandleInput, AtkModuleHandleInput);
         _atkModuleHandleUpdateHook.Enable();
     }
@@ -127,44 +131,52 @@ internal unsafe class ViewportInputService : IViewportInputService, IDisposable
 
     private byte AtkModuleHandleInput(AtkModule* thisPtr, UIInputData* inputData, bool isPadMouseModeEnabled)
     {
-        // Call original input handler to let the native UI handle input
-        byte result = _atkModuleHandleUpdateHook.Original(thisPtr, inputData, isPadMouseModeEnabled);
-
-        bool lockHeld = false;
-        while (!lockHeld)
-        {
-            _handlerListLock.Enter(ref lockHeld);
-        }
-
-        bool inputHandled = false;
-
         try
         {
-            var node = _inputHandlers.First;
-            while (!inputHandled && node != null)
-            {
-                inputHandled = node.Value.InputHandler.HandleMouseInput(ref *inputData);
-                node = node.Next;
-            }
-        }
-        finally
-        {
-            _handlerListLock.Exit();
-        }
+            // Call original input handler to let the native UI handle input
+            byte result = _atkModuleHandleUpdateHook.Original(thisPtr, inputData, isPadMouseModeEnabled);
 
-        if (inputHandled)
-        {
-            // This is a replica of what Original AtkModule.HandleInput does when the mouse is over a collision node
-            inputData->FilterUICursorInputs(MouseButtonFlags.LBUTTON | MouseButtonFlags.RBUTTON);
-            inputData->FilterDragInputs();
-            if (isPadMouseModeEnabled)
+            bool lockHeld = false;
+            while (!lockHeld)
             {
-                inputData->FilterGamepadInputs();
+                _handlerListLock.Enter(ref lockHeld);
             }
-            result = 1;
-        }
 
-        return result;
+            bool inputHandled = false;
+
+            try
+            {
+                var node = _inputHandlers.First;
+                while (!inputHandled && node != null)
+                {
+                    inputHandled = node.Value.InputHandler.HandleMouseInput(ref *inputData);
+                    node = node.Next;
+                }
+            }
+            finally
+            {
+                _handlerListLock.Exit();
+            }
+
+            if (inputHandled)
+            {
+                // This is a replica of what Original AtkModule.HandleInput does when the mouse is over a collision node
+                inputData->FilterUICursorInputs(MouseButtonFlags.LBUTTON | MouseButtonFlags.RBUTTON);
+                inputData->FilterDragInputs();
+                if (isPadMouseModeEnabled)
+                {
+                    inputData->FilterGamepadInputs();
+                }
+                result = 1;
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception in viewport input hook!");
+            return 0;
+        }
     }
 
     public void Dispose()
