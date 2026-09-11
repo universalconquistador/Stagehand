@@ -180,3 +180,10 @@ Later down the road:
    This copies the model path and the dye color. To only copy the model path and leave the selected object's dye color unchanged, hold the Shift key when you click the object to copy.
  - Adds Snap to Ground command for models! You can right click a model and use the Snap Object to Ground command, or the version that also snaps rotation.
    It aligns the object's local origin with whatever model or terrain is beneath it, no matter how far.
+
+## 0.4.12
+
+ - Adds the Housing tab to the Asset Library! This shows you all the interior and exterior housing items and their models. You can search through them, place them, and drag them to your bookmarks.
+ - Disables the debug window in non-debug builds. A new, way better picker window will replace it shortly.
+ - Updates the Asset Library resource list from this latest 7.56hf1, and now with grass models! (grass patches, flowers, bushes, etc)
+ - Adds extra logging to help investigate a reported issue.
