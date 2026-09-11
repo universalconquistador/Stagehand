@@ -25,7 +25,7 @@ public abstract class TreeViewComponent<TItem>
     // The solution implemented here is for a tree to have a single ITreeItemOperations for each kind of tree item it supports,
     // which it chooses and binds the node to in GetItemOperations. This operations object then contains all the item-specific
     // behavior, with 100% type safety. No casting or type checks!
-    protected interface ITreeItemOperations<out TSpecificItem>
+    public interface ITreeItemOperations<out TSpecificItem>
         where TSpecificItem : TItem
     {
         TItem? GetParent();
@@ -52,9 +52,11 @@ public abstract class TreeViewComponent<TItem>
 
         void HandleClicked();
         void HandleDoubleClicked();
+
+        void DrawToolTip(Vector2 defaultItemSpacing);
     }
 
-    protected abstract class TreeItemOperationsBase<TSpecificItem, TTreeView> : ITreeItemOperations<TSpecificItem>
+    public abstract class TreeItemOperationsBase<TSpecificItem, TTreeView> : ITreeItemOperations<TSpecificItem>
         where TSpecificItem : class, TItem
         where TTreeView : TreeViewComponent<TItem>
     {
@@ -105,6 +107,25 @@ public abstract class TreeViewComponent<TItem>
         { }
         public virtual void HandleDoubleClicked()
         { }
+
+        public virtual void DrawToolTip(Vector2 defaultItemSpacing)
+        {
+            var description = GetDescription();
+            if (description != null)
+            {
+                using (ImRaii.Tooltip())
+                using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, defaultItemSpacing))
+                {
+                    ImGui.TextUnformatted(description);
+                    var typeDescription = GetTypeDescription();
+                    if (typeDescription != null)
+                    {
+                        ImGui.Separator();
+                        ImGui.TextDisabled(typeDescription);
+                    }
+                }
+            }
+        }
 
         public void PushItem(TSpecificItem item)
         {
@@ -313,21 +334,7 @@ public abstract class TreeViewComponent<TItem>
                 {
                     hoveredItem = item;
 
-                    var description = operations.GetDescription();
-                    if (description != null)
-                    {
-                        using (ImRaii.Tooltip())
-                        using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, defaultItemSpacing))
-                        {
-                            ImGui.TextUnformatted(description);
-                            var typeDescription = operations.GetTypeDescription();
-                            if (typeDescription != null)
-                            {
-                                ImGui.Separator();
-                                ImGui.TextDisabled(typeDescription);
-                            }
-                        }
-                    }
+                    operations.DrawToolTip(defaultItemSpacing);
                 }
 
                 bool isDoubleClicked = ImGui.IsItemClicked(ImGuiMouseButton.Left) && ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left);
@@ -449,7 +456,7 @@ public abstract class TreeViewComponent<TItem>
         }
     }
 
-    protected bool IsVisible(TItem item)
+    public bool IsVisible(TItem item)
     {
         if (_isVisibleCache.TryGetValue(item, out bool cachedIsVisible))
         {

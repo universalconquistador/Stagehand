@@ -72,7 +72,7 @@ public interface IAssetLibraryWindow : IHostedService
     void SetSelectionCallback<TAssetInfo>(string objectName, string propertyName, AssetType<TAssetInfo> assetType, Func<bool> stillValidCallback, Action<TAssetInfo> selectCallback);
 }
 
-internal class AssetLibraryWindow : Window, IAssetLibraryWindow
+internal partial class AssetLibraryWindow : Window, IAssetLibraryWindow
 {
     private record class AssetLibraryTab(string DisplayName, Action DrawAction);
 
@@ -112,6 +112,8 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
     private readonly IOverlayService _overlayService;
     private readonly IGameResourceAssetService _gameResourceAssetService;
     private readonly IAssetBookmarkService _assetBookmarkService;
+    private readonly IDataManager _dataManager;
+    private readonly ITextureProvider _textureProvider;
     private readonly StagehandConfiguration _configuration;
     private readonly WindowSystem _windowSystem;
 
@@ -175,7 +177,7 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
         }
     }
 
-    public AssetLibraryWindow(ILogger<AssetLibraryWindow> logger, ILiveObjectService liveObjectService, IObjectTable objectTable, ITargetManager targetManager, IOverlayService overlayService, IGameResourceAssetService gameResourceAssetService, IAssetBookmarkService assetBookmarkService, StagehandConfiguration configuration, WindowSystem windowSystem)
+    public AssetLibraryWindow(ILogger<AssetLibraryWindow> logger, ILiveObjectService liveObjectService, IObjectTable objectTable, ITargetManager targetManager, IOverlayService overlayService, IGameResourceAssetService gameResourceAssetService, IAssetBookmarkService assetBookmarkService, IDataManager dataManager, ITextureProvider textureProvider, StagehandConfiguration configuration, WindowSystem windowSystem)
         : base("Stagehand Asset Library")
     {
         _logger = logger;
@@ -185,6 +187,8 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
         _overlayService = overlayService;
         _gameResourceAssetService = gameResourceAssetService;
         _assetBookmarkService = assetBookmarkService;
+        _dataManager = dataManager;
+        _textureProvider = textureProvider;
         _configuration = configuration;
         _windowSystem = windowSystem;
 
@@ -213,6 +217,8 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
         _bookmarkTreeView = new(_assetBookmarkService, _gameResourceAssetService);
         _bookmarkTreeView.GameFolderDoubleClicked += OnGameFolderBookmarkDoubleClicked;
         _bookmarkTreeView.GameResourceDoubleClicked += OnGameResourceBookmarkDoubleClicked;
+
+        LoadHousingNodes();
     }
 
     private void OnGameResourceBookmarkDoubleClicked(IGameResourceBookmarkItem obj)
@@ -517,11 +523,6 @@ internal class AssetLibraryWindow : Window, IAssetLibraryWindow
         {
             HoveredAssetInfo = (_gameResourceTreeView.HoveredItem as IGameFilesystemResource)?.AssetInfo ?? _selectedAssetInfo;
         }
-    }
-
-    private void DrawHousingTab()
-    {
-        ImGui.TextDisabled("(Not yet implemented)");
     }
 
     private void DrawBookmarksTab()
