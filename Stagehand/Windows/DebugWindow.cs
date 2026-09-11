@@ -1,5 +1,6 @@
 #define ENABLE_RENDER_HOOK_TESTS
 
+#if DEBUG
 using Dalamud.Bindings.ImGui;
 using Dalamud.Bindings.ImGuizmo;
 using Dalamud.Hooking;
@@ -1036,3 +1037,5 @@ public unsafe partial class DebugWindow : Window, IHostedService, IDisposable
         return Task.CompletedTask;
     }
 }
+
+#endif // DEBUG

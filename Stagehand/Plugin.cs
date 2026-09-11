@@ -127,7 +127,9 @@ public sealed class Plugin : IDalamudPlugin
             services.AddHostedService(services => services.GetRequiredService<IConfigWindow>());
             services.AddSingleton<IAssetLibraryWindow, AssetLibraryWindow>();
             services.AddHostedService(services => services.GetRequiredService<IAssetLibraryWindow>());
+#if DEBUG
             services.AddHostedService<DebugWindow>();
+#endif // DEBUG
             services.AddHostedService<LibraryWindow>();
             services.AddSingleton<LocalStageService>();
             services.AddHostedService(c => c.GetRequiredService<LocalStageService>());
