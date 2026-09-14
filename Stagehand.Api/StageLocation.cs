@@ -44,7 +44,7 @@ public record struct StageLocation(uint WorldId, ushort TerritoryId, int WardId,
                 if (housingManager->IsInside())
                 {
                     // We want the territory ID of the logical housing district, regardless of the actual territory used for the chosen interior design
-                    location.TerritoryId = housingManager->GetCurrentHouseId().TerritoryTypeId;
+                    location.TerritoryId = (ushort)HousingManager.GetOriginalHouseTerritoryTypeId();
 
                     if (housingManager->GetCurrentHouseId().Unit.IsApartment)
                     {
@@ -60,7 +60,6 @@ public record struct StageLocation(uint WorldId, ushort TerritoryId, int WardId,
 
                         // Each division should use houseIds 0-30
                         location.HouseId = (housingManager->GetCurrentHouseId().Unit.Value % 30) + 1;
-                        location.TerritoryId = (ushort)HousingManager.GetOriginalHouseTerritoryTypeId();
                     }
 
                     location.RoomId = housingManager->GetCurrentRoom();
