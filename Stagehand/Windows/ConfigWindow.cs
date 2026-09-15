@@ -28,19 +28,21 @@ public class ConfigWindow : Window, IConfigWindow, IDisposable
     private readonly ILogger _logger;
     private readonly IDalamudPluginInterface _dalamudPluginInterface;
     private readonly IKeybindService _keybindService;
+    private readonly ILocalDefinitionService _localDefinitionService;
     private readonly WindowSystem _windowSystem;
     private readonly StagehandConfiguration _configuration;
 
     private readonly FileDialogManager _fileDialogManager;
     private IKeybindAction? _recordingKeybindAction = null;
 
-    public ConfigWindow(ILogger<ConfigWindow> logger, IDalamudPluginInterface dalamudPluginInterface, IKeybindService keybindService, WindowSystem windowSystem, StagehandConfiguration configuration) : base("Stagehand Configuration")
+    public ConfigWindow(ILogger<ConfigWindow> logger, IDalamudPluginInterface dalamudPluginInterface, IKeybindService keybindService, ILocalDefinitionService localDefinitionService, WindowSystem windowSystem, StagehandConfiguration configuration) : base("Stagehand Configuration")
     {
         SizeCondition = ImGuiCond.Always;
 
         _logger = logger;
         _dalamudPluginInterface = dalamudPluginInterface;
         _keybindService = keybindService;
+        _localDefinitionService = localDefinitionService;
         _windowSystem = windowSystem;
         _configuration = configuration;
 
@@ -100,8 +102,7 @@ public class ConfigWindow : Window, IConfigWindow, IDisposable
         {
             // TODO: Might want to prompt whether to move the player's local definitions
             // TODO: Migrate auto load conditions
-            _configuration.DefinitionLibraryPath = definitionLibraryPath;
-            _configuration.Save();
+            _localDefinitionService.LocalDefinitionDirectory = definitionLibraryPath;
         }
         ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
         if (ImGuiComponents.IconButton("###BrowseLibraryFolder", FontAwesomeIcon.Folder, new Vector2(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
@@ -110,8 +111,7 @@ public class ConfigWindow : Window, IConfigWindow, IDisposable
             {
                 if (confirmed)
                 {
-                    _configuration.DefinitionLibraryPath = path;
-                    _configuration.Save();
+                    _localDefinitionService.LocalDefinitionDirectory = path;
                 }
             }, definitionLibraryPath);
         }

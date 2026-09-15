@@ -198,3 +198,4 @@ Later down the road:
    Picking now properly cancels when the object is deselected or removed from the stage.
  - Fixes a bug where doing things to an object (duplicate, cut, paste, etc) while dragging a gizmo or property value would result in errors in the Dalamud log.
  - Disables the Ctrl+C keybind while any chat log is focused and any text in it is selected.
+ - Fixes an issue with changing your local stage folder.
