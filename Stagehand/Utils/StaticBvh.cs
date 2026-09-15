@@ -259,7 +259,12 @@ public class StaticBvh : IDisposable
             }
 
             baseVertex += mesh.VertexCount;
-            baseTriangle += (int)mesh.IndexCount / 3;
+
+            // Clamp to what the first LOD's index buffer actually holds. A mesh can straddle the end of it: the loop
+            // above stops writing at the boundary and the break at the top of the next iteration stops the walk, but
+            // an unclamped cursor is still the count this method returns - so the caller would be handed a length
+            // longer than the buffer rented for it and read triangles that were never written.
+            baseTriangle = Math.Min(baseTriangle + ((int)mesh.IndexCount / 3), indices.Length / 3);
         }
 
         return new SizedMemoryOwner<BvhTriangle>(triangleMemory, baseTriangle);

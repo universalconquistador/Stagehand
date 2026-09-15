@@ -112,6 +112,7 @@ public sealed class Plugin : IDalamudPlugin
             services.AddSingleton<ILocalDefinitionService, LocalDefinitionService>();
             services.AddSingleton<IMemoryResourceService, MemoryResourceService>();
             services.AddSingleton<IResourceRedirectionService, ResourceRedirectionService>();
+            services.AddSingleton<IWeaponPathRedirectionService, WeaponPathRedirectionService>();
             services.AddSingleton<ILiveObjectService, LiveObjectService>();
             services.AddSingleton<ILiveStageService, LiveStageService>();
             services.AddSingleton<IEditorService, EditorService>();

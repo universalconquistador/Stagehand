@@ -98,12 +98,14 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
     private readonly IFramework _framework;
     private readonly IDataManager _dataManager;
     private readonly IResourceRedirectionService _resourceRedirectionService;
+    private readonly IWeaponPathRedirectionService _weaponPathRedirectionService;
 
-    public LiveObjectService(IFramework framework, IDataManager dataManager, IResourceRedirectionService resourceRedirectionService)
+    public LiveObjectService(IFramework framework, IDataManager dataManager, IResourceRedirectionService resourceRedirectionService, IWeaponPathRedirectionService weaponPathRedirectionService)
     {
         _framework = framework;
         _dataManager = dataManager;
         _resourceRedirectionService = resourceRedirectionService;
+        _weaponPathRedirectionService = weaponPathRedirectionService;
     }
 
     private bool SafeResourceExists(string path)
@@ -266,12 +268,29 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
             },
             AnimationVariant = 0,
         };
-        weapon = Weapon.Create(&createInfo);
+        // The game builds a weapon's resource paths from its model IDs instead of taking a path from us, so the modpack
+        // can't be baked into a path the way it is for background objects. Creation-time loads are covered by scoping
+        // them to the modpack; everything the game loads for this weapon later is covered by registering the draw
+        // object, which the weapon path redirection hooks look it up in.
+        //
+        // The scope is not redundant with those hooks. They are installed from a weapon instance - there is no exported
+        // address for the virtual table - so the first weapon of a session is necessarily created before they exist,
+        // and is redirected by this scope alone. Remove it and only the first modpack weapon after a reload breaks.
+        using (_resourceRedirectionService.OpenModpackScope(modpack))
+        {
+            weapon = Weapon.Create(&createInfo);
+        }
 
         if (weapon == null)
         {
             // TODO: Log!
             return null;
+        }
+
+        if (modpack != null)
+        {
+            _resourceRedirectionService.RegisterDrawObjectModpack((nint)weapon, modpack);
+            _weaponPathRedirectionService.EnsureHooksInstalled((nint)weapon);
         }
 
         weapon->Position = position;
@@ -280,7 +299,7 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
 
         weapon->UpdateTransforms(false);
 
-        return new LiveWeapon(weapon, modpack);
+        return new LiveWeapon(_resourceRedirectionService, weapon, modpack);
     }
 
     public ILiveObject? CreateSound(string soundGamePath, int soundIndex, float volume, float fadeInDuration, float speed, bool isPositional, Vector3 position, ILiveModpack? modpack)
