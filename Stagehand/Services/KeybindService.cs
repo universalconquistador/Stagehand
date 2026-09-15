@@ -1,6 +1,7 @@
 using Dalamud.Game.ClientState.Keys;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.UI;
+using FFXIVClientStructs.FFXIV.Component.GUI;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -328,16 +329,43 @@ internal partial class KeybindService : IKeybindService, IDisposable
     {
         const int pressedValue = 3;
 
-        // If the game's native text input is focused, ignore keyboard input
+        bool isChatLogSelected = false;
         unsafe
         {
             var uiModule = UIModule.Instance();
             if (uiModule != null)
             {
                 var atkModule = uiModule->GetRaptureAtkModule();
-                if (atkModule != null && atkModule->IsTextInputActive())
+                if (atkModule != null)
                 {
-                    return;
+                    if (atkModule->IsTextInputActive())
+                    {
+                        // If the game's native text input is focused, ignore keyboard input
+                        return;
+                    }
+                    else if (atkModule->AtkUnitManager->FocusedAddon != null)
+                    {
+                        if (atkModule->AtkUnitManager->FocusedAddon->NameString.Equals("ChatLog", StringComparison.Ordinal))
+                        {
+                            // If the game's chat log is selected, ignore keyboard input just to be sure that Ctrl+C is respected
+                            AddonChatLog* chatLog = (AddonChatLog*)atkModule->AtkUnitManager->FocusedAddon;
+                            var currentTabIndex = chatLog->TabIndex;
+                            AddonChatLogPanel* selectedPanel = (AddonChatLogPanel*)atkModule->AtkUnitManager->GetAddonByName($"ChatLogPanel_{currentTabIndex}");
+                            if (selectedPanel != null && selectedPanel->ChatText->SelectStart != selectedPanel->ChatText->SelectEnd)
+                            {
+                                isChatLogSelected = true;
+                            }
+                        }
+                        else if (atkModule->AtkUnitManager->FocusedAddon->NameString.StartsWith("ChatLogPanel_", StringComparison.Ordinal))
+                        {
+                            // If the game's chat log is selected, ignore keyboard input just to be sure that Ctrl+C is respected
+                            AddonChatLogPanel* chatLog = (AddonChatLogPanel*)atkModule->AtkUnitManager->FocusedAddon;
+                            if (chatLog->ChatText->SelectStart != chatLog->ChatText->SelectEnd)
+                            {
+                                isChatLogSelected = true;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -356,15 +384,24 @@ internal partial class KeybindService : IKeybindService, IDisposable
                 }
                 else
                 {
-                    var keyMapIndex = (byte)currentModifierKeys;
-                    Debug.Assert(keyMapIndex < _keyMaps.Length);
-                    var keyMap = _keyMaps[keyMapIndex];
-                    if (keyMap.TryGetAction(rootKey, out var action))
+                    // HACK: Don't intercept Ctrl+C when a chat log panel has a selection.
+                    // If there are other selectable copyable text areas that aren't AtkTextInputs, we should handle those too.
+                    if (currentModifierKeys == KeybindModifierKeys.Control && rootKey == VirtualKey.C && isChatLogSelected)
                     {
-                        if (action.RaisePressed())
+                        continue;
+                    }
+                    else
+                    {
+                        var keyMapIndex = (byte)currentModifierKeys;
+                        Debug.Assert(keyMapIndex < _keyMaps.Length);
+                        var keyMap = _keyMaps[keyMapIndex];
+                        if (keyMap.TryGetAction(rootKey, out var action))
                         {
-                            // If the event was handled, swallow the key so the game doesn't respond to it
-                            _keyState[rootKey] = false;
+                            if (action.RaisePressed())
+                            {
+                                // If the event was handled, swallow the key so the game doesn't respond to it
+                                _keyState[rootKey] = false;
+                            }
                         }
                     }
                 }

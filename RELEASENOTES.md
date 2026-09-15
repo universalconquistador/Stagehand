@@ -197,3 +197,4 @@ Later down the road:
  - Fixes a bug where the user could begin picking for an object's model, delete the object, and then pick a model, resulting in an orphaned visual object.
    Picking now properly cancels when the object is deselected or removed from the stage.
  - Fixes a bug where doing things to an object (duplicate, cut, paste, etc) while dragging a gizmo or property value would result in errors in the Dalamud log.
+ - Disables the Ctrl+C keybind while any chat log is focused and any text in it is selected.
