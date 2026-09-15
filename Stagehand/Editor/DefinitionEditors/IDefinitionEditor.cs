@@ -69,7 +69,7 @@ public abstract class DefinitionEditorBase : IDefinitionEditor
     {
         // UBER HACK: Dragging a property should be a transaction group! There's not really a great way to detect this right now, so this is what we've got.
         // Really this does not belong here, and even more importantly this is not necessarily called from an ImGui draw or even the right thread!
-        if (ImGui.IsMouseDown(ImGuiMouseButton.Left) && !_draggingProperty)
+        if (ImGui.IsMouseDown(ImGuiMouseButton.Left) && !_draggingProperty && IsSelected)
         {
             _draggingProperty = true;
             TransactionManager.PushTransactionGroup($"Set {DisplayName}'s {propertyName} to {newValue}");
@@ -101,8 +101,8 @@ public abstract class DefinitionEditorBase : IDefinitionEditor
         // UBER HACK: Backstop to make sure if we stop drawing we still end a property drag transaction group
         if (_draggingProperty)
         {
-            TransactionManager.PopTransactionGroup();
             _draggingProperty = false;
+            TransactionManager.QueueCompletionAction(() => TransactionManager.PopTransactionGroup());
         }
 
         IsSelected = false;

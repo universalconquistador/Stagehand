@@ -246,6 +246,13 @@ public interface ITransactionManager
     void DoTransaction(ITransaction transaction);
 
     /// <summary>
+    /// Enqueues the given action to be invoked after the current <see cref="DoTransaction(ITransaction)"/> is complete, or
+    /// invokes it immediately if not in a <see cref="DoTransaction(ITransaction)"/>.
+    /// </summary>
+    /// <param name="completionAction">The action to invoke after the current transaction is recorded.</param>
+    void QueueCompletionAction(Action completionAction);
+
+    /// <summary>
     /// Begins the creation of a transaction group such that the transactions done until the corresponding
     /// <see cref="PopTransactionGroup"/> will all be done and undone together under the given title.
     /// </summary>
@@ -349,6 +356,7 @@ internal class TransactionManager : ITransactionManager, IDisposable
 
     private readonly Stack<ITransaction> _undoStack = new();
     private readonly Stack<ITransaction> _redoStack = new();
+    private readonly List<Action> _completionActions = new();
 
     private GroupTransaction? _currentGroupTransaction = null;
     private bool _isDoingTransaction = false;
@@ -378,13 +386,33 @@ internal class TransactionManager : ITransactionManager, IDisposable
             {
                 ClearRedo();
                 _undoStack.Push(transaction);
-
-                TransactionDone?.Invoke(transaction);
             }
         }
         finally
         {
             _isDoingTransaction = false;
+        }
+
+        TransactionDone?.Invoke(transaction);
+
+        foreach (var completionAction in _completionActions)
+        {
+            completionAction.Invoke();
+        }
+        _completionActions.Clear();
+    }
+
+    public void QueueCompletionAction(Action completionAction)
+    {
+        if (_isDoingTransaction)
+        {
+            // Queue up this action for when the Do is complete
+            _completionActions.Add(completionAction);
+        }
+        else if (!_isUndoingTransaction && !_isRedoingTransaction)
+        {
+            // No transactions are being done, undone, or redone, so just run the action immediately
+            completionAction.Invoke();
         }
     }
 

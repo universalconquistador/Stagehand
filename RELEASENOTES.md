@@ -187,3 +187,13 @@ Later down the road:
  - Disables the debug window in non-debug builds. A new, way better picker window will replace it shortly.
  - Updates the Asset Library resource list from this latest 7.56hf1, and now with grass models! (grass patches, flowers, bushes, etc)
  - Adds extra logging to help investigate a reported issue.
+
+## 0.4.13
+
+ - Fixes a bug determining the current location when inside an apartment.
+
+## 0.4.14
+
+ - Fixes a bug where the user could begin picking for an object's model, delete the object, and then pick a model, resulting in an orphaned visual object.
+   Picking now properly cancels when the object is deselected or removed from the stage.
+ - Fixes a bug where doing things to an object (duplicate, cut, paste, etc) while dragging a gizmo or property value would result in errors in the Dalamud log.

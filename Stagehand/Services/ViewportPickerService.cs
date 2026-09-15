@@ -42,6 +42,7 @@ public record class PickedVfxObjectInfo(IntPtr OriginalPointer, Vector3 Position
 }
 
 public delegate void ViewportPickerObjectDelegate(PickedObjectInfo pickedObject);
+public delegate bool ViewportPickerCancelDelegate();
 
 /// <summary>
 /// Allows entering a modal object-picking mode where the user can click on an object in the viewport.
@@ -62,8 +63,9 @@ public interface IViewportPickerService
     /// </remarks>
     /// <param name="objectHoverDelegate">The delegate to invoke each frame that an object is hovered.</param>
     /// <param name="objectClickDelegate">The delegate to invoke when an object is clicked.</param>
+    /// <param name="cancelDelegate">The delegate to invoke every frame to poll whether to exit object-picking mode.</param>
     /// <returns>True if object-picking mode was entered, or false if it was already active.</returns>
-    bool TryStartPicking(ViewportPickerObjectDelegate? objectHoverDelegate, ViewportPickerObjectDelegate? objectClickDelegate);
+    bool TryStartPicking(ViewportPickerObjectDelegate? objectHoverDelegate, ViewportPickerObjectDelegate? objectClickDelegate, ViewportPickerCancelDelegate? cancelDelegate);
 
     /// <summary>
     /// Exits object-picking mode if it is active.
@@ -73,7 +75,7 @@ public interface IViewportPickerService
 
 internal class ViewportPickerService : IViewportPickerService
 {
-    private record class PickingOperation(ViewportPickerObjectDelegate? ObjectHoverDelegate, ViewportPickerObjectDelegate? ObjectClickDelegate);
+    private record class PickingOperation(ViewportPickerObjectDelegate? ObjectHoverDelegate, ViewportPickerObjectDelegate? ObjectClickDelegate, ViewportPickerCancelDelegate? CancelDelegate);
 
     public bool IsPicking => _pickingOperation != null;
 
@@ -102,9 +104,9 @@ internal class ViewportPickerService : IViewportPickerService
         }
     }
 
-    public bool TryStartPicking(ViewportPickerObjectDelegate? objectHoverDelegate, ViewportPickerObjectDelegate? objectClickDelegate)
+    public bool TryStartPicking(ViewportPickerObjectDelegate? objectHoverDelegate, ViewportPickerObjectDelegate? objectClickDelegate, ViewportPickerCancelDelegate? cancelDelegate)
     {
-        if (Interlocked.CompareExchange(ref _pickingOperation, new PickingOperation(objectHoverDelegate, objectClickDelegate), null) == null)
+        if (Interlocked.CompareExchange(ref _pickingOperation, new PickingOperation(objectHoverDelegate, objectClickDelegate, cancelDelegate), null) == null)
         {
             _overlayService.DrawOverlays += OnDrawOverlays;
             _overlayService.IsPicking = true;
@@ -162,7 +164,7 @@ internal class ViewportPickerService : IViewportPickerService
                 }
             }
 
-            if (ImGui.IsMouseClicked(ImGuiMouseButton.Right) || ImGui.IsKeyDown(ImGuiKey.Escape))
+            if (ImGui.IsMouseClicked(ImGuiMouseButton.Right) || ImGui.IsKeyDown(ImGuiKey.Escape) || (pickingOperation.CancelDelegate != null && pickingOperation.CancelDelegate.Invoke()))
             {
                 CancelPicking();
             }

@@ -419,7 +419,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
                     }
                     else
                     {
-                        ViewportPickerService.TryStartPicking(objectHoverDelegate: null, picker);
+                        ViewportPickerService.TryStartPicking(objectHoverDelegate: null, picker, () => !IsSelected || !IsInStage);
                     }
                 }
                 if (ImGui.IsItemHovered())
