@@ -199,3 +199,9 @@ Later down the road:
  - Fixes a bug where doing things to an object (duplicate, cut, paste, etc) while dragging a gizmo or property value would result in errors in the Dalamud log.
  - Disables the Ctrl+C keybind while any chat log is focused and any text in it is selected.
  - Fixes an issue with changing your local stage folder.
+
+## 0.4.15
+
+ - Adds Penumbra mod import! Once you have created a new Embedded Modpack from the Create menu in the stage editor, you can head over to the Penumbra Import tab.
+    - Use the mod selector to choose which mod to import, and then choose which of the mod's options to use. Once you have the settings all how you want them, click the Import button at the bottom and that's it!
+    - Embedded Modpacks now show the Penumbra mod and version that was last imported into each modpack, and this information is saved in the stage file. This should make it easy to update your stage if a mod creator releases a new version of a Penumbra mod.

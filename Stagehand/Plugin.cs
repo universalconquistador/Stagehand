@@ -102,6 +102,7 @@ public sealed class Plugin : IDalamudPlugin
             services.AddSingleton(WindowSystem);
             services.AddSingleton(KeyState);
 
+            services.AddSingleton<IPenumbraInteropService, PenumbraInteropService>();
             services.AddSingleton<IAssetBookmarkService, AssetBookmarkService>();
             services.AddSingleton<IGameResourceAssetService, GameResourceAssetService>();
             services.AddSingleton<IKeybindService, KeybindService>();

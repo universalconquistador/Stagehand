@@ -64,11 +64,23 @@
           "Microsoft.Extensions.Options": "10.0.0"
         }
       },
+      "Penumbra.Api": {
+        "type": "Direct",
+        "requested": "[5.19.1, )",
+        "resolved": "5.19.1",
+        "contentHash": "QPoOajzNZJblbaKegp5XsFS+1MsU7QiOlH5lljykr5kepVdCQBFh5RB5pR7gXFGy3MzziIKo5hnh1KHqQrfeTg=="
+      },
       "TerraFX.Interop.Windows": {
         "type": "Direct",
         "requested": "[10.0.26100.6, )",
         "resolved": "10.0.26100.6",
         "contentHash": "QjL9vliSWmscUv6A7bjvsryHjYnY0norqvCNcLXSdEy1VIIzMF6FiS7BuvLTBuGUeN9FY4zJbU65OsHEv7jG9A=="
+      },
+      "UniCon.PenumbraMeta": {
+        "type": "Direct",
+        "requested": "[4.0.1, )",
+        "resolved": "4.0.1",
+        "contentHash": "mJdf8ibt6RHlPyRyfIukvuiUdivaIwDaaPOF/5ODAAeimEM+MsqviLhSUTGlAcMVVsxvfxIywn6ar+uoVWUW4g=="
       },
       "Microsoft.Extensions.Configuration": {
         "type": "Transitive",

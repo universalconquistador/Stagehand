@@ -35,7 +35,9 @@ Use /stagehand to get started.</Description>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
         <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
+        <PackageReference Include="Penumbra.Api" Version="5.19.1" />
         <PackageReference Include="TerraFX.Interop.Windows" Version="10.0.26100.6" />
+        <PackageReference Include="UniCon.PenumbraMeta" Version="4.0.1" />
 
         <ProjectReference Include="..\..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj" Condition="'$(Configuration)'=='Debug'" Private="True" />
         <ProjectReference Include="..\..\FFXIVClientStructs\InteropGenerator.Runtime\InteropGenerator.Runtime.csproj" Condition="'$(Configuration)'=='Debug'" Private="True" />
