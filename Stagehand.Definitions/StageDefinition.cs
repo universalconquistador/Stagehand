@@ -87,6 +87,19 @@ public class StageDefinition
     };
 
     /// <summary>
+    /// The version of the stage definition file format that this <c>Stagehand.Definitions</c> library can read and write.
+    /// </summary>
+    public static int CurrentFormatVersion => 1;
+
+    /// <summary>
+    /// The version of the stage definition format of the <c>Stagehand.Definitions</c> library that created this stage definition.
+    /// </summary>
+    /// <remarks>
+    /// This is set to <see cref="CurrentFormatVersion"/> when this definition is written with <see cref="WriteToJSONStream(Stream)"/>.
+    /// </remarks>
+    public int FormatVersion { get; set; } = 0;
+
+    /// <summary>
     /// The metadata about this Stage definition.
     /// </summary>
     public StageInfo Info { get; set; } = new StageInfo();
@@ -106,6 +119,7 @@ public class StageDefinition
     /// </summary>
     public void WriteToJSONStream(Stream destination)
     {
+        FormatVersion = CurrentFormatVersion;
         JsonSerializer.Serialize(destination, this, StandardSerializerOptions);
     }
 

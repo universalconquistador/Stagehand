@@ -880,6 +880,35 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                                 ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Hammer, "Editor Already Open");
                             }
                         }
+                        if (selectedMetadata.DefinitionFileFormatVersion > StageDefinition.CurrentFormatVersion)
+                        {
+                            bool isHovered = false;
+                            ImGui.SameLine();
+                            using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.WarningForeground))
+                            {
+                                using (ImRaii.PushFont(UiBuilder.IconFont))
+                                {
+                                    ImGui.TextUnformatted(FontAwesomeIcon.ExclamationTriangle.ToIconString());
+                                }
+                                isHovered = ImGui.IsItemHovered();
+                                ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
+                                ImGui.TextUnformatted("Stage from newer Stagehand!");
+                                isHovered |= ImGui.IsItemHovered();
+                            }
+                            if (isHovered)
+                            {
+                                using (ImRaii.Tooltip())
+                                using (ImRaii.TextWrapPos(350.0f * ImGuiHelpers.GlobalScale))
+                                {
+                                    ImGui.TextWrapped("This stage was saved by a newer version of Stagehand.");
+                                    ImGui.Separator();
+                                    using (ImRaii.Disabled())
+                                    {
+                                        ImGui.TextWrapped("Update the Stagehand plugin to ensure this stage displays correctly and saving it in the editor does not result in data loss.");
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
