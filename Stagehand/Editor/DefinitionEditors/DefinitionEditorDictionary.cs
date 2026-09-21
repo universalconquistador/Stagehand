@@ -83,9 +83,7 @@ public class DefinitionEditorDictionary<TDefinition, TEditor> : IDisposable, IRe
         {
             var newEditor = _editorFactory.Invoke(objectDefinitionPair.Value, objectDefinitionPair.Key);
             _objectEditors[objectDefinitionPair.Key] = newEditor;
-            _outlinerNode.AddChild(newEditor.OutlinerNode);
-            newEditor.OwnerDictionary = this;
-            newEditor.AddedToStage();
+            OnEditorAdded(newEditor);
         }
     }
 
@@ -101,14 +99,10 @@ public class DefinitionEditorDictionary<TDefinition, TEditor> : IDisposable, IRe
             {
                 _objects.Add(key, newObject);
                 _objectEditors.Add(key, newEditor);
-                _outlinerNode.AddChild(newEditor.OutlinerNode);
-                newEditor.OwnerDictionary = this;
-                newEditor.AddedToStage();
+                OnEditorAdded(newEditor);
             }, () =>
             {
-                newEditor.RemovedFromStage();
-                newEditor.OwnerDictionary = null;
-                _outlinerNode.RemoveChild(newEditor.OutlinerNode);
+                OnEditorRemoved(newEditor);
                 _objectEditors.Remove(key);
                 _objects.Remove(key);
             }, affectsDataModel: true);
@@ -119,7 +113,7 @@ public class DefinitionEditorDictionary<TDefinition, TEditor> : IDisposable, IRe
             // Select the editor if necessary
             if (select)
             {
-                _selectionManager.SelectedEditor = newEditor;
+                _selectionManager.SelectedEditors = [newEditor];
             }
         }
 
@@ -134,32 +128,39 @@ public class DefinitionEditorDictionary<TDefinition, TEditor> : IDisposable, IRe
             using (var transactionGroup = _transactionManager.BeginTransactionGroup($"Delete {objectEditor.DisplayName}"))
             {
                 // Deselect the editor if necessary
-                if (_selectionManager.SelectedEditor == foundEditor)
-                {
-                    _selectionManager.SelectedEditor = null;
-                }
+                _selectionManager.TryRemoveSelectedEditor(foundEditor);
 
                 // Remove the object
                 var transaction = new DelegateTransaction($"Delete {objectEditor.DisplayName}", () =>
                 {
-                    foundEditor.RemovedFromStage();
-                    foundEditor.OwnerDictionary = null;
-                    _outlinerNode.RemoveChild(foundEditor.OutlinerNode);
-                    _objectEditors.Remove(objectEditor.Key);
-                    _objects.Remove(objectEditor.Key);
+                    OnEditorRemoved(foundEditor);
+                    _objectEditors.Remove(foundEditor.Key);
+                    _objects.Remove(foundEditor.Key);
                 }, () =>
                 {
                     _objects.Add(objectEditor.Key, definition);
                     _objectEditors.Add(objectEditor.Key, foundEditor);
-                    _outlinerNode.AddChild(foundEditor.OutlinerNode);
-                    foundEditor.OwnerDictionary = this;
-                    foundEditor.AddedToStage();
+                    OnEditorAdded(foundEditor);
                 }, affectsDataModel: true);
                 // If the transaction is permanently done, dispose the editor
                 transaction.AddDisposable(foundEditor, disposeWhenDone: true, disposeWhenUndone: false);
                 _transactionManager.DoTransaction(transaction);
             }
         }
+    }
+
+    protected virtual void OnEditorAdded(TEditor editor)
+    {
+        _outlinerNode.AddChild(editor.OutlinerNode);
+        editor.OwnerDictionary = this;
+        editor.AddedToStage();
+    }
+
+    protected virtual void OnEditorRemoved(TEditor editor)
+    {
+        editor.RemovedFromStage();
+        editor.OwnerDictionary = null;
+        _outlinerNode.RemoveChild(editor.OutlinerNode);
     }
 
     public bool Contains(string key)

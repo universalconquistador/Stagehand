@@ -75,7 +75,7 @@ internal class EditorWindow : Window, IDisposable
         _definition = definition;
         _definitionEditor = new StageDefinitionEditor(_serviceScope.ServiceProvider, definition);
         _outliner.RootNode = _definitionEditor.OutlinerNode;
-        _selectionManager.SelectedEditor = _definitionEditor;
+        _selectionManager.SelectedEditors = [_definitionEditor];
         _transactionManager.ClearHistory();
         _transactionManager.TransactionDone += OnTransactionDoneOrUndone;
         _transactionManager.TransactionUndone += OnTransactionDoneOrUndone;
@@ -418,17 +418,18 @@ internal class EditorWindow : Window, IDisposable
         ImGui.Separator();
 
         // Properties
-        if (_selectionManager.SelectedEditor != null)
+        var primarySelectedEditor = _selectionManager.PrimarySelectedEditor;
+        if (primarySelectedEditor != null)
         {
             ImGuiHelpers.ScaledDummy(1);
-            Utils.ImGuiExtensions.PropertiesHeader(_selectionManager.SelectedEditor.DisplayName, _selectionManager.SelectedEditor.TypeInfo.DisplayName, _selectionManager.SelectedEditor.TypeInfo.Icon, _selectionManager.SelectedEditor.TypeInfo.Description, out _);
+            Utils.ImGuiExtensions.PropertiesHeader(primarySelectedEditor.DisplayName, _selectionManager.SelectedEditors.Count - 1, primarySelectedEditor.TypeInfo.DisplayName, primarySelectedEditor.TypeInfo.Icon, primarySelectedEditor.TypeInfo.Description, out _);
             using (var propertiesPanel = ImRaii.Child("###PropertiesPanel", ImGui.GetContentRegionAvail(), border: false))
             {
                 if (propertiesPanel.Success)
                 {
                     using (ImRaii.ItemWidth(-ImGui.GetContentRegionAvail().X * 0.33f))
                     {
-                        _selectionManager.SelectedEditor.DrawProperties();
+                        primarySelectedEditor.DrawProperties();
                     }
                 }
             }
@@ -439,6 +440,11 @@ internal class EditorWindow : Window, IDisposable
             var textSize = ImGui.CalcTextSize(message);
             ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X / 2.0f - textSize.X / 2.0f);
             ImGui.TextDisabled(message);
+        }
+
+        if (!ImGui.IsMouseDown(ImGuiMouseButton.Left))
+        {
+            _transactionManager.PopAutoReleaseGroups();
         }
     }
 

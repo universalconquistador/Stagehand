@@ -1,13 +1,10 @@
 using Dalamud.Interface;
 using Dalamud.Plugin.Services;
 using Microsoft.Extensions.Logging;
-using Stagehand.Editor.DefinitionEditors;
 using Stagehand.Editor.DefinitionEditors.Objects;
 using Stagehand.Editor.Services;
 using Stagehand.Services;
 using System;
-using System.Collections.Generic;
-using System.Numerics;
 using System.Text;
 
 namespace Stagehand.Editor.Tools;
@@ -15,13 +12,13 @@ namespace Stagehand.Editor.Tools;
 internal class MoveTool : SelectToolBase
 {
     private readonly IOverlayService _overlayService;
-    private readonly ISelectionManager _selectionManager;
+
+    private TransformOperation? _currentOperation = null;
 
     public MoveTool(IViewportInputService viewportInputService, IGameGui gameGui, IEditorHitTestService hitTestService, ISelectionManager selectionManager, ILogger<MoveTool> logger, IOverlayService overlayService)
         : base("Move Tool", "Move objects.", FontAwesomeIcon.ArrowsUpDownLeftRight, sortPriority: 10.0f, viewportInputService, gameGui, hitTestService, selectionManager, logger)
     {
         _overlayService = overlayService;
-        _selectionManager = selectionManager;
     }
 
     public override bool TryActivate()
@@ -33,24 +30,22 @@ internal class MoveTool : SelectToolBase
 
     private void DrawOverlay(IOverlayDrawContext context)
     {
-        if (_selectionManager.SelectedEditor is IObjectDefinitionEditor objectDefinitionEditor)
+        if (SelectionManager.PrimarySelectedEditor is IObjectDefinitionEditor objectDefinitionEditor)
         {
             var translation = objectDefinitionEditor.WorldPosition;
             var rotation = objectDefinitionEditor.WorldRotationQuaternion;
             var scale = objectDefinitionEditor.WorldScale;
             if (context.DrawGizmo("###MoveToolGizmo", ref translation, ref rotation, ref scale, Dalamud.Bindings.ImGuizmo.ImGuizmoOperation.Translate, Dalamud.Bindings.ImGuizmo.ImGuizmoMode.Local))
             {
-                objectDefinitionEditor.WorldPosition = translation;
+                if (_currentOperation == null)
+                {
+                    _currentOperation = new(SelectionManager.SelectedEditors, objectDefinitionEditor);
+                }
+                _currentOperation.SetNewTranslation(translation);
             }
-        }
-        else if (_selectionManager.SelectedEditor is StageDefinitionEditor stageDefinitionEditor)
-        {
-            var translation = stageDefinitionEditor.EditTranslation;
-            var rotation = stageDefinitionEditor.EditRotation;
-            var scale = new Vector3(stageDefinitionEditor.EditUniformScale);
-            if (context.DrawGizmo("###MoveToolGizmo", ref translation, ref rotation, ref scale, Dalamud.Bindings.ImGuizmo.ImGuizmoOperation.Translate, Dalamud.Bindings.ImGuizmo.ImGuizmoMode.Local))
+            else
             {
-                stageDefinitionEditor.EditTranslation = translation;
+                _currentOperation = null;
             }
         }
     }

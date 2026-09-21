@@ -373,7 +373,7 @@ internal partial class AssetLibraryWindow : Window, IAssetLibraryWindow
                 {
                     ImGui.SameLine(0.0f);
                     ImGui.SetCursorPosY(startY);
-                    Utils.ImGuiExtensions.PropertiesHeader(_selectedAssetInfo.DisplayName, _selectedAssetInfo.Type.DisplayName, _selectedAssetInfo.Type.Icon, _selectedAssetInfo.Type.DisplayDescription, out bool isNameHovered);
+                    Utils.ImGuiExtensions.PropertiesHeader(_selectedAssetInfo.DisplayName, 0, _selectedAssetInfo.Type.DisplayName, _selectedAssetInfo.Type.Icon, _selectedAssetInfo.Type.DisplayDescription, out bool isNameHovered);
 
                     if (isNameHovered)
                     {

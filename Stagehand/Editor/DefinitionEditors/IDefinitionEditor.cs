@@ -49,8 +49,6 @@ public interface IDefinitionEditor : IDisposable
 
 public abstract class DefinitionEditorBase : IDefinitionEditor
 {
-    private bool _draggingProperty = false;
-
     protected IServiceProvider ServiceProvider { get; }
     protected ITransactionManager TransactionManager { get; }
 
@@ -69,10 +67,9 @@ public abstract class DefinitionEditorBase : IDefinitionEditor
     {
         // UBER HACK: Dragging a property should be a transaction group! There's not really a great way to detect this right now, so this is what we've got.
         // Really this does not belong here, and even more importantly this is not necessarily called from an ImGui draw or even the right thread!
-        if (ImGui.IsMouseDown(ImGuiMouseButton.Left) && !_draggingProperty && IsSelected)
+        if (ImGui.IsMouseDown(ImGuiMouseButton.Left))
         {
-            _draggingProperty = true;
-            TransactionManager.PushTransactionGroup($"Set {DisplayName}'s {propertyName} to {newValue}");
+            TransactionManager.PushAutoReleaseTransactionGroup($"Set {DisplayName}'s {propertyName} to {newValue}");
         }
 
         TransactionManager.DoTransaction(new SetPropertyTransaction<IDefinitionEditor, TValue>(DisplayName, propertyName ?? string.Empty, this, newValue, oldValue, (@new, old) => setter.Invoke(@new), affectsDataModel));
@@ -81,12 +78,6 @@ public abstract class DefinitionEditorBase : IDefinitionEditor
     public void DrawProperties()
     {
         OnDrawProperties();
-
-        if (!ImGui.IsMouseDown(ImGuiMouseButton.Left) && _draggingProperty)
-        {
-            TransactionManager.PopTransactionGroup(adoptLastTitle: true);
-            _draggingProperty = false;
-        }
     }
 
     protected abstract void OnDrawProperties();
@@ -98,13 +89,6 @@ public abstract class DefinitionEditorBase : IDefinitionEditor
 
     public virtual void Deselected()
     {
-        // UBER HACK: Backstop to make sure if we stop drawing we still end a property drag transaction group
-        if (_draggingProperty)
-        {
-            _draggingProperty = false;
-            TransactionManager.QueueCompletionAction(() => TransactionManager.PopTransactionGroup());
-        }
-
         IsSelected = false;
     }
 

@@ -118,7 +118,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
     /// </summary>
     public DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor> GetNewObjectContainer()
     {
-        var selectedObjectEditor = _selectionManager.SelectedEditor as IObjectDefinitionEditor;
+        var selectedObjectEditor = _selectionManager.PrimarySelectedEditor as IObjectDefinitionEditor;
         if (selectedObjectEditor != null)
         {
             if (selectedObjectEditor.ChildObjects != null)
@@ -168,7 +168,21 @@ public class StageDefinitionEditor : DefinitionEditorBase
 
     private void OnOutlinerNodeClicked(OutlinerNode obj)
     {
-        _selectionManager.SelectedEditor = this;
+        if (ImGui.IsKeyDown(ImGuiKey.ModCtrl))
+        {
+            if (_selectionManager.SelectedEditors.Contains(this))
+            {
+                _selectionManager.TryRemoveSelectedEditor(this);
+            }
+            else
+            {
+                _selectionManager.TryAddSelectedEditor(this);
+            }
+        }
+        else
+        {
+            _selectionManager.SelectedEditors = [this];
+        }
     }
 
     private void Paste()

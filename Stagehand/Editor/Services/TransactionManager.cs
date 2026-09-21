@@ -173,8 +173,8 @@ public class SetPropertyTransaction<TObject, TValue> : TransactionBase
     private TValue _oldValue;
     private readonly Action<TValue, TValue> _internalSetter;
 
-    public SetPropertyTransaction(string? objectName, string propertyName, TObject @object, TValue newValue, TValue oldValue, Action<TValue, TValue> internalSetter, bool affectsDataModel = true)
-        : base($"Set {(objectName != null ? $"{objectName}'s " : "" )}{propertyName} to {newValue}", affectsDataModel)
+    public SetPropertyTransaction(string? objectName, string propertyName, TObject @object, TValue newValue, TValue oldValue, Action<TValue, TValue> internalSetter, bool affectsDataModel = true, Func<TValue, string>? valueToString = null)
+        : base($"Set {(objectName != null ? $"{objectName}'s " : "" )}{propertyName} to {valueToString?.Invoke(newValue) ?? newValue?.ToString() ?? "<null>"}", affectsDataModel)
     {
         _propertyName = propertyName;
         _object = @object;
@@ -260,6 +260,13 @@ public interface ITransactionManager
     void PushTransactionGroup(string title);
 
     /// <summary>
+    /// Begins the creation of a transaction group such that transactions done until a call to
+    /// <see cref="PopAutoReleaseGroups"/> will all be done and undone together under the given title.
+    /// </summary>
+    /// <param name="title">The title of the transaction group.</param>
+    void PushAutoReleaseTransactionGroup(string title);
+
+    /// <summary>
     /// Ends the creation of a transaction group that was begun with <see cref="PushTransactionGroup(string)"/>.
     /// </summary>
     /// <param name="adoptLastTitle">Whether to use the title of the most recently added transaction for this group.</param>
@@ -279,6 +286,11 @@ public interface ITransactionManager
     /// Clears the undo and redo history, disposing the transactions and their disposables.
     /// </summary>
     void ClearHistory();
+
+    /// <summary>
+    /// Pops the groups from the top of the group stack that were created with <see cref="PushAutoReleaseTransactionGroup(string)"/>.
+    /// </summary>
+    void PopAutoReleaseGroups();
 }
 
 // TODO: Threading protections
@@ -290,11 +302,13 @@ internal class TransactionManager : ITransactionManager, IDisposable
 
         public GroupTransaction? OuterGroup { get; }
         public bool HasTransactions => _transactions.Count > 0;
+        public bool AutoPop { get; }
 
-        public GroupTransaction(string title, GroupTransaction? outerGroup)
+        public GroupTransaction(string title, GroupTransaction? outerGroup, bool autoPop)
             : base(title, affectsDataModel: false)
         {
             OuterGroup = outerGroup;
+            AutoPop = autoPop;
 
             // Group transactions aren't explicitly 'done' when they are first created, so we need
             // to mark this as starting out in the done state.
@@ -420,15 +434,25 @@ internal class TransactionManager : ITransactionManager, IDisposable
     {
         ThrowIfInTransaction($"Cannot enter or exit a transaction group '{title}' while doing or undoing a transaction!");
 
-        var newGroupTransaction = new GroupTransaction(title, _currentGroupTransaction);
+        var newGroupTransaction = new GroupTransaction(title, _currentGroupTransaction, autoPop: false);
         _currentGroupTransaction = newGroupTransaction;
     }
 
-    public void PopTransactionGroup(bool adoptLastTitle = false)
+    public void PushAutoReleaseTransactionGroup(string title)
     {
-        ThrowIfInTransaction($"Cannot enter or exit a transaction group '{_currentGroupTransaction?.Title}' while doing or undoing a transaction!");
+        ThrowIfInTransaction($"Cannot enter or exit a transaction group '{title}' while doing or undoing a transaction!");
 
+        if (_currentGroupTransaction == null || !_currentGroupTransaction.AutoPop)
+        {
+            var newGroupTransaction = new GroupTransaction(title, _currentGroupTransaction, autoPop: true);
+            _currentGroupTransaction = newGroupTransaction;
+        }
+    }
+
+    private void InternalPopGroup(bool adoptLastTitle)
+    {
         var group = _currentGroupTransaction;
+
         if (group == null)
         {
             throw new InvalidOperationException("Tried to pop a group but there was no current group!");
@@ -455,6 +479,19 @@ internal class TransactionManager : ITransactionManager, IDisposable
                 group.OuterGroup.AddTransaction(group);
             }
         }
+    }
+
+    public void PopTransactionGroup(bool adoptLastTitle = false)
+    {
+        ThrowIfInTransaction($"Cannot enter or exit a transaction group '{_currentGroupTransaction?.Title}' while doing or undoing a transaction!");
+
+        // Silently pop any auto pop groups to get to the next manual-pop group
+        while (_currentGroupTransaction != null && _currentGroupTransaction.AutoPop)
+        {
+            InternalPopGroup(adoptLastTitle);
+        }
+
+        InternalPopGroup(adoptLastTitle);
     }
 
     public void Undo()
@@ -509,6 +546,16 @@ internal class TransactionManager : ITransactionManager, IDisposable
         }
 
         ClearRedo();
+    }
+
+    public void PopAutoReleaseGroups()
+    {
+        ThrowIfInTransaction($"Cannot enter or exit a transaction group '{_currentGroupTransaction?.Title}' while doing or undoing a transaction!");
+
+        while (_currentGroupTransaction != null && _currentGroupTransaction.AutoPop)
+        {
+            InternalPopGroup(adoptLastTitle: true);
+        }
     }
 
     private void ClearRedo()

@@ -120,7 +120,21 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
 
     private void OnOutlinerNodeClicked(OutlinerNode obj)
     {
-        _selectionManager.SelectedEditor = this;
+        if (ImGui.IsKeyDown(ImGuiKey.ModCtrl))
+        {
+            if (_selectionManager.SelectedEditors.Contains(this))
+            {
+                _selectionManager.TryRemoveSelectedEditor(this);
+            }
+            else
+            {
+                _selectionManager.TryAddSelectedEditor(this);
+            }
+        }
+        else
+        {
+            _selectionManager.SelectedEditors = [this];
+        }
     }
 
     public void SetDisplayName(string displayName)

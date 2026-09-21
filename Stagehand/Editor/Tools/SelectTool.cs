@@ -3,10 +3,12 @@ using Dalamud.Interface;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using Microsoft.Extensions.Logging;
+using Stagehand.Editor.DefinitionEditors;
 using Stagehand.Editor.Services;
 using Stagehand.Services;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Text;
 
@@ -17,10 +19,10 @@ namespace Stagehand.Editor.Tools;
 /// </summary>
 internal class SelectToolBase : EditorToolBase
 {
-    private readonly IGameGui _gameGui;
-    private readonly IEditorHitTestService _hitTestService;
-    private readonly ISelectionManager _selectionManager;
-    private readonly ILogger _logger;
+    protected readonly IGameGui GameGui;
+    protected readonly IEditorHitTestService HitTestService;
+    protected readonly ISelectionManager SelectionManager;
+    protected readonly ILogger Logger;
 
     private bool _isMouseCaptured = false;
     private Vector2 _dragDelta = Vector2.Zero;
@@ -29,10 +31,10 @@ internal class SelectToolBase : EditorToolBase
     public SelectToolBase(string displayName, string description, FontAwesomeIcon icon, float sortPriority, IViewportInputService viewportInputService, IGameGui gameGui, IEditorHitTestService hitTestService, ISelectionManager selectionManager, ILogger<SelectToolBase> logger)
         : base(displayName, description, icon, sortPriority, viewportInputService)
     {
-        _gameGui = gameGui;
-        _hitTestService = hitTestService;
-        _selectionManager = selectionManager;
-        _logger = logger;
+        GameGui = gameGui;
+        HitTestService = hitTestService;
+        SelectionManager = selectionManager;
+        Logger = logger;
     }
 
     public unsafe override bool HandleMouseInput(ref readonly UIInputData inputData)
@@ -44,11 +46,29 @@ internal class SelectToolBase : EditorToolBase
             if (!inputData.UIFilteredCursorInputs.MouseButtonHeldFlags.HasFlag(FFXIVClientStructs.FFXIV.Client.System.Input.MouseButtonFlags.LBUTTON)
                 && !inputData.UIFilteredCursorInputs.MouseButtonHeldFlags.HasFlag(FFXIVClientStructs.FFXIV.Client.System.Input.MouseButtonFlags.RBUTTON))
             {
-                _logger.LogDebug("Mouse is captured but not holding button. Ending capture.");
+                Logger.LogDebug("Mouse is captured but not holding button. Ending capture.");
 
                 if (isClick)
                 {
-                    _selectionManager.SelectedEditor = _dragShape?.Editor;
+                    var editor = _dragShape?.Editor;
+                    if (ImGui.IsKeyDown(ImGuiKey.ModCtrl))
+                    {
+                        if (editor != null)
+                        {
+                            if (SelectionManager.SelectedEditors.Contains(editor))
+                            {
+                                SelectionManager.TryRemoveSelectedEditor(editor);
+                            }
+                            else
+                            {
+                                SelectionManager.TryAddSelectedEditor(editor);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        SelectionManager.SelectedEditors = editor != null ? [editor] : Array.Empty<IDefinitionEditor>();
+                    }
                 }
 
                 _isMouseCaptured = false;
@@ -80,10 +100,10 @@ internal class SelectToolBase : EditorToolBase
 
                 bool bgCollisionHit = FFXIVClientStructs.FFXIV.Common.Component.BGCollision.BGCollisionModule.RaycastMaterialFilter(mouseRay.Origin, mouseRay.Direction, out var bgCollisionHitInfo);
 
-                if (_hitTestService.HitTestShapes(mouseRay.Origin, mouseRay.Direction, out var hitShape, out var hitPosition, out var hitNormal)
+                if (HitTestService.HitTestShapes(mouseRay.Origin, mouseRay.Direction, out var hitShape, out var hitPosition, out var hitNormal)
                     && (!bgCollisionHit || (bgCollisionHitInfo.Point - (Vector3)mouseRay.Origin).LengthSquared() > (hitPosition - (Vector3)mouseRay.Origin).LengthSquared()))
                 {
-                    _logger.LogDebug("Mouse was not captured but button was pressed over bgobject. Starting capture.");
+                    Logger.LogDebug("Mouse was not captured but button was pressed over bgobject. Starting capture.");
                     _isMouseCaptured = true;
                     _dragDelta = Vector2.Zero;
                     _dragShape = hitShape;
@@ -100,7 +120,7 @@ internal class SelectToolBase : EditorToolBase
 
                 bool bgCollisionHit = FFXIVClientStructs.FFXIV.Common.Component.BGCollision.BGCollisionModule.RaycastMaterialFilter(mouseRay.Origin, mouseRay.Direction, out var bgCollisionHitInfo);
 
-                if (_hitTestService.HitTestShapes(mouseRay.Origin, mouseRay.Direction, out var hitShape, out var hitPosition, out var hitNormal)
+                if (HitTestService.HitTestShapes(mouseRay.Origin, mouseRay.Direction, out var hitShape, out var hitPosition, out var hitNormal)
                     && (!bgCollisionHit || (bgCollisionHitInfo.Point - (Vector3)mouseRay.Origin).LengthSquared() > (hitPosition - (Vector3)mouseRay.Origin).LengthSquared()))
                 {
                     // Hovering on an object editor
@@ -111,7 +131,7 @@ internal class SelectToolBase : EditorToolBase
                     // Clicked on something else, deselect all editors
                     if (inputData.UIFilteredCursorInputs.MouseButtonPressedFlags.HasFlag(FFXIVClientStructs.FFXIV.Client.System.Input.MouseButtonFlags.LBUTTON))
                     {
-                        _selectionManager.SelectedEditor = null;
+                        SelectionManager.SelectedEditors = Array.Empty<IDefinitionEditor>();
                     }
 
                     // Missed all the object editors

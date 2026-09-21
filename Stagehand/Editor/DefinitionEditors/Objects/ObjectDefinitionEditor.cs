@@ -23,20 +23,26 @@ using System.Text;
 
 namespace Stagehand.Editor.DefinitionEditors.Objects;
 
+/// <summary>
+/// The different kinds of scaling that an object definition can support.
+/// </summary>
+/// <remarks>
+/// The order here is important, as it is assumed that lower values are more restrictive.
+/// </remarks>
 public enum ObjectScaleMode
 {
     /// <summary>
-    /// The object can be scaled independently along its X, Y, and Z axes.
+    /// The object cannot be scaled at all.
     /// </summary>
-    NonUniform,
+    None,
     /// <summary>
     /// The object can be scaled by a single uniform scale factor, stored in the X component of its scale.
     /// </summary>
     Uniform,
     /// <summary>
-    /// The object cannot be scaled at all.
+    /// The object can be scaled independently along its X, Y, and Z axes.
     /// </summary>
-    None,
+    NonUniform,
 }
 
 /// <summary>
@@ -45,6 +51,8 @@ public enum ObjectScaleMode
 public interface IObjectDefinitionEditor : IChildDefinitionEditor<ObjectDefinition, IObjectDefinitionEditor>
 {
     DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor>? ChildObjects { get; }
+
+    IObjectDefinitionEditor? ParentObject { get; internal set; }
 
     /// <summary>
     /// This object's position in local space.
@@ -80,6 +88,10 @@ public interface IObjectDefinitionEditor : IChildDefinitionEditor<ObjectDefiniti
     /// This object's scale in world space.
     /// </summary>
     Vector3 WorldScale { get; set; }
+
+    Matrix4x4 Transform { get; }
+
+    Matrix4x4 WorldTransform { get; }
 
     ObjectScaleMode ScaleMode { get; }
 
@@ -124,6 +136,30 @@ public static class DefinitionEditorDictionaryExtensions
     }
 }
 
+internal class ObjectDefinitionEditorDictionary : DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor>
+{
+    private readonly IObjectDefinitionEditor _ownerObject;
+
+    public ObjectDefinitionEditorDictionary(IObjectDefinitionEditor ownerObject, Dictionary<string, ObjectDefinition> objects, OutlinerNode outlinerNode, Func<ObjectDefinition, string, IObjectDefinitionEditor> editorFactory,
+    ITransactionManager transactionManager, ISelectionManager selectionManager)
+        : base(objects, outlinerNode, editorFactory, transactionManager, selectionManager)
+    {
+        _ownerObject = ownerObject;
+    }
+
+    protected override void OnEditorAdded(IObjectDefinitionEditor editor)
+    {
+        editor.ParentObject = _ownerObject;
+        base.OnEditorAdded(editor);
+    }
+
+    protected override void OnEditorRemoved(IObjectDefinitionEditor editor)
+    {
+        base.OnEditorRemoved(editor);
+        editor.ParentObject = null;
+    }
+}
+
 internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBase, IObjectDefinitionEditor
     where TDefinition : ObjectDefinition
 {
@@ -137,6 +173,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
     protected IGameResourceAssetService GameResourceAssetService { get; }
     protected IViewportPickerService ViewportPickerService { get; }
 
+    public IObjectDefinitionEditor? ParentObject { get; set; }
     protected TDefinition Definition { get; }
     public string Key { get; }
     public StageDefinitionEditor Stage { get; }
@@ -144,7 +181,8 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
     public ILiveObject? PreviewLiveObject { get; protected set; }
     public bool IsInStage { get; private set; }
 
-    public virtual DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor>? ChildObjects => null;
+    public virtual ObjectDefinitionEditorDictionary? ChildObjects => null;
+    DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor>? IObjectDefinitionEditor.ChildObjects => ChildObjects;
     protected Vector3 ParentTranslation { get; private set; } = Vector3.Zero;
     protected Quaternion ParentRotation { get; private set; } = Quaternion.Identity;
     protected float ParentUniformScale { get; private set; } = 1.0f;
@@ -306,7 +344,21 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
 
     private void OnOutlinerNodeClicked(OutlinerNode obj)
     {
-        SelectionManager.SelectedEditor = this;
+        if (ImGui.IsKeyDown(ImGuiKey.ModCtrl))
+        {
+            if (SelectionManager.SelectedEditors.Contains(this))
+            {
+                SelectionManager.TryRemoveSelectedEditor(this);
+            }
+            else
+            {
+                SelectionManager.TryAddSelectedEditor(this);
+            }
+        }
+        else
+        {
+            SelectionManager.SelectedEditors = [this];
+        }
     }
 
     public void SetDisplayName(string displayName)

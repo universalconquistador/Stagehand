@@ -164,7 +164,7 @@ internal static class ImGuiExtensions
         return result;
     }
 
-    public static void PropertiesHeader(string displayName, string typeDisplayName, FontAwesomeIcon icon, string typeDescription, out bool isDisplayNameHovered, bool spaceAfter = true)
+    public static void PropertiesHeader(string displayName, int additionalSelectionCount, string typeDisplayName, FontAwesomeIcon icon, string typeDescription, out bool isDisplayNameHovered, bool spaceAfter = true)
     {
         ImGui.Indent(2.0f);
         if (icon != FontAwesomeIcon.None)
@@ -177,6 +177,11 @@ internal static class ImGuiExtensions
         ImGui.SameLine();
         ImGui.TextUnformatted(displayName);
         isDisplayNameHovered = ImGui.IsItemHovered();
+        if (additionalSelectionCount > 0)
+        {
+            ImGui.SameLine(0.0f, 0.0f);
+            ImGui.TextDisabled($"  + {additionalSelectionCount}");
+        }
         ImGuiHelpers.ScaledDummy(0.5f);
         ImGui.TextDisabled(typeDisplayName);
 

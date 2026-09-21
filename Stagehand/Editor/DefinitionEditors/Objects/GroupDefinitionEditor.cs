@@ -16,9 +16,9 @@ internal class GroupDefinitionEditor : ObjectDefinitionEditor<GroupDefinition>
 
     public override DefinitionTypeInfo TypeInfo => StaticTypeInfo;
 
-    public DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor> Objects { get; }
+    public ObjectDefinitionEditorDictionary Objects { get; }
 
-    public override DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor>? ChildObjects => Objects;
+    public override ObjectDefinitionEditorDictionary? ChildObjects => Objects;
 
     public override ObjectScaleMode ScaleMode => ObjectScaleMode.Uniform;
     public override bool ShowModpackSelector => false; // Until the projection texture is added
@@ -26,7 +26,7 @@ internal class GroupDefinitionEditor : ObjectDefinitionEditor<GroupDefinition>
     public GroupDefinitionEditor(IServiceProvider serviceProvider, GroupDefinition definition, string key, StageDefinitionEditor stage)
         : base(serviceProvider, definition, key, stage)
     {
-        Objects = new(definition.Objects, OutlinerNode, CreateEditorForObjectDefinition, TransactionManager, SelectionManager);
+        Objects = new(this, definition.Objects, OutlinerNode, CreateEditorForObjectDefinition, TransactionManager, SelectionManager);
     }
 
     private IObjectDefinitionEditor CreateEditorForObjectDefinition(ObjectDefinition objectDefinition, string objectKey)

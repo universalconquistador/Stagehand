@@ -16,15 +16,13 @@ namespace Stagehand.Editor.Tools;
 internal class ScaleTool : SelectToolBase
 {
     private readonly IOverlayService _overlayService;
-    private readonly ISelectionManager _selectionManager;
 
-    private Vector3? _startScale = null;
+    private TransformOperation? _currentOperation = null;
 
     public ScaleTool(IViewportInputService viewportInputService, IGameGui gameGui, IEditorHitTestService hitTestService, ISelectionManager selectionManager, ILogger<ScaleTool> logger, IOverlayService overlayService)
         : base("Scale Tool", "Adjust the size of objects.", FontAwesomeIcon.ExpandAlt, sortPriority: 12.0f, viewportInputService, gameGui, hitTestService, selectionManager, logger)
     {
         _overlayService = overlayService;
-        _selectionManager = selectionManager;
     }
 
     public override bool TryActivate()
@@ -36,36 +34,22 @@ internal class ScaleTool : SelectToolBase
 
     private void DrawOverlay(IOverlayDrawContext context)
     {
-        if (_selectionManager.SelectedEditor is IObjectDefinitionEditor objectDefinitionEditor)
+        if (SelectionManager.PrimarySelectedEditor is IObjectDefinitionEditor objectDefinitionEditor)
         {
             var translation = objectDefinitionEditor.WorldPosition;
             var rotation = objectDefinitionEditor.WorldRotationQuaternion;
             var scale = objectDefinitionEditor.WorldScale;
             if (context.DrawGizmo("###ScaleToolGizmo", ref translation, ref rotation, ref scale, Dalamud.Bindings.ImGuizmo.ImGuizmoOperation.Scale, Dalamud.Bindings.ImGuizmo.ImGuizmoMode.Local))
             {
-                objectDefinitionEditor.WorldScale = scale;
-            }
-        }
-        else if (_selectionManager.SelectedEditor is StageDefinitionEditor stageDefinitionEditor)
-        {
-            var translation = stageDefinitionEditor.EditTranslation;
-            var rotation = stageDefinitionEditor.EditRotation;
-            var scale = new Vector3(stageDefinitionEditor.EditUniformScale);
-            if (context.DrawGizmo("###ScaleToolGizmo", ref translation, ref rotation, ref scale, Dalamud.Bindings.ImGuizmo.ImGuizmoOperation.Scale, Dalamud.Bindings.ImGuizmo.ImGuizmoMode.Local))
-            {
-                if (_startScale == null)
+                if (_currentOperation == null)
                 {
-                    _startScale = new Vector3(stageDefinitionEditor.EditUniformScale);
+                    _currentOperation = new(SelectionManager.SelectedEditors, objectDefinitionEditor);
                 }
-                float delta = Vector3.Dot(scale - _startScale.Value, Vector3.One);
-                stageDefinitionEditor.EditUniformScale = _startScale.Value.X + delta;
+                _currentOperation.SetNewScale(scale);
             }
-            else if (!ImGuizmo.IsUsing())
+            else
             {
-                if (_startScale != null)
-                {
-                    _startScale = null;
-                }
+                _currentOperation = null;
             }
         }
     }
