@@ -10,10 +10,12 @@ using Stagehand.Definitions;
 using Stagehand.Definitions.Objects;
 using Stagehand.Editor.DefinitionEditors.Objects;
 using Stagehand.Editor.Services;
+using Stagehand.Live;
 using Stagehand.Services;
 using Stagehand.Utils;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Text;
 
@@ -36,6 +38,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
     public OutlinerNode OutlinerNode { get; }
     public DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor> Objects { get; }
     public DefinitionEditorDictionary<EmbeddedModpackDefinition, EmbeddedModpackDefinitionEditor> EmbeddedModpacks { get; }
+    public IReadOnlyDictionary<string, ILiveModpack> PreviewModpacks => new Dictionary<string, ILiveModpack>(EmbeddedModpacks.Select(pair => new KeyValuePair<string, ILiveModpack>(pair.Key, pair.Value.PreviewLiveModpack!)));
     public bool IsDisposing { get; private set; } = false;
 
     public string Name
@@ -110,6 +113,27 @@ public class StageDefinitionEditor : DefinitionEditorBase
         _stagehandKeybinds.EditorPasteObject.Pressed += Paste;
     }
 
+    /// <summary>
+    /// Gets the containing dictionary to add newly created objects to.
+    /// </summary>
+    public DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor> GetNewObjectContainer()
+    {
+        var selectedObjectEditor = _selectionManager.SelectedEditor as IObjectDefinitionEditor;
+        if (selectedObjectEditor != null)
+        {
+            if (selectedObjectEditor.ChildObjects != null)
+            {
+                return selectedObjectEditor.ChildObjects;
+            }
+            else if (selectedObjectEditor.OwnerDictionary != null)
+            {
+                return selectedObjectEditor.OwnerDictionary;
+            }
+        }
+
+        return Objects;
+    }
+
     private IEnumerable<OutlinerContextMenuItem> GenerateContextMenuItems()
     {
         yield return new KeybindOutlinerContextMenuItem(_stagehandKeybinds.EditorPasteObject, _ => Paste());
@@ -153,7 +177,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
         {
             using (TransactionManager.BeginTransactionGroup($"Paste {objectDefinitionFragment.ObjectDefinition.DisplayName}"))
             {
-                Objects.Add(objectDefinitionFragment.ObjectDefinition);
+                GetNewObjectContainer().Add(objectDefinitionFragment.ObjectDefinition);
             }
         }
     }
@@ -276,7 +300,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
         return new EmbeddedModpackDefinitionEditor(ServiceProvider, definition, this, key);
     }
 
-    private IObjectDefinitionEditor CreateEditorForObjectDefinition(ObjectDefinition objectDefinition, string objectKey)
+    public IObjectDefinitionEditor CreateEditorForObjectDefinition(ObjectDefinition objectDefinition, string objectKey)
     {
         var factoryParams = new ObjectDefinitionEditorFactoryParams()
         {
@@ -296,6 +320,11 @@ public class StageDefinitionEditor : DefinitionEditorBase
         public static IObjectDefinitionEditor VisitBgObjectDefinition(BgObjectDefinition definition, ref ObjectDefinitionEditorFactoryParams param)
         {
             return new BgObjectDefinitionEditor(param.ServiceProvider, definition, param.Key, param.Stage);
+        }
+
+        public static IObjectDefinitionEditor VisitGroupDefinition(GroupDefinition definition, ref ObjectDefinitionEditorFactoryParams param)
+        {
+            return new GroupDefinitionEditor(param.ServiceProvider, definition, param.Key, param.Stage);
         }
 
         public static IObjectDefinitionEditor VisitLightDefinition(LightDefinition definition, ref ObjectDefinitionEditorFactoryParams param)

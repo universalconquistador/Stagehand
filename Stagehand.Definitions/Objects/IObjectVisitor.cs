@@ -55,4 +55,12 @@ public interface IObjectVisitor<TParam, TResult>
     /// <param name="param">The parameter passed to the visitor.</param>
     /// <returns>The result of visiting the sound object definition.</returns>
     static abstract TResult VisitSoundObjectDefinition(SoundObjectDefinition definition, ref TParam param);
+
+    /// <summary>
+    /// Visits a <see cref="GroupDefinition"/>.
+    /// </summary>
+    /// <param name="definition">The group definition to visit.</param>
+    /// <param name="param">The parameter passed to the visitor.</param>
+    /// <returns>The result of visiting the group definition.</returns>
+    static abstract TResult VisitGroupDefinition(GroupDefinition definition, ref TParam param);
 }

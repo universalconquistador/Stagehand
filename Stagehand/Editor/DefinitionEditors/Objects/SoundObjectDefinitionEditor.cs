@@ -85,6 +85,16 @@ internal class SoundObjectDefinitionEditor : ObjectDefinitionEditor<SoundObjectD
         _hitTestSphere.Sphere = _hitTestSphere.Sphere with { CenterPoint = WorldPosition };
     }
 
+    public override bool TryGetOrientedBounds(out FFXIVClientStructs.FFXIV.Common.Math.OrientedBounds orientedBounds)
+    {
+        orientedBounds = new()
+        {
+            Transform = WorldTransformNoScale,
+            HalfExtents = new(HitTestRadius * 0.5f),
+        };
+        return true;
+    }
+
     public override void RemovedFromStage()
     {
         _hitTestService.RemoveShape(_hitTestSphere);

@@ -53,6 +53,7 @@ public class KeybindOutlinerContextMenuItem : OutlinerContextMenuItem
 public class OutlinerNode
 {
     private readonly string _uniqueId;
+    public string UniqueId => _uniqueId;
     private string _displayName;
     public string DisplayName
     {

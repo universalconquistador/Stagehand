@@ -76,11 +76,20 @@ public interface ILiveObjectService
     ILiveObject? CreateSound(string soundGamePath, int soundIndex, float volume, float fadeInDuration, float speed, bool isPositional, Vector3 position, ILiveModpack? modpack);
 
     /// <summary>
+    /// Creates a new live group object that contains the objects in the given group definition.
+    /// </summary>
+    /// <param name="transform">The world-space transform of the new group.</param>
+    /// <param name="modpacks">The modpacks available to the group and its descendants.</param>
+    /// <param name="definition">The group definition that specifies the child objects.</param>
+    /// <returns>The new live group object.</returns>
+    ILiveObject? CreateGroup(Matrix4x4 transform, IReadOnlyDictionary<string, ILiveModpack> modpacks, GroupDefinition definition);
+
+    /// <summary>
     /// Creates a new live object according to the given object definition.
     /// </summary>
     /// <param name="definition">The object definition specifying the object to create.</param>
     /// <returns>The new live object, or null if it could not be created.</returns>
-    ILiveObject? CreateObject(ObjectDefinition definition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, ILiveModpack? modpack);
+    ILiveObject? CreateObject(ObjectDefinition definition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, IReadOnlyDictionary<string, ILiveModpack> modpacks);
 
     /// <summary>
     /// Updates the given live object with the given new definition, or disposes and creates a new live object if the new
@@ -90,7 +99,7 @@ public interface ILiveObjectService
     /// <param name="newDefinition">The object definition to apply.</param>
     /// <returns>Either the given live object if it was successfully created, a new live object if the given one was
     /// not compatible and destroyed, or null if a new live object could not be created.</returns>
-    ILiveObject? UpdateOrRecreateObject(ILiveObject obj, ObjectDefinition newDefinition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, ILiveModpack? modpack);
+    ILiveObject? UpdateOrRecreateObject(ILiveObject obj, ObjectDefinition newDefinition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, IReadOnlyDictionary<string, ILiveModpack> modpacks);
 }
 
 internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposable
@@ -318,12 +327,17 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
         }
     }
 
+    public ILiveObject? CreateGroup(Matrix4x4 transform, IReadOnlyDictionary<string, ILiveModpack> modpacks, GroupDefinition definition)
+    {
+        return new LiveGroup(transform, this, modpacks, definition);
+    }
+
     public void Dispose()
     {
         // TODO: Emergency cleanup of any leftover live objects
     }
 
-    public ILiveObject? CreateObject(ObjectDefinition definition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, ILiveModpack? modpack)
+    public ILiveObject? CreateObject(ObjectDefinition definition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, IReadOnlyDictionary<string, ILiveModpack> modpacks)
     {
         if (!definition.IsDisabled)
         {
@@ -333,7 +347,7 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
                 ParentTranslation = parentTranslation,
                 ParentRotation = parentRotation,
                 ParentUniformScale = parentUniformScale,
-                Modpack = modpack,
+                Modpacks = modpacks,
             };
             return definition.Visit<LiveObjectFactory, LiveObjectFactoryParams, ILiveObject?>(ref factoryParams);
         }
@@ -343,19 +357,19 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
         }
     }
 
-    public ILiveObject? UpdateOrRecreateObject(ILiveObject obj, ObjectDefinition newDefinition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, ILiveModpack? modpack)
+    public ILiveObject? UpdateOrRecreateObject(ILiveObject obj, ObjectDefinition newDefinition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, IReadOnlyDictionary<string, ILiveModpack> modpacks)
     {
         ILiveObject? result = obj;
-        if (!obj.TryUpdate(newDefinition, parentTranslation, parentRotation, parentUniformScale, modpack))
+        if (!obj.TryUpdate(newDefinition, parentTranslation, parentRotation, parentUniformScale, modpacks))
         {
             obj.Dispose();
-            result = CreateObject(newDefinition, parentTranslation, parentRotation, parentUniformScale, modpack);
+            result = CreateObject(newDefinition, parentTranslation, parentRotation, parentUniformScale, modpacks);
         }
 
         return result;
     }
 
-    private record struct LiveObjectFactoryParams(ILiveObjectService LiveObjectService, Vector3 ParentTranslation, Quaternion ParentRotation, float ParentUniformScale, ILiveModpack? Modpack);
+    private record struct LiveObjectFactoryParams(ILiveObjectService LiveObjectService, Vector3 ParentTranslation, Quaternion ParentRotation, float ParentUniformScale, IReadOnlyDictionary<string, ILiveModpack> Modpacks);
 
     private sealed class LiveObjectFactory : IObjectVisitor<LiveObjectFactoryParams, ILiveObject?>
     {
@@ -366,18 +380,33 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
             var scale = definition.Scale;
             LiveObject.ApplyParentTransform(ref position, ref rotation, ref scale, param.ParentTranslation, param.ParentRotation, param.ParentUniformScale);
 
-            var bgObject = param.LiveObjectService.CreateBgObject(definition.ModelGamePath, position, rotation, scale, param.Modpack);
-            bool updated = bgObject?.TryUpdate(definition, param.ParentTranslation, param.ParentRotation, param.ParentUniformScale, param.Modpack) ?? false;
+            ILiveModpack? modpack = definition.ModpackId != "" ? param.Modpacks.GetValueOrDefault(definition.ModpackId) : null;
+            var bgObject = param.LiveObjectService.CreateBgObject(definition.ModelGamePath, position, rotation, scale, modpack);
+            bool updated = bgObject?.TryUpdate(definition, param.ParentTranslation, param.ParentRotation, param.ParentUniformScale, param.Modpacks) ?? false;
             // If TryUpdate had to create a new object, that's a dev problem. The creation above should produce a bgobject that can be updated to the given
             // definition without needing to be recreated.
             Debug.Assert(updated);
             return bgObject;
         }
 
+        public static ILiveObject? VisitGroupDefinition(GroupDefinition definition, ref LiveObjectFactoryParams param)
+        {
+            var position = definition.Position;
+            var rotation = definition.RotationQuaternion;
+            var scale = definition.Scale;
+            LiveObject.ApplyParentTransform(ref position, ref rotation, ref scale, param.ParentTranslation, param.ParentRotation, param.ParentUniformScale);
+            
+            var worldTransform = Matrix4x4.CreateScale(scale) * Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(position);
+
+            var group = param.LiveObjectService.CreateGroup(worldTransform, param.Modpacks, definition);
+            return group;
+        }
+
         public static ILiveObject? VisitLightDefinition(LightDefinition definition, ref LiveObjectFactoryParams param)
         {
-            var light = param.LiveObjectService.CreateLight(definition.Shape switch { LightShape.Ambient => RenderLightShape.WorldLight, LightShape.Point => RenderLightShape.PointLight, LightShape.Spot => RenderLightShape.SpotLight, LightShape.Flat => RenderLightShape.FlatLight, _ => RenderLightShape.PointLight }, param.Modpack);
-            bool updated = light?.TryUpdate(definition, param.ParentTranslation, param.ParentRotation, param.ParentUniformScale, param.Modpack) ?? false;
+            ILiveModpack? modpack = definition.ModpackId != "" ? param.Modpacks.GetValueOrDefault(definition.ModpackId) : null;
+            var light = param.LiveObjectService.CreateLight(definition.Shape switch { LightShape.Ambient => RenderLightShape.WorldLight, LightShape.Point => RenderLightShape.PointLight, LightShape.Spot => RenderLightShape.SpotLight, LightShape.Flat => RenderLightShape.FlatLight, _ => RenderLightShape.PointLight }, modpack);
+            bool updated = light?.TryUpdate(definition, param.ParentTranslation, param.ParentRotation, param.ParentUniformScale, param.Modpacks) ?? false;
             // If TryUpdate had to create a new object, that's a dev problem. The creation above should produce a light that can be updated to the given
             // definition without needing to be recreated.
             Debug.Assert(updated);
@@ -390,9 +419,10 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
             var rotation = definition.RotationQuaternion;
             var scale = definition.Scale;
             LiveObject.ApplyParentTransform(ref position, ref rotation, ref scale, param.ParentTranslation, param.ParentRotation, param.ParentUniformScale);
-            
-            var sound = param.LiveObjectService.CreateSound(definition.SoundGamePath, definition.SoundIndex, definition.Volume, definition.FadeInDurationSeconds, definition.Speed, definition.IsPositional, position, param.Modpack);
-            //sound?.TryUpdate(definition, param.Modpack);
+
+            ILiveModpack? modpack = definition.ModpackId != "" ? param.Modpacks.GetValueOrDefault(definition.ModpackId) : null;
+            var sound = param.LiveObjectService.CreateSound(definition.SoundGamePath, definition.SoundIndex, definition.Volume, definition.FadeInDurationSeconds, definition.Speed, definition.IsPositional, position, modpack);
+            //sound?.TryUpdate(definition, param.Modpacks);
             return sound;
         }
 
@@ -402,9 +432,10 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
             var rotation = definition.RotationQuaternion;
             var scale = definition.Scale;
             LiveObject.ApplyParentTransform(ref position, ref rotation, ref scale, param.ParentTranslation, param.ParentRotation, param.ParentUniformScale);
-            
-            var vfxObject = param.LiveObjectService.CreateVfx(definition.VfxGamePath, position, rotation, scale, definition.Color, param.Modpack);
-            //vfxObject?.TryUpdate(definition, param.Modpack);
+
+            ILiveModpack? modpack = definition.ModpackId != "" ? param.Modpacks.GetValueOrDefault(definition.ModpackId) : null;
+            var vfxObject = param.LiveObjectService.CreateVfx(definition.VfxGamePath, position, rotation, scale, definition.Color, modpack);
+            //vfxObject?.TryUpdate(definition, param.Modpacks);
             return vfxObject;
         }
 
@@ -414,9 +445,10 @@ internal unsafe partial class LiveObjectService : ILiveObjectService, IDisposabl
             var rotation = definition.RotationQuaternion;
             var scale = definition.Scale;
             LiveObject.ApplyParentTransform(ref position, ref rotation, ref scale, param.ParentTranslation, param.ParentRotation, param.ParentUniformScale);
-            
-            var weaponObject = param.LiveObjectService.CreateWeapon((ushort)definition.ModelSetId, (ushort)definition.SecondaryId, (ushort)definition.Variant, (byte)definition.PrimaryDye, (byte)definition.SecondaryDye, position, rotation, scale, param.Modpack);
-            //weaponObject?.TryUpdate(definition, param.Modpack);
+
+            ILiveModpack? modpack = definition.ModpackId != "" ? param.Modpacks.GetValueOrDefault(definition.ModpackId) : null;
+            var weaponObject = param.LiveObjectService.CreateWeapon((ushort)definition.ModelSetId, (ushort)definition.SecondaryId, (ushort)definition.Variant, (byte)definition.PrimaryDye, (byte)definition.SecondaryDye, position, rotation, scale, modpack);
+            //weaponObject?.TryUpdate(definition, param.Modpacks);
             return weaponObject;
         }
     }

@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Stagehand.Definitions;
 using Stagehand.Definitions.ModResources;
 using Stagehand.Definitions.Objects;
+using Stagehand.Editor.DefinitionEditors.Objects;
 using Stagehand.Editor.Services;
 using Stagehand.Live;
 using Stagehand.Services;
@@ -29,7 +30,7 @@ using UniCon.PenumbraMeta.Groups;
 
 namespace Stagehand.Editor.DefinitionEditors;
 
-public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefinitionEditor
+public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefinitionEditor<EmbeddedModpackDefinition, EmbeddedModpackDefinitionEditor>
 {
     public static readonly DefinitionTypeInfo StaticTypeInfo = new DefinitionTypeInfo("Embedded Modpack", "A collection of game files to modify.", FontAwesomeIcon.Archive);
 
@@ -75,6 +76,8 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
         get => Definition.PenumbraSourceModVersion;
         set => SetPropertyValue(value => Definition.PenumbraSourceModVersion = value, value, Definition.PenumbraSourceModVersion);
     }
+
+    public DefinitionEditorDictionary<EmbeddedModpackDefinition, EmbeddedModpackDefinitionEditor>? OwnerDictionary { get; set; }
 
     public EmbeddedModpackDefinitionEditor(IServiceProvider serviceProvider, EmbeddedModpackDefinition definition, StageDefinitionEditor stage, string key)
         : base(serviceProvider)
@@ -144,7 +147,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
         using (var transactionGroup = TransactionManager.BeginTransactionGroup($"Delete {DisplayName}"))
         {
             // Clear out any object definition references to this modpack
-            foreach (var objectEditor in Stage.Objects.Values)
+            foreach (var objectEditor in Stage.Objects.GetValuesAndDescendants())
             {
                 if (objectEditor.ModpackId == Key)
                 {
@@ -292,7 +295,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
                                     newDefinition.ModpackId = Key;
                                     newDefinition.Position = (_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.Transform(Vector3.UnitZ, rotation) * 2.0f;
                                     newDefinition.RotationQuaternion = rotation;
-                                    Stage.Objects.Add(newDefinition);
+                                    Stage.GetNewObjectContainer().Add(newDefinition);
                                 }
                             }
                             if (ImGui.IsItemHovered())
@@ -1270,11 +1273,11 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
         // that could possibly need their previews refreshed.
         if (Stage.Objects != null)
         {
-            foreach (var obj in Stage.Objects)
+            foreach (var obj in Stage.Objects.GetValuesAndDescendants())
             {
-                if (obj.Value.ModpackId == Key)
+                if (obj.ModpackId == Key)
                 {
-                    obj.Value.RefreshPreviewObject();
+                    obj.RefreshPreviewObject();
                 }
             }
         }

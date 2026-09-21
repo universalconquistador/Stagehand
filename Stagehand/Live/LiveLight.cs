@@ -94,14 +94,15 @@ internal sealed unsafe class LiveLight : LiveDrawObject
         base.Dispose();
     }
 
-    public override bool TryUpdate(ObjectDefinition definition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, ILiveModpack? modpack)
+    public override bool TryUpdate(ObjectDefinition definition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, IReadOnlyDictionary<string, ILiveModpack> modpacks)
     {
         if (definition.IsDisabled)
         {
             return false;
         }
-        
+
         // If we are adding or removing a modpack or making a material change to the modpack, we can't update in place
+        ILiveModpack? modpack = definition.ModpackId != "" ? modpacks.GetValueOrDefault(definition.ModpackId) : null;
         if ((modpack == null) != (Modpack == null)
             || (Modpack != null && modpack != null && Modpack.EffectsHash != modpack.EffectsHash))
         {

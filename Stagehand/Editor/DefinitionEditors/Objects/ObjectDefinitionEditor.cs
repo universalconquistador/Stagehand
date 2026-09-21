@@ -23,11 +23,29 @@ using System.Text;
 
 namespace Stagehand.Editor.DefinitionEditors.Objects;
 
+public enum ObjectScaleMode
+{
+    /// <summary>
+    /// The object can be scaled independently along its X, Y, and Z axes.
+    /// </summary>
+    NonUniform,
+    /// <summary>
+    /// The object can be scaled by a single uniform scale factor, stored in the X component of its scale.
+    /// </summary>
+    Uniform,
+    /// <summary>
+    /// The object cannot be scaled at all.
+    /// </summary>
+    None,
+}
+
 /// <summary>
 /// A definition editor that edits an object definition.
 /// </summary>
-public interface IObjectDefinitionEditor : IChildDefinitionEditor
+public interface IObjectDefinitionEditor : IChildDefinitionEditor<ObjectDefinition, IObjectDefinitionEditor>
 {
+    DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor>? ChildObjects { get; }
+
     /// <summary>
     /// This object's position in local space.
     /// </summary>
@@ -63,11 +81,47 @@ public interface IObjectDefinitionEditor : IChildDefinitionEditor
     /// </summary>
     Vector3 WorldScale { get; set; }
 
+    ObjectScaleMode ScaleMode { get; }
+
     string ModpackId { get; set; }
+
+    ILiveObject? PreviewLiveObject { get; }
 
     void SetParentTransform(Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale);
 
     void RefreshPreviewObject();
+
+    bool TryGetOrientedBounds(out FFXIVClientStructs.FFXIV.Common.Math.OrientedBounds orientedBounds);
+}
+
+public static class DefinitionEditorDictionaryExtensions
+{
+    public static IEnumerable<IObjectDefinitionEditor> GetValuesAndDescendants(this DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor> dictionary)
+    {
+        IEnumerable<IObjectDefinitionEditor> recurse(IObjectDefinitionEditor editor)
+        {
+            if (editor.ChildObjects != null)
+            {
+                foreach (var child in editor.ChildObjects)
+                {
+                    yield return child.Value;
+                    foreach (var childDescendants in recurse(child.Value))
+                    {
+                        yield return childDescendants;
+                    }
+                }
+            }
+        }
+
+        foreach (var topLevelEditor in dictionary)
+        {
+            yield return topLevelEditor.Value;
+            foreach (var topLevelDescendant in recurse(topLevelEditor.Value))
+            {
+                yield return topLevelDescendant;
+            }
+        }
+    }
 }
 
 internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBase, IObjectDefinitionEditor
@@ -90,11 +144,15 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
     public ILiveObject? PreviewLiveObject { get; protected set; }
     public bool IsInStage { get; private set; }
 
+    public virtual DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor>? ChildObjects => null;
     protected Vector3 ParentTranslation { get; private set; } = Vector3.Zero;
     protected Quaternion ParentRotation { get; private set; } = Quaternion.Identity;
     protected float ParentUniformScale { get; private set; } = 1.0f;
     protected Matrix4x4 ParentToWorldMatrix { get; private set; } = Matrix4x4.Identity;
     protected Matrix4x4 WorldToParentMatrix { get; private set; } = Matrix4x4.Identity;
+
+    public virtual ObjectScaleMode ScaleMode => ObjectScaleMode.NonUniform;
+    public virtual bool ShowModpackSelector => true;
 
     public override string DisplayName => Definition.DisplayName;
 
@@ -157,6 +215,8 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         get => Definition.ModpackId;
         set => SetPropertyValue(SetModpackIdInternal, value, Definition.ModpackId);
     }
+
+    public DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor>? OwnerDictionary { get; set; } = null;
 
     protected virtual void SetIsDisabledInternal(bool isDisabled)
     {
@@ -260,6 +320,12 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         OutlinerNode.DisplayName = displayName;
     }
 
+    public virtual bool TryGetOrientedBounds(out FFXIVClientStructs.FFXIV.Common.Math.OrientedBounds orientedBounds)
+    {
+        orientedBounds = default;
+        return PreviewLiveObject?.TryGetOrientedBounds(out orientedBounds) ?? false;
+    }
+
     protected override void OnDrawProperties()
     {
         string displayName = DisplayName;
@@ -279,20 +345,23 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
                 modpackPreview = "(Invalid)";
             }
         }
-        using (var modpackCombo = ImRaii.Combo("Modpack", modpackPreview))
+        if (ShowModpackSelector)
         {
-            if (modpackCombo)
+            using (var modpackCombo = ImRaii.Combo("Modpack", modpackPreview))
             {
-                if (ImGui.Selectable("(None)", ModpackId == string.Empty))
+                if (modpackCombo)
                 {
-                    ModpackId = string.Empty;
-                }
-
-                foreach (var modpack in Stage.EmbeddedModpacks.OrderBy(pair => pair.Value.DisplayName))
-                {
-                    if (ImGui.Selectable(modpack.Value.DisplayName, ModpackId == modpack.Key))
+                    if (ImGui.Selectable("(None)", ModpackId == string.Empty))
                     {
-                        ModpackId = modpack.Key;
+                        ModpackId = string.Empty;
+                    }
+
+                    foreach (var modpack in Stage.EmbeddedModpacks.OrderBy(pair => pair.Value.DisplayName))
+                    {
+                        if (ImGui.Selectable(modpack.Value.DisplayName, ModpackId == modpack.Key))
+                        {
+                            ModpackId = modpack.Key;
+                        }
                     }
                 }
             }
@@ -312,10 +381,21 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
             RotationPitchYawRollDegrees = rotation;
         }
 
-        Vector3 scale = Scale;
-        if (ImGui.DragFloat3("Scale", ref scale, vSpeed: 0.1f))
+        if (ScaleMode == ObjectScaleMode.NonUniform)
         {
-            Scale = scale;
+            Vector3 scale = Scale;
+            if (ImGui.DragFloat3("Scale", ref scale, vSpeed: 0.01f))
+            {
+                Scale = scale;
+            }
+        }
+        else if (ScaleMode == ObjectScaleMode.Uniform)
+        {
+            float scale = Scale.X;
+            if (ImGui.DragFloat("Scale", ref scale, vSpeed: 0.01f))
+            {
+                Scale = new(scale);
+            }
         }
 
         ImGuiHelpers.ScaledDummy(4.0f);
@@ -472,10 +552,14 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
 
     private void Cut()
     {
-        using (TransactionManager.BeginTransactionGroup($"Cut {DisplayName}"))
+        var owner = OwnerDictionary;
+        if (owner != null)
         {
-            TransactionManager.DoTransaction(new DelegateTransaction("Copy", Copy, () => { }, affectsDataModel: false));
-            Stage.Objects.Remove(this);
+            using (TransactionManager.BeginTransactionGroup($"Cut {DisplayName}"))
+            {
+                TransactionManager.DoTransaction(new DelegateTransaction("Copy", Copy, () => { }, affectsDataModel: false));
+                owner.Remove(this);
+            }
         }
     }
 
@@ -503,18 +587,26 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
 
     private void Duplicate()
     {
-        var clonedDefinition = Definition.Clone();
-        using (TransactionManager.BeginTransactionGroup($"Duplicate {DisplayName}"))
+        var owner = OwnerDictionary;
+        if (owner != null)
         {
-            Stage.Objects.Add(clonedDefinition);
+            var clonedDefinition = Definition.Clone();
+            using (TransactionManager.BeginTransactionGroup($"Duplicate {DisplayName}"))
+            {
+                owner.Add(clonedDefinition);
+            }
         }
     }
 
     private void Delete()
     {
-        using (TransactionManager.BeginTransactionGroup($"Delete {DisplayName}"))
+        var owner = OwnerDictionary;
+        if (owner != null)
         {
-            Stage.Objects.Remove(this);
+            using (TransactionManager.BeginTransactionGroup($"Delete {DisplayName}"))
+            {
+                owner.Remove(this);
+            }
         }
     }
 
@@ -571,7 +663,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
 
     public virtual void RefreshPreviewObject()
     {
-        PreviewLiveObject = PreviewLiveObject != null ? LiveObjectService.UpdateOrRecreateObject(PreviewLiveObject, Definition, ParentTranslation, ParentRotation, ParentUniformScale, GetPreviewModpack()) : LiveObjectService.CreateObject(Definition, ParentTranslation, ParentRotation, ParentUniformScale, GetPreviewModpack());
+        PreviewLiveObject = PreviewLiveObject != null ? LiveObjectService.UpdateOrRecreateObject(PreviewLiveObject, Definition, ParentTranslation, ParentRotation, ParentUniformScale, Stage.PreviewModpacks) : LiveObjectService.CreateObject(Definition, ParentTranslation, ParentRotation, ParentUniformScale, Stage.PreviewModpacks);
     }
 
     protected ILiveModpack? GetPreviewModpack()

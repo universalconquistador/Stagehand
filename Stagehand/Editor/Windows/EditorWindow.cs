@@ -101,7 +101,7 @@ internal class EditorWindow : Window, IDisposable
 
     private void OnAssetLibraryCreateObject(ObjectDefinition newObjectDefinition)
     {
-        _definitionEditor.Objects.Add(newObjectDefinition);
+        _definitionEditor.GetNewObjectContainer().Add(newObjectDefinition);
     }
 
     private void OnAutosaveTimerElapsed(object? _)
@@ -328,9 +328,13 @@ internal class EditorWindow : Window, IDisposable
                 {
                     DisplayName = "New Modpack",
                 });
+                DrawCreateMenuItem(GroupDefinitionEditor.StaticTypeInfo, GroupDefinitionEditor.StaticTypeInfo.DisplayName, _definitionEditor.Objects, () => new GroupDefinition()
+                {
+                    DisplayName = $"New {GroupDefinitionEditor.StaticTypeInfo.DisplayName}",
+                });
                 ImGui.Separator();
 
-                DrawCreateMenuItem(BgObjectDefinitionEditor.StaticTypeInfo, BgObjectDefinitionEditor.StaticTypeInfo.DisplayName, _definitionEditor.Objects, () => new BgObjectDefinition()
+                DrawCreateMenuItem(BgObjectDefinitionEditor.StaticTypeInfo, BgObjectDefinitionEditor.StaticTypeInfo.DisplayName, _definitionEditor.GetNewObjectContainer(), () => new BgObjectDefinition()
                 {
                     DisplayName = $"New {BgObjectDefinitionEditor.StaticTypeInfo.DisplayName}",
                     ModelGamePath = "bgcommon/world/aet/001/bgparts/w_aet_001_04a.mdl",
@@ -341,38 +345,38 @@ internal class EditorWindow : Window, IDisposable
                     Matrix4x4.Decompose(matrix, out var scale, out var rotation, out var translation);
                     return Quaternion.Inverse(rotation) * Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI);
                 }
-                DrawCreateMenuItem(VfxObjectDefinitionEditor.StaticTypeInfo, VfxObjectDefinitionEditor.StaticTypeInfo.DisplayName, _definitionEditor.Objects, () => new VfxObjectDefinition()
+                DrawCreateMenuItem(VfxObjectDefinitionEditor.StaticTypeInfo, VfxObjectDefinitionEditor.StaticTypeInfo.DisplayName, _definitionEditor.GetNewObjectContainer(), () => new VfxObjectDefinition()
                 {
                     DisplayName = $"New {VfxObjectDefinitionEditor.StaticTypeInfo.DisplayName}",
                     VfxGamePath = "bgcommon/world/common/vfx_for_event/eff/b0150_eext_y.avfx",
                     Position = (_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.UnitY
                 });
-                DrawCreateMenuItem(WeaponDefinitionEditor.StaticTypeInfo, WeaponDefinitionEditor.StaticTypeInfo.DisplayName, _definitionEditor.Objects, () => new WeaponDefinition()
+                DrawCreateMenuItem(WeaponDefinitionEditor.StaticTypeInfo, WeaponDefinitionEditor.StaticTypeInfo.DisplayName, _definitionEditor.GetNewObjectContainer(), () => new WeaponDefinition()
                 {
                     DisplayName = $"New {WeaponDefinitionEditor.StaticTypeInfo.DisplayName}",
                     Position = (_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.UnitY
                 });
                 ImGui.Separator();
-                DrawCreateMenuItem(LightDefinitionEditor.StaticTypeInfo, "Ambient Light", _definitionEditor.Objects, () => new LightDefinition()
+                DrawCreateMenuItem(LightDefinitionEditor.StaticTypeInfo, "Ambient Light", _definitionEditor.GetNewObjectContainer(), () => new LightDefinition()
                 {
                     DisplayName = $"New Ambient Light",
                     Position = (CameraManager.Instance()->CurrentCamera->Position),
                     Shape = LightShape.Ambient,
                 });
-                DrawCreateMenuItem(LightDefinitionEditor.StaticTypeInfo, "Point Light", _definitionEditor.Objects, () => new LightDefinition()
+                DrawCreateMenuItem(LightDefinitionEditor.StaticTypeInfo, "Point Light", _definitionEditor.GetNewObjectContainer(), () => new LightDefinition()
                 {
                     DisplayName = $"New Point Light",
                     Position = (CameraManager.Instance()->CurrentCamera->Position),
                     Shape = LightShape.Point,
                 });
-                DrawCreateMenuItem(LightDefinitionEditor.StaticTypeInfo, "Spot Light", _definitionEditor.Objects, () => new LightDefinition()
+                DrawCreateMenuItem(LightDefinitionEditor.StaticTypeInfo, "Spot Light", _definitionEditor.GetNewObjectContainer(), () => new LightDefinition()
                 {
                     DisplayName = $"New Spot Light",
                     Position = (CameraManager.Instance()->CurrentCamera->Position),
                     RotationQuaternion = GetCameraQuaternion(CameraManager.Instance()->CurrentCamera->ViewMatrix),
                     Shape = LightShape.Spot,
                 });
-                DrawCreateMenuItem(LightDefinitionEditor.StaticTypeInfo, "Flat Light", _definitionEditor.Objects, () => new LightDefinition()
+                DrawCreateMenuItem(LightDefinitionEditor.StaticTypeInfo, "Flat Light", _definitionEditor.GetNewObjectContainer(), () => new LightDefinition()
                 {
                     DisplayName = $"New Flat Light",
                     Position = (CameraManager.Instance()->CurrentCamera->Position),
@@ -380,7 +384,7 @@ internal class EditorWindow : Window, IDisposable
                     Shape = LightShape.Flat,
                 });
                 ImGui.Separator();
-                DrawCreateMenuItem(SoundObjectDefinitionEditor.StaticTypeInfo, SoundObjectDefinitionEditor.StaticTypeInfo.DisplayName, _definitionEditor.Objects, () => new SoundObjectDefinition()
+                DrawCreateMenuItem(SoundObjectDefinitionEditor.StaticTypeInfo, SoundObjectDefinitionEditor.StaticTypeInfo.DisplayName, _definitionEditor.GetNewObjectContainer(), () => new SoundObjectDefinition()
                 {
                     DisplayName = $"New {SoundObjectDefinitionEditor.StaticTypeInfo.DisplayName}",
                     SoundGamePath = "bgcommon/sound/hou/hou_spot_fall_small_new.scd",
@@ -439,7 +443,7 @@ internal class EditorWindow : Window, IDisposable
     }
 
     private void DrawCreateMenuItem<TDefinition, TEditor>(DefinitionTypeInfo typeInfo, string typeName, DefinitionEditorDictionary<TDefinition, TEditor> collection, Func<TDefinition> newObjectFactory)
-        where TEditor : class, IChildDefinitionEditor
+        where TEditor : class, IChildDefinitionEditor<TDefinition, TEditor>
     {
         bool selected;
         using (ImRaii.PushFont(UiBuilder.IconFont))
@@ -495,7 +499,7 @@ internal class EditorWindow : Window, IDisposable
         ImRaii.TreeNodeDisposable treeNode;
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
-            treeNode = ImRaii.TreeNode($"{node.Icon.ToIconString()}###{node.DisplayName}", flags);
+            treeNode = ImRaii.TreeNode($"{node.Icon.ToIconString()}###{node.UniqueId}", flags);
         }
         using (treeNode)
         {
@@ -584,7 +588,7 @@ internal class EditorWindow : Window, IDisposable
                 var children = node.ChildNodes.ToArray();
                 foreach (var child in children)
                 {
-                    using (ImRaii.PushId($"Child{i}-{child.DisplayName}"))
+                    using (ImRaii.PushId($"Child{i}-{child.UniqueId}"))
                     {
                         DrawOutlinerNode(child, originalItemSpacing);
                         i += 1;

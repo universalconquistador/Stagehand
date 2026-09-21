@@ -3,6 +3,7 @@ using Stagehand.Definitions.Objects;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Text;
 using System.Threading;
@@ -28,6 +29,11 @@ public class LiveStage : IDisposable
         _liveObjectService = liveObjectService;
         _resourceRedirectionService = resourceRedirectionService;
         Update(definition, translation, rotation, uniformScale);
+    }
+
+    public bool TryGetLiveModpack(string modpackId, [NotNullWhen(true)] out ILiveModpack? modpack)
+    {
+        return _liveModpacks.TryGetValue(modpackId, out modpack);
     }
 
     public void Update(StageDefinition newDefinition, Vector3 translation, Quaternion rotation, float uniformScale)
@@ -84,7 +90,7 @@ public class LiveStage : IDisposable
                 }
                 if (_liveObjects.TryGetValue(newObject.Key, out var existingObject))
                 {
-                    var obj = _liveObjectService.UpdateOrRecreateObject(existingObject, newObject.Value, translation, rotation, uniformScale, newModpack);
+                    var obj = _liveObjectService.UpdateOrRecreateObject(existingObject, newObject.Value, translation, rotation, uniformScale, _liveModpacks);
                     if (obj != null)
                     {
                         _liveObjects[newObject.Key] = obj;
@@ -96,7 +102,7 @@ public class LiveStage : IDisposable
                 }
                 else
                 {
-                    var obj = _liveObjectService.CreateObject(newObject.Value, translation, rotation, uniformScale, newModpack);
+                    var obj = _liveObjectService.CreateObject(newObject.Value, translation, rotation, uniformScale, _liveModpacks);
                     if (obj != null)
                     {
                         _liveObjects.Add(newObject.Key, obj);

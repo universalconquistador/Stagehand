@@ -205,3 +205,11 @@ Later down the road:
  - Adds Penumbra mod import! Once you have created a new Embedded Modpack from the Create menu in the stage editor, you can head over to the Penumbra Import tab.
     - Use the mod selector to choose which mod to import, and then choose which of the mod's options to use. Once you have the settings all how you want them, click the Import button at the bottom and that's it!
     - Embedded Modpacks now show the Penumbra mod and version that was last imported into each modpack, and this information is saved in the stage file. This should make it easy to update your stage if a mod creator releases a new version of a Penumbra mod.
+
+## 0.4.16
+
+ - Adds Groups! A group object is a container of child objects that can be moved, rotated, and scaled together.
+ - Groups can only be scaled uniformly, not along individual axes, because things can get real wonky (i.e. introduce shear in a way that can't be represented ingame) if you non-uniformly scale a group that has a child that is rotated off-axis.
+ - Creating or pasting an object adds it to the currently selected group (if any), or to the stage otherwise.
+ - The modpack property is now hidden for light and group objects as modpacks have no effect on them (for now).
+ - Until drag & drop and multiselect are implemented, cut & paste are the best ways to get objects into groups. I know this isn't ideal, but it will get better in the future.

@@ -1,3 +1,4 @@
+using Dalamud.Interface;
 using Stagehand.Definitions.Objects;
 using Stagehand.Editor.DefinitionEditors.Objects;
 using Stagehand.Editor.Services;
@@ -36,12 +37,23 @@ public interface IChildDefinitionEditor : IDefinitionEditor
 }
 
 /// <summary>
+/// An editor that is a child in a <see cref="DefinitionEditorDictionary{TDefinition, TEditor}"/>.
+/// </summary>
+/// <typeparam name="TCollectionItemDefinition">The base definition type of the owning dictionary.</typeparam>
+/// <typeparam name="TCollectionItemEditor">The base editor type of the owning dictionary.</typeparam>
+public interface IChildDefinitionEditor<TCollectionItemDefinition, TCollectionItemEditor> : IChildDefinitionEditor
+    where TCollectionItemEditor : class, IChildDefinitionEditor<TCollectionItemDefinition, TCollectionItemEditor>
+{
+    DefinitionEditorDictionary<TCollectionItemDefinition, TCollectionItemEditor>? OwnerDictionary { get; set; }
+}
+
+/// <summary>
 /// Wraps a definition's dictionary of child definitions in a dictionary of corresponding child editors.
 /// </summary>
 /// <typeparam name="TDefinition"></typeparam>
 /// <typeparam name="TEditor"></typeparam>
 public class DefinitionEditorDictionary<TDefinition, TEditor> : IDisposable, IReadOnlyDictionary<string, TEditor>
-    where TEditor : class, IChildDefinitionEditor
+    where TEditor : class, IChildDefinitionEditor<TDefinition, TEditor>
 {
     private readonly ITransactionManager _transactionManager;
     private readonly ISelectionManager _selectionManager;
@@ -72,6 +84,7 @@ public class DefinitionEditorDictionary<TDefinition, TEditor> : IDisposable, IRe
             var newEditor = _editorFactory.Invoke(objectDefinitionPair.Value, objectDefinitionPair.Key);
             _objectEditors[objectDefinitionPair.Key] = newEditor;
             _outlinerNode.AddChild(newEditor.OutlinerNode);
+            newEditor.OwnerDictionary = this;
             newEditor.AddedToStage();
         }
     }
@@ -89,10 +102,12 @@ public class DefinitionEditorDictionary<TDefinition, TEditor> : IDisposable, IRe
                 _objects.Add(key, newObject);
                 _objectEditors.Add(key, newEditor);
                 _outlinerNode.AddChild(newEditor.OutlinerNode);
+                newEditor.OwnerDictionary = this;
                 newEditor.AddedToStage();
             }, () =>
             {
                 newEditor.RemovedFromStage();
+                newEditor.OwnerDictionary = null;
                 _outlinerNode.RemoveChild(newEditor.OutlinerNode);
                 _objectEditors.Remove(key);
                 _objects.Remove(key);
@@ -128,6 +143,7 @@ public class DefinitionEditorDictionary<TDefinition, TEditor> : IDisposable, IRe
                 var transaction = new DelegateTransaction($"Delete {objectEditor.DisplayName}", () =>
                 {
                     foundEditor.RemovedFromStage();
+                    foundEditor.OwnerDictionary = null;
                     _outlinerNode.RemoveChild(foundEditor.OutlinerNode);
                     _objectEditors.Remove(objectEditor.Key);
                     _objects.Remove(objectEditor.Key);
@@ -136,6 +152,7 @@ public class DefinitionEditorDictionary<TDefinition, TEditor> : IDisposable, IRe
                     _objects.Add(objectEditor.Key, definition);
                     _objectEditors.Add(objectEditor.Key, foundEditor);
                     _outlinerNode.AddChild(foundEditor.OutlinerNode);
+                    foundEditor.OwnerDictionary = this;
                     foundEditor.AddedToStage();
                 }, affectsDataModel: true);
                 // If the transaction is permanently done, dispose the editor

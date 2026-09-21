@@ -95,7 +95,7 @@ internal sealed unsafe class LiveSoundObject : ILiveObject
         return false;
     }
 
-    public bool TryUpdate(ObjectDefinition definition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, ILiveModpack? modpack)
+    public bool TryUpdate(ObjectDefinition definition, Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale, IReadOnlyDictionary<string, ILiveModpack> modpacks)
     {
         if (definition.IsDisabled)
         {
@@ -103,6 +103,7 @@ internal sealed unsafe class LiveSoundObject : ILiveObject
         }
 
         // If we are adding or removing a modpack or making a material change to the modpack, we can't update in place
+        ILiveModpack? modpack = definition.ModpackId != "" ? modpacks.GetValueOrDefault(definition.ModpackId) : null;
         if ((modpack == null) != (Modpack == null)
             || (Modpack != null && modpack != null && Modpack.EffectsHash != modpack.EffectsHash))
         {

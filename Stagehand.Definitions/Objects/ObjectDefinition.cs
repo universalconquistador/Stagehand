@@ -16,6 +16,7 @@ namespace Stagehand.Definitions.Objects;
 [JsonDerivedType(typeof(VfxObjectDefinition), typeDiscriminator: "VfxObject")]
 [JsonDerivedType(typeof(WeaponDefinition), typeDiscriminator: "Weapon")]
 [JsonDerivedType(typeof(SoundObjectDefinition), typeDiscriminator: "Sound")]
+[JsonDerivedType(typeof(GroupDefinition), typeDiscriminator: "Group")]
 public abstract class ObjectDefinition
 {
     /// <summary>

@@ -22,6 +22,8 @@ internal class LightDefinitionEditor : ObjectDefinitionEditor<LightDefinition>
 
     public override DefinitionTypeInfo TypeInfo => StaticTypeInfo;
 
+    public override bool ShowModpackSelector => false; // Until the projection texture is added
+
     private readonly IEditorHitTestService _hitTestService;
     private readonly EditorHitTestSphere _hitTestSphere;
 
@@ -150,6 +152,16 @@ internal class LightDefinitionEditor : ObjectDefinitionEditor<LightDefinition>
     {
         base.SetParentTransform(parentTranslation, parentRotation, parentUniformScale);
         _hitTestSphere.Sphere = _hitTestSphere.Sphere with { CenterPoint = WorldPosition };
+    }
+
+    public override bool TryGetOrientedBounds(out FFXIVClientStructs.FFXIV.Common.Math.OrientedBounds orientedBounds)
+    {
+        orientedBounds = new()
+        {
+            Transform = WorldTransformNoScale,
+            HalfExtents = new(HitTestRadius * 0.5f),
+        };
+        return true;
     }
 
     public override void RemovedFromStage()
