@@ -101,7 +101,13 @@ internal class EditorWindow : Window, IDisposable
 
     private void OnAssetLibraryCreateObject(ObjectDefinition newObjectDefinition)
     {
-        _definitionEditor.GetNewObjectContainer().Add(newObjectDefinition);
+        var worldPosition = newObjectDefinition.Position;
+        var worldRotation = newObjectDefinition.RotationQuaternion;
+        var worldScale = newObjectDefinition.Scale;
+        var newEditor = _definitionEditor.GetNewObjectContainer().Add(newObjectDefinition);
+        newEditor.WorldPosition = worldPosition;
+        newEditor.WorldRotationQuaternion = worldRotation;
+        newEditor.WorldScale = worldScale;
     }
 
     private void OnAutosaveTimerElapsed(object? _)
@@ -339,6 +345,11 @@ internal class EditorWindow : Window, IDisposable
                     DisplayName = $"New {BgObjectDefinitionEditor.StaticTypeInfo.DisplayName}",
                     ModelGamePath = "bgcommon/world/aet/001/bgparts/w_aet_001_04a.mdl",
                     Position = (_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.UnitY
+                }, fixup: editor =>
+                {
+                    editor.WorldPosition = editor.Position;
+                    editor.WorldRotationQuaternion = editor.RotationQuaternion;
+                    editor.WorldScale = editor.Scale;
                 });
                 static Quaternion GetCameraQuaternion(Matrix4x4 matrix)
                 {
@@ -350,11 +361,21 @@ internal class EditorWindow : Window, IDisposable
                     DisplayName = $"New {VfxObjectDefinitionEditor.StaticTypeInfo.DisplayName}",
                     VfxGamePath = "bgcommon/world/common/vfx_for_event/eff/b0150_eext_y.avfx",
                     Position = (_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.UnitY
+                }, fixup: editor =>
+                {
+                    editor.WorldPosition = editor.Position;
+                    editor.WorldRotationQuaternion = editor.RotationQuaternion;
+                    editor.WorldScale = editor.Scale;
                 });
                 DrawCreateMenuItem(WeaponDefinitionEditor.StaticTypeInfo, WeaponDefinitionEditor.StaticTypeInfo.DisplayName, _definitionEditor.GetNewObjectContainer(), () => new WeaponDefinition()
                 {
                     DisplayName = $"New {WeaponDefinitionEditor.StaticTypeInfo.DisplayName}",
                     Position = (_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.UnitY
+                }, fixup: editor =>
+                {
+                    editor.WorldPosition = editor.Position;
+                    editor.WorldRotationQuaternion = editor.RotationQuaternion;
+                    editor.WorldScale = editor.Scale;
                 });
                 ImGui.Separator();
                 DrawCreateMenuItem(LightDefinitionEditor.StaticTypeInfo, "Ambient Light", _definitionEditor.GetNewObjectContainer(), () => new LightDefinition()
@@ -362,12 +383,22 @@ internal class EditorWindow : Window, IDisposable
                     DisplayName = $"New Ambient Light",
                     Position = (CameraManager.Instance()->CurrentCamera->Position),
                     Shape = LightShape.Ambient,
+                }, fixup: editor =>
+                {
+                    editor.WorldPosition = editor.Position;
+                    editor.WorldRotationQuaternion = editor.RotationQuaternion;
+                    editor.WorldScale = editor.Scale;
                 });
                 DrawCreateMenuItem(LightDefinitionEditor.StaticTypeInfo, "Point Light", _definitionEditor.GetNewObjectContainer(), () => new LightDefinition()
                 {
                     DisplayName = $"New Point Light",
                     Position = (CameraManager.Instance()->CurrentCamera->Position),
                     Shape = LightShape.Point,
+                }, fixup: editor =>
+                {
+                    editor.WorldPosition = editor.Position;
+                    editor.WorldRotationQuaternion = editor.RotationQuaternion;
+                    editor.WorldScale = editor.Scale;
                 });
                 DrawCreateMenuItem(LightDefinitionEditor.StaticTypeInfo, "Spot Light", _definitionEditor.GetNewObjectContainer(), () => new LightDefinition()
                 {
@@ -375,6 +406,11 @@ internal class EditorWindow : Window, IDisposable
                     Position = (CameraManager.Instance()->CurrentCamera->Position),
                     RotationQuaternion = GetCameraQuaternion(CameraManager.Instance()->CurrentCamera->ViewMatrix),
                     Shape = LightShape.Spot,
+                }, fixup: editor =>
+                {
+                    editor.WorldPosition = editor.Position;
+                    editor.WorldRotationQuaternion = editor.RotationQuaternion;
+                    editor.WorldScale = editor.Scale;
                 });
                 DrawCreateMenuItem(LightDefinitionEditor.StaticTypeInfo, "Flat Light", _definitionEditor.GetNewObjectContainer(), () => new LightDefinition()
                 {
@@ -382,6 +418,11 @@ internal class EditorWindow : Window, IDisposable
                     Position = (CameraManager.Instance()->CurrentCamera->Position),
                     RotationQuaternion = GetCameraQuaternion(CameraManager.Instance()->CurrentCamera->ViewMatrix),
                     Shape = LightShape.Flat,
+                }, fixup: editor =>
+                {
+                    editor.WorldPosition = editor.Position;
+                    editor.WorldRotationQuaternion = editor.RotationQuaternion;
+                    editor.WorldScale = editor.Scale;
                 });
                 ImGui.Separator();
                 DrawCreateMenuItem(SoundObjectDefinitionEditor.StaticTypeInfo, SoundObjectDefinitionEditor.StaticTypeInfo.DisplayName, _definitionEditor.GetNewObjectContainer(), () => new SoundObjectDefinition()
@@ -389,6 +430,11 @@ internal class EditorWindow : Window, IDisposable
                     DisplayName = $"New {SoundObjectDefinitionEditor.StaticTypeInfo.DisplayName}",
                     SoundGamePath = "bgcommon/sound/hou/hou_spot_fall_small_new.scd",
                     Position = (_objectTable.LocalPlayer?.Position ?? Vector3.Zero) + Vector3.UnitY
+                }, fixup: editor =>
+                {
+                    editor.WorldPosition = editor.Position;
+                    editor.WorldRotationQuaternion = editor.RotationQuaternion;
+                    editor.WorldScale = editor.Scale;
                 });
             }
         }
@@ -448,7 +494,7 @@ internal class EditorWindow : Window, IDisposable
         }
     }
 
-    private void DrawCreateMenuItem<TDefinition, TEditor>(DefinitionTypeInfo typeInfo, string typeName, DefinitionEditorDictionary<TDefinition, TEditor> collection, Func<TDefinition> newObjectFactory)
+    private void DrawCreateMenuItem<TDefinition, TEditor>(DefinitionTypeInfo typeInfo, string typeName, DefinitionEditorDictionary<TDefinition, TEditor> collection, Func<TDefinition> newObjectFactory, Action<TEditor>? fixup = null)
         where TEditor : class, IChildDefinitionEditor<TDefinition, TEditor>
     {
         bool selected;
@@ -471,7 +517,8 @@ internal class EditorWindow : Window, IDisposable
         if (selected)
         {
             var newObject = newObjectFactory.Invoke();
-            collection.Add(newObject);
+            var newEditor = collection.Add(newObject);
+            fixup?.Invoke(newEditor);
         }
     }
 
