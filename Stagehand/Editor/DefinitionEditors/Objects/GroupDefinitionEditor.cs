@@ -108,19 +108,13 @@ internal class GroupDefinitionEditor : ObjectDefinitionEditor<GroupDefinition>
     public override void AddedToStage()
     {
         base.AddedToStage();
-        foreach (var objectEditor in Objects)
-        {
-            objectEditor.Value.AddedToStage();
-        }
+        Objects.AddedToStage();
     }
 
     public override void RemovedFromStage()
     {
+        Objects.RemovedFromStage();
         base.RemovedFromStage();
-        foreach (var objectEditor in Objects)
-        {
-            objectEditor.Value.RemovedFromStage();
-        }
     }
 
     public override bool TryGetOrientedBounds(out FFXIVClientStructs.FFXIV.Common.Math.OrientedBounds orientedBounds)

@@ -5,6 +5,7 @@ using Stagehand.Editor.Services;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
@@ -94,6 +95,8 @@ public class DefinitionEditorDictionary<TDefinition, TEditor> : IDisposable, IRe
     public int Count => _objectEditors.Count;
     public TEditor this[string key] => _objectEditors[key];
 
+    public bool IsInStage { get; private set; } = false;
+
     public DefinitionEditorDictionary(Dictionary<string, TDefinition> objects, OutlinerNode outlinerNode, Func<TDefinition, string, TEditor> editorFactory,
         ITransactionManager transactionManager, ISelectionManager selectionManager)
     {
@@ -182,16 +185,23 @@ public class DefinitionEditorDictionary<TDefinition, TEditor> : IDisposable, IRe
 
     protected virtual void OnEditorAdded(TEditor editor)
     {
-        _outlinerNode.AddChild(editor.OutlinerNode);
         editor.OwnerDictionary = this;
-        editor.AddedToStage();
+
+        if (IsInStage)
+        {
+            _outlinerNode.AddChild(editor.OutlinerNode);
+            editor.AddedToStage();
+        }
     }
 
     protected virtual void OnEditorRemoved(TEditor editor)
     {
-        editor.RemovedFromStage();
+        if (IsInStage)
+        {
+            editor.RemovedFromStage();
+            _outlinerNode.RemoveChild(editor.OutlinerNode);
+        }
         editor.OwnerDictionary = null;
-        _outlinerNode.RemoveChild(editor.OutlinerNode);
     }
 
     public bool Contains(string key)
@@ -199,13 +209,38 @@ public class DefinitionEditorDictionary<TDefinition, TEditor> : IDisposable, IRe
         return _objectEditors.ContainsKey(key);
     }
 
+    public void AddedToStage()
+    {
+        Debug.Assert(!IsInStage);
+        IsInStage = true;
+        foreach (var child in Values)
+        {
+            child.AddedToStage();
+            _outlinerNode.AddChild(child.OutlinerNode);
+        }
+    }
+
+    public void RemovedFromStage()
+    {
+        Debug.Assert(IsInStage);
+        IsInStage = false;
+        foreach (var child in Values)
+        {
+            _outlinerNode.RemoveChild(child.OutlinerNode);
+            child.RemovedFromStage();
+        }
+    }
+
     public void Dispose()
     {
         foreach (var obj in _objectEditors)
         {
-            obj.Value.RemovedFromStage();
+            if (IsInStage)
+            {
+                obj.Value.RemovedFromStage();
+                _outlinerNode.RemoveChild(obj.Value.OutlinerNode);
+            }
             obj.Value.Dispose();
-            _outlinerNode.RemoveChild(obj.Value.OutlinerNode);
         }
         _objectEditors.Clear();
     }

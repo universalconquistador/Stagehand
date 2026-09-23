@@ -108,7 +108,9 @@ public class StageDefinitionEditor : DefinitionEditorBase
         // NOTE: We need to load the modpacks before the objects because the objects need to be able to find the modpacks when creating their live preview objects.
         // Maybe not the most theoretically elegant, but does the job.
         EmbeddedModpacks = new(definition.EmbeddedModpacks, OutlinerNode, CreateEditorForEmbeddedModpackDefinition, TransactionManager, _selectionManager);
+        EmbeddedModpacks.AddedToStage();
         Objects = new ObjectDefinitionEditorDictionary(null, definition.Objects, OutlinerNode, CreateEditorForObjectDefinition, TransactionManager, _selectionManager);
+        Objects.AddedToStage();
 
         _stagehandKeybinds.EditorCutObject.Pressed += CutSelectedDefinitions;
         _stagehandKeybinds.EditorCopyObject.Pressed += CopySelectedDefinitions;
@@ -540,8 +542,10 @@ public class StageDefinitionEditor : DefinitionEditorBase
         _stagehandKeybinds.EditorUngroupObjects.Pressed -= UngroupSelectedObjects;
         _stagehandKeybinds.EditorCenterGroupPivots.Pressed -= CenterSelectedGroupPivots;
 
-        EmbeddedModpacks.Dispose();
+        Objects.RemovedFromStage();
         Objects.Dispose();
+        EmbeddedModpacks.RemovedFromStage();
+        EmbeddedModpacks.Dispose();
 
         base.Dispose();
     }
