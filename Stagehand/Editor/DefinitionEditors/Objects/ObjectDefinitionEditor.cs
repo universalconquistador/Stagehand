@@ -685,7 +685,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
 
     protected virtual Vector4 ComputeOverlayColor()
     {
-        return IsSelected ? new Vector4(0.4f, 1.0f, 0.7f, 1.0f) : new Vector4(1.0f, 1.0f, 1.0f, 0.45f);
+        return SelectionManager.PrimarySelectedEditor == this ? new Vector4(0.4f, 1.0f, 0.7f, 1.0f) : IsSelected ? new Vector4(0.9f, 0.9f, 0.9f, 1.0f) : new Vector4(1.0f, 1.0f, 1.0f, 0.45f);
     }
 
     public override void Deselected()
