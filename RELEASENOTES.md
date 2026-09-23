@@ -206,10 +206,19 @@ Later down the road:
     - Use the mod selector to choose which mod to import, and then choose which of the mod's options to use. Once you have the settings all how you want them, click the Import button at the bottom and that's it!
     - Embedded Modpacks now show the Penumbra mod and version that was last imported into each modpack, and this information is saved in the stage file. This should make it easy to update your stage if a mod creator releases a new version of a Penumbra mod.
 
-## 0.4.16
+## 0.5.0
 
+ - Adds multi-select! Hold the Ctrl key while clicking objects in the outliner or in the world to add them to your selection or remove them if they are already selected.
+   - The most recently selected object is considered the 'primary' selected object and is given a green outline in the world, whereas the rest of the selected objects use a white outline.
+     The primary selected object will be the parent of new objects if it is a group (or the sibling of new objects otherwise), and it will also determine where the move, rotate, and scale gizmos appear.
+   - The Delete, Cut, Copy, and Duplicate commands have been updated to handle multi-select.
+   - Unfortunately editing object properties in the property pane still only applies to the primary selected object. Multi-editing would be very cool, but it is a lower priority to me than some other things that I need to get done.
  - Adds Groups! A group object is a container of child objects that can be moved, rotated, and scaled together.
- - Groups can only be scaled uniformly, not along individual axes, because things can get real wonky (i.e. introduce shear in a way that can't be represented ingame) if you non-uniformly scale a group that has a child that is rotated off-axis.
- - Creating or pasting an object adds it to the currently selected group (if any), or to the stage otherwise.
- - The modpack property is now hidden for light and group objects as modpacks have no effect on them (for now).
- - Until drag & drop and multiselect are implemented, cut & paste are the best ways to get objects into groups. I know this isn't ideal, but it will get better in the future.
+   - Use the Group Objects command (Ctrl+G) to create a new group that contains your selection, or use the Create menu to create an empty group.
+   - Use the Ungroup Objects command (Ctrl+Shift+G) to dissolve the selected groups, keeping the objects inside them.
+   - Use the Center Group Pivots command (no default keybind) on a group to move its center point to the middle of its objects. This is useful if you move the child objects far away and the group's center point becomes unwieldly.
+   - Groups can only be scaled uniformly, not along individual axes, because things can get real wonky if you non-uniformly scale a group that has a child that is rotated off-axis (i.e. introduce shear in a way that can't be represented ingame).
+   - You can cut & paste objects to move them into groups, or you can select objects and use the Group command. In the future I want to add drag & drop in the outliner, which will improve this experience.
+   - Hiding a group also hides all the objects inside it.
+ - The 'Modpack' property is now hidden for light and group objects as modpacks have no effect on them (for now).
+ - Adds a file format version property to stage definitions so that Stagehand and other tools can alert you when you try to work with files newer than they can understand.
