@@ -36,6 +36,15 @@ internal class GroupDefinitionEditor : ObjectDefinitionEditor<GroupDefinition>
         return result;
     }
 
+    public override void UpdateIsEnabled()
+    {
+        base.UpdateIsEnabled();
+        foreach (var child in Objects)
+        {
+            child.Value.UpdateIsEnabled();
+        }
+    }
+
     private void PropagateTransform(IObjectDefinitionEditor childEditor)
     {
         childEditor.SetParentTransform(WorldPosition, WorldRotationQuaternion, WorldScale.X);

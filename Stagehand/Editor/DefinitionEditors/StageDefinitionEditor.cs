@@ -108,7 +108,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
         // NOTE: We need to load the modpacks before the object because the objects need to be able to find the modpacks when creating their live preview objects.
         // Maybe not the most theoretically elegant, but does the job.
         EmbeddedModpacks = new(definition.EmbeddedModpacks, OutlinerNode, CreateEditorForEmbeddedModpackDefinition, TransactionManager, _selectionManager);
-        Objects = new(definition.Objects, OutlinerNode, CreateEditorForObjectDefinition, TransactionManager, _selectionManager);
+        Objects = new ObjectDefinitionEditorDictionary(null, definition.Objects, OutlinerNode, CreateEditorForObjectDefinition, TransactionManager, _selectionManager);
 
         _stagehandKeybinds.EditorCutObject.Pressed += CutSelectedDefinitions;
         _stagehandKeybinds.EditorCopyObject.Pressed += CopySelectedDefinitions;

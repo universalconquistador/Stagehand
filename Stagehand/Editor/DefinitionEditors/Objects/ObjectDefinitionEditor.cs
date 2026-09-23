@@ -55,7 +55,15 @@ public interface IObjectDefinitionEditor : IChildDefinitionEditor<ObjectDefiniti
 
     IObjectDefinitionEditor? ParentObject { get; internal set; }
 
+    /// <summary>
+    /// Whether this object should be skipped when displaying the stage.
+    /// </summary>
     bool IsDisabled { get; set; }
+
+    /// <summary>
+    /// Whether neither this object nor any of its parent objects are disabled.
+    /// </summary>
+    bool IsEnabled { get; }
 
     /// <summary>
     /// This object's position in local space.
@@ -103,6 +111,8 @@ public interface IObjectDefinitionEditor : IChildDefinitionEditor<ObjectDefiniti
     ILiveObject? PreviewLiveObject { get; }
 
     void SetParentTransform(Vector3 parentTranslation, Quaternion parentRotation, float parentUniformScale);
+
+    void UpdateIsEnabled();
 
     void RefreshPreviewObject();
 
@@ -156,13 +166,19 @@ public static class DefinitionEditorDictionaryExtensions
 
 internal class ObjectDefinitionEditorDictionary : DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor>
 {
-    private readonly IObjectDefinitionEditor _ownerObject;
+    private readonly IObjectDefinitionEditor? _ownerObject;
 
-    public ObjectDefinitionEditorDictionary(IObjectDefinitionEditor ownerObject, Dictionary<string, ObjectDefinition> objects, OutlinerNode outlinerNode, Func<ObjectDefinition, string, IObjectDefinitionEditor> editorFactory,
+    public ObjectDefinitionEditorDictionary(IObjectDefinitionEditor? ownerObject, Dictionary<string, ObjectDefinition> objects, OutlinerNode outlinerNode, Func<ObjectDefinition, string, IObjectDefinitionEditor> editorFactory,
     ITransactionManager transactionManager, ISelectionManager selectionManager)
         : base(objects, outlinerNode, editorFactory, transactionManager, selectionManager)
     {
         _ownerObject = ownerObject;
+
+        // Our override to `OnEditorAdded` is ignored by the base class constructor because base ctors can't see overridden methods
+        foreach (var editor in Values)
+        {
+            editor.ParentObject = _ownerObject;
+        }
     }
 
     protected override void OnEditorAdded(IObjectDefinitionEditor editor)
@@ -211,6 +227,8 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
     public virtual bool ShowModpackSelector => true;
 
     public override string DisplayName => Definition.DisplayName;
+
+    public bool IsEnabled { get; private set; } = true;
 
     public bool IsDisabled
     {
@@ -278,6 +296,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
     {
         Definition.IsDisabled = isDisabled;
         OutlinerNode.IsVisible = !isDisabled;
+        UpdateIsEnabled();
     }
 
     protected virtual void SetPositionInternal(Vector3 position)
@@ -322,6 +341,12 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
             WorldToParentMatrix = Matrix4x4.Identity;
         }
 
+        RefreshPreviewObject();
+    }
+
+    public virtual void UpdateIsEnabled()
+    {
+        IsEnabled = (ParentObject?.IsEnabled ?? true) && !IsDisabled;
         RefreshPreviewObject();
     }
 
@@ -675,11 +700,21 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         RefreshPreviewObject();
         OverlayService.DrawOverlays += DrawOverlays;
         IsInStage = true;
+        UpdateIsEnabled();
     }
 
     public virtual void RefreshPreviewObject()
     {
-        PreviewLiveObject = PreviewLiveObject != null ? LiveObjectService.UpdateOrRecreateObject(PreviewLiveObject, Definition, ParentTranslation, ParentRotation, ParentUniformScale, Stage.PreviewModpacks) : LiveObjectService.CreateObject(Definition, ParentTranslation, ParentRotation, ParentUniformScale, Stage.PreviewModpacks);
+        if (IsEnabled)
+        {
+            PreviewLiveObject = PreviewLiveObject != null ? LiveObjectService.UpdateOrRecreateObject(PreviewLiveObject, Definition, ParentTranslation, ParentRotation, ParentUniformScale, Stage.PreviewModpacks) : LiveObjectService.CreateObject(Definition, ParentTranslation, ParentRotation, ParentUniformScale, Stage.PreviewModpacks);
+        }
+        else
+        {
+            var preview = PreviewLiveObject;
+            PreviewLiveObject = null;
+            preview?.Dispose();
+        }
     }
 
     protected ILiveModpack? GetPreviewModpack()
