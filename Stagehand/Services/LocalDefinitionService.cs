@@ -75,6 +75,11 @@ public interface ILocalDefinitionMetadata
     DateTimeOffset LastModified { get; }
 
     /// <summary>
+    /// The version of the stage definition file format that this definition was loaded from.
+    /// </summary>
+    int DefinitionFileFormatVersion { get; }
+
+    /// <summary>
     /// The conditions for automatically showing the local definition.
     /// </summary>
     IReadOnlyList<AutomaticShowCondition> AutomaticShowConditions { get; }
@@ -198,12 +203,14 @@ public class LocalDefinitionService : ILocalDefinitionService, IDisposable
         {
             Info = definition.Info,
             LastModified = (DateTimeOffset)(new FileInfo(filename).LastWriteTimeUtc),
+            DefinitionFileFormatVersion = definition.FormatVersion,
             AutomaticShowConditions = (IReadOnlyList<AutomaticShowCondition>?)_configuration.AutomaticShowConditions.GetValueOrDefault(filename) ?? Array.Empty<AutomaticShowCondition>(),
         }, (f, existing) =>
         {
             var meta = (LocalDefinitionMetadata)existing;
             meta.Info = definition.Info;
             meta.LastModified = (DateTimeOffset)(new FileInfo(filename).LastWriteTimeUtc);
+            meta.DefinitionFileFormatVersion = definition.FormatVersion;
             meta.AutomaticShowConditions = (IReadOnlyList<AutomaticShowCondition>?)_configuration.AutomaticShowConditions.GetValueOrDefault(filename) ?? Array.Empty<AutomaticShowCondition>();
             return existing;
         });
