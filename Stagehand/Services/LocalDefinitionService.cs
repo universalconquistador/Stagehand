@@ -126,6 +126,7 @@ public class LocalDefinitionService : ILocalDefinitionService, IDisposable
     {
         public StageInfo Info { get; set; }
         public DateTimeOffset LastModified { get; set; }
+        public int DefinitionFileFormatVersion { get; set; }
         public IReadOnlyList<AutomaticShowCondition> AutomaticShowConditions { get; set; } = Array.Empty<AutomaticShowCondition>();
     }
 
