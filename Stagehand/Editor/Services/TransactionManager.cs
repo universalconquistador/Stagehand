@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
+using System.Threading;
 
 namespace Stagehand.Editor.Services;
 
@@ -383,69 +384,86 @@ internal class TransactionManager : ITransactionManager, IDisposable
     public event Action<ITransaction>? TransactionDone;
     public event Action<ITransaction>? TransactionUndone;
 
+    private ITransaction? _currentlyDoingTransaction;
+    private Lock _transactionDoLock = new();
+
     public void DoTransaction(ITransaction transaction)
     {
-        ThrowIfInTransaction("Cannot clear history while doing or undoing a transaction or transaction group!");
-
-        _isDoingTransaction = true;
-        try
+        using (_transactionDoLock.EnterScope())
         {
-            transaction.Do();
+            ThrowIfInTransaction("Cannot do transaction while doing or undoing a transaction or transaction group!");
 
-            if (_currentGroupTransaction != null)
+            _isDoingTransaction = true;
+            _currentlyDoingTransaction = transaction;
+            try
             {
-                _currentGroupTransaction.AddTransaction(transaction);
+                transaction.Do();
+
+                if (_currentGroupTransaction != null)
+                {
+                    _currentGroupTransaction.AddTransaction(transaction);
+                }
+                else
+                {
+                    ClearRedo();
+                    _undoStack.Push(transaction);
+                }
             }
-            else
+            finally
             {
-                ClearRedo();
-                _undoStack.Push(transaction);
+                _currentlyDoingTransaction = null;
+                _isDoingTransaction = false;
             }
-        }
-        finally
-        {
-            _isDoingTransaction = false;
-        }
 
-        TransactionDone?.Invoke(transaction);
+            TransactionDone?.Invoke(transaction);
 
-        foreach (var completionAction in _completionActions)
-        {
-            completionAction.Invoke();
+            foreach (var completionAction in _completionActions)
+            {
+                completionAction.Invoke();
+            }
+            _completionActions.Clear();
         }
-        _completionActions.Clear();
     }
 
     public void QueueCompletionAction(Action completionAction)
     {
-        if (_isDoingTransaction)
+        using (_transactionDoLock.EnterScope())
         {
-            // Queue up this action for when the Do is complete
-            _completionActions.Add(completionAction);
-        }
-        else if (!_isUndoingTransaction && !_isRedoingTransaction)
-        {
-            // No transactions are being done, undone, or redone, so just run the action immediately
-            completionAction.Invoke();
+            if (_isDoingTransaction)
+            {
+                // Queue up this action for when the Do is complete
+                _completionActions.Add(completionAction);
+            }
+            else if (!_isUndoingTransaction && !_isRedoingTransaction)
+            {
+                // No transactions are being done, undone, or redone, so just run the action immediately
+                completionAction.Invoke();
+            }
         }
     }
 
     public void PushTransactionGroup(string title)
     {
-        ThrowIfInTransaction($"Cannot enter or exit a transaction group '{title}' while doing or undoing a transaction!");
+        using (_transactionDoLock.EnterScope())
+        {
+            ThrowIfInTransaction($"Cannot enter or exit a transaction group '{title}' while doing or undoing a transaction!");
 
-        var newGroupTransaction = new GroupTransaction(title, _currentGroupTransaction, autoPop: false);
-        _currentGroupTransaction = newGroupTransaction;
+            var newGroupTransaction = new GroupTransaction(title, _currentGroupTransaction, autoPop: false);
+            _currentGroupTransaction = newGroupTransaction;
+        }
     }
 
     public void PushAutoReleaseTransactionGroup(string title)
     {
-        ThrowIfInTransaction($"Cannot enter or exit a transaction group '{title}' while doing or undoing a transaction!");
-
-        if (_currentGroupTransaction == null || !_currentGroupTransaction.AutoPop)
+        using (_transactionDoLock.EnterScope())
         {
-            var newGroupTransaction = new GroupTransaction(title, _currentGroupTransaction, autoPop: true);
-            _currentGroupTransaction = newGroupTransaction;
+            ThrowIfInTransaction($"Cannot enter or exit a transaction group '{title}' while doing or undoing a transaction!");
+
+            if (_currentGroupTransaction == null || !_currentGroupTransaction.AutoPop)
+            {
+                var newGroupTransaction = new GroupTransaction(title, _currentGroupTransaction, autoPop: true);
+                _currentGroupTransaction = newGroupTransaction;
+            }
         }
     }
 
@@ -483,78 +501,93 @@ internal class TransactionManager : ITransactionManager, IDisposable
 
     public void PopTransactionGroup(bool adoptLastTitle = false)
     {
-        ThrowIfInTransaction($"Cannot enter or exit a transaction group '{_currentGroupTransaction?.Title}' while doing or undoing a transaction!");
-
-        // Silently pop any auto pop groups to get to the next manual-pop group
-        while (_currentGroupTransaction != null && _currentGroupTransaction.AutoPop)
+        using (_transactionDoLock.EnterScope())
         {
-            InternalPopGroup(adoptLastTitle);
-        }
+            ThrowIfInTransaction($"Cannot enter or exit a transaction group '{_currentGroupTransaction?.Title}' while doing or undoing a transaction!");
 
-        InternalPopGroup(adoptLastTitle);
+            // Silently pop any auto pop groups to get to the next manual-pop group
+            while (_currentGroupTransaction != null && _currentGroupTransaction.AutoPop)
+            {
+                InternalPopGroup(adoptLastTitle);
+            }
+
+            InternalPopGroup(adoptLastTitle);
+        }    
     }
 
     public void Undo()
     {
-        ThrowIfInTransactionOrGroup("Cannot undo while doing or undoing a transaction or transaction group!");
-
-        if (_undoStack.TryPop(out var transaction))
+        using (_transactionDoLock.EnterScope())
         {
-            _isUndoingTransaction = true;
-            try
-            {
-                transaction.Undo();
-                _redoStack.Push(transaction);
+            ThrowIfInTransactionOrGroup("Cannot undo while doing or undoing a transaction or transaction group!");
 
-                TransactionUndone?.Invoke(transaction);
-            }
-            finally
+            if (_undoStack.TryPop(out var transaction))
             {
-                _isUndoingTransaction = false;
+                _isUndoingTransaction = true;
+                try
+                {
+                    transaction.Undo();
+                    _redoStack.Push(transaction);
+
+                    TransactionUndone?.Invoke(transaction);
+                }
+                finally
+                {
+                    _isUndoingTransaction = false;
+                }
             }
         }
     }
 
     public void Redo()
     {
-        ThrowIfInTransactionOrGroup("Cannot redo while doing or undoing a transaction or transaction group!");
-
-        if (_redoStack.TryPop(out var transaction))
+        using (_transactionDoLock.EnterScope())
         {
-            _isRedoingTransaction = true;
-            try
-            {
-                transaction.Do();
-                _undoStack.Push(transaction);
+            ThrowIfInTransactionOrGroup("Cannot redo while doing or undoing a transaction or transaction group!");
 
-                TransactionDone?.Invoke(transaction);
-            }
-            finally
+            if (_redoStack.TryPop(out var transaction))
             {
-                _isRedoingTransaction = false;
+                _isRedoingTransaction = true;
+                try
+                {
+                    transaction.Do();
+                    _undoStack.Push(transaction);
+
+                    TransactionDone?.Invoke(transaction);
+                }
+                finally
+                {
+                    _isRedoingTransaction = false;
+                }
             }
         }
     }
 
     public void ClearHistory()
     {
-        ThrowIfInTransactionOrGroup("Cannot clear history while doing or undoing a transaction or transaction group!");
-
-        while (_undoStack.Count > 0)
+        using (_transactionDoLock.EnterScope())
         {
-            _undoStack.Pop().Dispose();
-        }
+            ThrowIfInTransactionOrGroup("Cannot clear history while doing or undoing a transaction or transaction group!");
 
-        ClearRedo();
+            while (_undoStack.Count > 0)
+            {
+                _undoStack.Pop().Dispose();
+            }
+
+            ClearRedo();
+        }
     }
 
     public void PopAutoReleaseGroups()
     {
-        ThrowIfInTransaction($"Cannot enter or exit a transaction group '{_currentGroupTransaction?.Title}' while doing or undoing a transaction!");
-
-        while (_currentGroupTransaction != null && _currentGroupTransaction.AutoPop)
+        using (_transactionDoLock.EnterScope())
         {
-            InternalPopGroup(adoptLastTitle: true);
+            ThrowIfInTransaction($"Cannot enter or exit a transaction group '{_currentGroupTransaction?.Title}' while doing or undoing a transaction!");
+
+            while (_currentGroupTransaction != null && _currentGroupTransaction.AutoPop)
+            {
+                InternalPopGroup(adoptLastTitle: true);
+            }
         }
     }
 
@@ -574,6 +607,10 @@ internal class TransactionManager : ITransactionManager, IDisposable
     {
         if (_isDoingTransaction || _isUndoingTransaction || _isRedoingTransaction)
         {
+            if (_currentlyDoingTransaction != null)
+            {
+                message += $" ({_currentlyDoingTransaction.Title})";
+            }
             throw new InvalidOperationException(message);
         }
     }

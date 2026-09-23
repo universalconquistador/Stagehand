@@ -15,6 +15,12 @@ namespace Stagehand.Definitions.ModResources;
 public abstract class ModResourceDefinition
 {
     /// <summary>
+    /// Creates a deep copy of this mod resource definition.
+    /// </summary>
+    /// <returns>The clone of the resource definition.</returns>
+    public abstract ModResourceDefinition Clone();
+
+    /// <summary>
     /// Visits this mod resource definition with the given visitor type by invoking the corresponding <c>Visit???ModResourceDefinition</c>
     /// function on it.
     /// </summary>

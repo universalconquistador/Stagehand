@@ -33,4 +33,18 @@ public class EmbeddedModpackDefinition
     /// A mapping from modded game paths to the resource to use for them.
     /// </summary>
     public Dictionary<string, ModResourceDefinition> ModdedResources { get; set; } = new();
+
+    /// <summary>
+    /// Creates a deep copy of this modpack definition.
+    /// </summary>
+    public EmbeddedModpackDefinition Clone()
+    {
+        return new EmbeddedModpackDefinition()
+        {
+            DisplayName = DisplayName,
+            PenumbraSourceModDirectory = PenumbraSourceModDirectory,
+            PenumbraSourceModVersion = PenumbraSourceModVersion,
+            ModdedResources = new(ModdedResources.Select(pair => new KeyValuePair<string, ModResourceDefinition>(pair.Key, pair.Value.Clone()))),
+        };
+    }
 }

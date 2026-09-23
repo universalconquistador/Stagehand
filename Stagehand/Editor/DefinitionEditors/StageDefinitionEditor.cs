@@ -110,7 +110,14 @@ public class StageDefinitionEditor : DefinitionEditorBase
         EmbeddedModpacks = new(definition.EmbeddedModpacks, OutlinerNode, CreateEditorForEmbeddedModpackDefinition, TransactionManager, _selectionManager);
         Objects = new(definition.Objects, OutlinerNode, CreateEditorForObjectDefinition, TransactionManager, _selectionManager);
 
-        _stagehandKeybinds.EditorPasteObject.Pressed += Paste;
+        _stagehandKeybinds.EditorCutObject.Pressed += CutSelectedDefinitions;
+        _stagehandKeybinds.EditorCopyObject.Pressed += CopySelectedDefinitions;
+        _stagehandKeybinds.EditorPasteObject.Pressed += PasteDefinitions;
+
+        _stagehandKeybinds.EditorDeleteObject.Pressed += DeleteSelectedDefinitions;
+        _stagehandKeybinds.EditorDuplicateObject.Pressed += DuplicateSelectedDefinitions;
+        _stagehandKeybinds.EditorHideObject.Pressed += HideSelectedObjects;
+        _stagehandKeybinds.EditorUnhideObject.Pressed += UnhideSelectedObjects;
     }
 
     /// <summary>
@@ -136,7 +143,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
 
     private IEnumerable<OutlinerContextMenuItem> GenerateContextMenuItems()
     {
-        yield return new KeybindOutlinerContextMenuItem(_stagehandKeybinds.EditorPasteObject, _ => Paste());
+        yield return new KeybindOutlinerContextMenuItem(_stagehandKeybinds.EditorPasteObject, _ => PasteDefinitions());
     }
 
     protected virtual void SetEditTranslationInternal(Vector3 editTranslation)
@@ -166,7 +173,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
         }
     }
 
-    private void OnOutlinerNodeClicked(OutlinerNode obj)
+    private void OnOutlinerNodeClicked(OutlinerNode obj, ImGuiMouseButton mouseButton)
     {
         if (ImGui.IsKeyDown(ImGuiKey.ModCtrl))
         {
@@ -179,19 +186,148 @@ public class StageDefinitionEditor : DefinitionEditorBase
                 _selectionManager.TryAddSelectedEditor(this);
             }
         }
-        else
+        else if (mouseButton == ImGuiMouseButton.Left || !_selectionManager.SelectedEditors.Contains(this))
         {
             _selectionManager.SelectedEditors = [this];
         }
     }
 
-    private void Paste()
+    public void PasteDefinitions()
     {
-        if (DataTransferFragment.FromDataString(ImGui.GetClipboardText()) is ObjectDefinitionDataTransferFragment objectDefinitionFragment)
+        if (DataTransferFragment.FromDataString(ImGui.GetClipboardText()) is StageDefinitionDataTransferFragment objectDefinitionFragment
+            && (objectDefinitionFragment.ObjectDefinitions.Length > 0 || objectDefinitionFragment.ModpackDefinitions.Length > 0))
         {
-            using (TransactionManager.BeginTransactionGroup($"Paste {objectDefinitionFragment.ObjectDefinition.DisplayName}"))
+            string transactionName = "Paste ";
+            if (objectDefinitionFragment.ObjectDefinitions.Length == 1 && objectDefinitionFragment.ModpackDefinitions.Length == 0)
             {
-                GetNewObjectContainer().Add(objectDefinitionFragment.ObjectDefinition);
+                transactionName += objectDefinitionFragment.ObjectDefinitions[0].DisplayName;
+            }
+            else if (objectDefinitionFragment.ObjectDefinitions.Length == 0 && objectDefinitionFragment.ModpackDefinitions.Length == 1)
+            {
+                transactionName += objectDefinitionFragment.ModpackDefinitions[0].DisplayName;
+            }
+            else
+            {
+                transactionName += $"{objectDefinitionFragment.ObjectDefinitions.Length + objectDefinitionFragment.ModpackDefinitions.Length} Items";
+            }
+            using (TransactionManager.BeginTransactionGroup(transactionName))
+            {
+                List<IDefinitionEditor> newEditors = new();
+                foreach (var objectDefinition in objectDefinitionFragment.ObjectDefinitions)
+                {
+                    newEditors.Add(GetNewObjectContainer().Add(objectDefinition, select: false));
+                }
+
+                foreach (var modpackDefinition in objectDefinitionFragment.ModpackDefinitions)
+                {
+                    newEditors.Add(EmbeddedModpacks.Add(modpackDefinition, select: false));
+                }
+                _selectionManager.SelectedEditors = newEditors;
+            }
+        }
+    }
+
+    public void CutSelectedDefinitions()
+    {
+        var selectedObjectEditors = _selectionManager.SelectedEditors.OfType<IObjectDefinitionEditor>().WithoutDescendants().OfType<IObjectDefinitionEditor>().ToArray();
+        var selectedModpackEditors = _selectionManager.SelectedEditors.OfType<EmbeddedModpackDefinitionEditor>().ToArray();
+        if (selectedObjectEditors.Length > 0 || selectedModpackEditors.Length > 0)
+        {
+            string transactionName = "Cut ";
+            if (selectedObjectEditors.Length == 1 && selectedModpackEditors.Length == 0)
+            {
+                transactionName += selectedObjectEditors[0].DisplayName;
+            }
+            else if (selectedObjectEditors.Length == 0 && selectedModpackEditors.Length == 1)
+            {
+                transactionName += selectedModpackEditors[0].DisplayName;
+            }
+            else
+            {
+                transactionName += $"{selectedObjectEditors.Length + selectedModpackEditors.Length} Items";
+            }
+            using (TransactionManager.BeginTransactionGroup(transactionName))
+            {
+                TransactionManager.DoTransaction(new DelegateTransaction("Copy", () => CopyDefinitions(selectedObjectEditors, selectedModpackEditors), () => { }, affectsDataModel: false));
+                foreach (var selectedEditor in selectedObjectEditors)
+                {
+                    selectedEditor.Delete();
+                }
+            }
+        }
+    }
+
+    public void CopyDefinitions(IEnumerable<IObjectDefinitionEditor> objectEditors, IEnumerable<EmbeddedModpackDefinitionEditor> modpackEditors)
+    {
+        var fragment = new StageDefinitionDataTransferFragment(
+            objectEditors.Select(objectEditor => objectEditor.CreateDefinitionCopy()).ToArray(),
+            modpackEditors.Select(modpackEditor => modpackEditor.CreateDefinitionCopy()).ToArray());
+        ImGui.SetClipboardText(fragment.ToDataString());
+    }
+
+    public void CopySelectedDefinitions()
+    {
+        var selectedObjectEditors = _selectionManager.SelectedEditors.OfType<IObjectDefinitionEditor>().WithoutDescendants().OfType<IObjectDefinitionEditor>();
+        var selectedModpackEditors = _selectionManager.SelectedEditors.OfType<EmbeddedModpackDefinitionEditor>();
+        CopyDefinitions(selectedObjectEditors, selectedModpackEditors);
+    }
+
+    public void DuplicateSelectedDefinitions()
+    {
+        var selectedEditors = _selectionManager.SelectedEditors.OfType<IChildDefinitionEditor>().WithoutDescendants().ToArray();
+        if (selectedEditors.Length > 0)
+        {
+            using (TransactionManager.BeginTransactionGroup($"Duplicate {(selectedEditors.Length == 1 ? selectedEditors[0].DisplayName : $"{selectedEditors.Length} Items")}"))
+            {
+                foreach (var selectedEditor in selectedEditors)
+                {
+                    selectedEditor.Duplicate();
+                }
+            }
+        }
+    }
+
+    public void DeleteSelectedDefinitions()
+    {
+        var selectedEditors = _selectionManager.SelectedEditors.OfType<IChildDefinitionEditor>().WithoutDescendants().ToArray();
+        if (selectedEditors.Length > 0)
+        {
+            using (TransactionManager.BeginTransactionGroup($"Delete {(selectedEditors.Length == 1 ? selectedEditors[0].DisplayName : $"{selectedEditors.Length} Items")}"))
+            {
+                foreach (var selectedEditor in selectedEditors)
+                {
+                    selectedEditor.Delete();
+                }
+            }
+        }
+    }
+
+    public void HideSelectedObjects()
+    {
+        var selectedEditors = _selectionManager.SelectedEditors.OfType<IObjectDefinitionEditor>();
+        if (selectedEditors.Count() > 0)
+        {
+            using (TransactionManager.BeginTransactionGroup($"Hide {(selectedEditors.Count() == 1 ? selectedEditors.First().DisplayName : $"{selectedEditors.Count()} Items")}"))
+            {
+                foreach (var objectEditor in selectedEditors)
+                {
+                    objectEditor.IsDisabled = true;
+                }
+            }
+        }
+    }
+
+    public void UnhideSelectedObjects()
+    {
+        var selectedEditors = _selectionManager.SelectedEditors.OfType<IObjectDefinitionEditor>();
+        if (selectedEditors.Count() > 0)
+        {
+            using (TransactionManager.BeginTransactionGroup($"Show {(selectedEditors.Count() == 1 ? selectedEditors.First().DisplayName : $"{selectedEditors.Count()} Items")}"))
+            {
+                foreach (var objectEditor in selectedEditors)
+                {
+                    objectEditor.IsDisabled = false;
+                }
             }
         }
     }
@@ -302,7 +438,16 @@ public class StageDefinitionEditor : DefinitionEditorBase
     public override void Dispose()
     {
         IsDisposing = true;
-        _stagehandKeybinds.EditorPasteObject.Pressed -= Paste;
+
+        _stagehandKeybinds.EditorCutObject.Pressed -= CutSelectedDefinitions;
+        _stagehandKeybinds.EditorCopyObject.Pressed -= CopySelectedDefinitions;
+        _stagehandKeybinds.EditorPasteObject.Pressed -= PasteDefinitions;
+
+        _stagehandKeybinds.EditorDeleteObject.Pressed -= DeleteSelectedDefinitions;
+        _stagehandKeybinds.EditorDuplicateObject.Pressed -= DuplicateSelectedDefinitions;
+        _stagehandKeybinds.EditorHideObject.Pressed -= HideSelectedObjects;
+        _stagehandKeybinds.EditorUnhideObject.Pressed -= UnhideSelectedObjects;
+
         EmbeddedModpacks.Dispose();
         Objects.Dispose();
 

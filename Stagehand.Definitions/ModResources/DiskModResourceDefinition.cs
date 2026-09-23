@@ -16,6 +16,15 @@ public class DiskModResourceDefinition : ModResourceDefinition
     public string SourceDiskPath { get; set; } = string.Empty;
 
     /// <inheritdoc/>
+    public override ModResourceDefinition Clone()
+    {
+        return new DiskModResourceDefinition()
+        {
+            SourceDiskPath = SourceDiskPath,
+        };
+    }
+
+    /// <inheritdoc/>
     public override TResult Visit<TVisitor, TParam, TResult>(ref TParam param)
     {
         return TVisitor.VisitDiskModResourceDefinition(this, ref param);

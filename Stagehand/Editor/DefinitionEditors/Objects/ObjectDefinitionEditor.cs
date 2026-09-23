@@ -10,6 +10,7 @@ using Stagehand.AssetLibrary;
 using Stagehand.AssetLibrary.Assets;
 using Stagehand.AssetLibrary.Bookmarks;
 using Stagehand.AssetLibrary.GameResources;
+using Stagehand.Definitions;
 using Stagehand.Definitions.Objects;
 using Stagehand.Editor.Services;
 using Stagehand.Live;
@@ -53,6 +54,8 @@ public interface IObjectDefinitionEditor : IChildDefinitionEditor<ObjectDefiniti
     DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor>? ChildObjects { get; }
 
     IObjectDefinitionEditor? ParentObject { get; internal set; }
+
+    bool IsDisabled { get; set; }
 
     /// <summary>
     /// This object's position in local space.
@@ -104,6 +107,21 @@ public interface IObjectDefinitionEditor : IChildDefinitionEditor<ObjectDefiniti
     void RefreshPreviewObject();
 
     bool TryGetOrientedBounds(out FFXIVClientStructs.FFXIV.Common.Math.OrientedBounds orientedBounds);
+
+    ObjectDefinition CreateDefinitionCopy();
+}
+
+public static class ObjectDefinitionEditorExtensions
+{
+    public static IEnumerable<IObjectDefinitionEditor> GetAncestors(this IObjectDefinitionEditor objectEditor)
+    {
+        var parent = objectEditor.ParentObject;
+        while (parent != null)
+        {
+            yield return parent;
+            parent = parent.ParentObject;
+        }
+    }
 }
 
 public static class DefinitionEditorDictionaryExtensions
@@ -332,17 +350,10 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
 
     private void OnOutlinerNodeIsVisibleClicked(OutlinerNode obj)
     {
-        if (IsDisabled)
-        {
-            Unhide();
-        }
-        else
-        {
-            Hide();
-        }
+        IsDisabled = !IsDisabled;
     }
 
-    private void OnOutlinerNodeClicked(OutlinerNode obj)
+    private void OnOutlinerNodeClicked(OutlinerNode obj, ImGuiMouseButton mouseButton)
     {
         if (ImGui.IsKeyDown(ImGuiKey.ModCtrl))
         {
@@ -355,7 +366,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
                 SelectionManager.TryAddSelectedEditor(this);
             }
         }
-        else
+        else if (mouseButton == ImGuiMouseButton.Left || !SelectionManager.SelectedEditors.Contains(this))
         {
             SelectionManager.SelectedEditors = [this];
         }
@@ -582,10 +593,10 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
 
     protected virtual IEnumerable<OutlinerContextMenuItem> GenerateContextMenuItems()
     {
-        yield return new KeybindOutlinerContextMenuItem(StagehandKeybinds.EditorCutObject, _ => Cut());
-        yield return new KeybindOutlinerContextMenuItem(StagehandKeybinds.EditorCopyObject, _ => Copy());
-        yield return new KeybindOutlinerContextMenuItem(StagehandKeybinds.EditorDuplicateObject, _ => Duplicate());
-        yield return new KeybindOutlinerContextMenuItem(StagehandKeybinds.EditorDeleteObject, _ => Delete());
+        yield return new KeybindOutlinerContextMenuItem(StagehandKeybinds.EditorCutObject, _ => Stage.CutSelectedDefinitions());
+        yield return new KeybindOutlinerContextMenuItem(StagehandKeybinds.EditorCopyObject, _ => Stage.CopySelectedDefinitions());
+        yield return new KeybindOutlinerContextMenuItem(StagehandKeybinds.EditorDuplicateObject, _ => Stage.DuplicateSelectedDefinitions());
+        yield return new KeybindOutlinerContextMenuItem(StagehandKeybinds.EditorDeleteObject, _ => Stage.DeleteSelectedDefinitions());
     }
 
     public override void Selected()
@@ -593,51 +604,11 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         base.Selected();
 
         OutlinerNode.IsSelected = true;
-
-        StagehandKeybinds.EditorCutObject.Pressed += Cut;
-        StagehandKeybinds.EditorCopyObject.Pressed += Copy;
-        StagehandKeybinds.EditorDeleteObject.Pressed += Delete;
-        StagehandKeybinds.EditorDuplicateObject.Pressed += Duplicate;
-        StagehandKeybinds.EditorHideObject.Pressed += Hide;
-        StagehandKeybinds.EditorUnhideObject.Pressed += Unhide;
     }
 
-    private void Cut()
-    {
-        var owner = OwnerDictionary;
-        if (owner != null)
-        {
-            using (TransactionManager.BeginTransactionGroup($"Cut {DisplayName}"))
-            {
-                TransactionManager.DoTransaction(new DelegateTransaction("Copy", Copy, () => { }, affectsDataModel: false));
-                owner.Remove(this);
-            }
-        }
-    }
+    public ObjectDefinition CreateDefinitionCopy() => Definition.Clone();
 
-    private void Copy()
-    {
-        var fragment = new ObjectDefinitionDataTransferFragment(Definition);
-        ImGui.SetClipboardText(fragment.ToDataString());
-    }
-
-    private void Unhide()
-    {
-        using (TransactionManager.BeginTransactionGroup($"Unhide {DisplayName}"))
-        {
-            IsDisabled = false;
-        }
-    }
-
-    private void Hide()
-    {
-        using (TransactionManager.BeginTransactionGroup($"Hide {DisplayName}"))
-        {
-            IsDisabled = true;
-        }
-    }
-
-    private void Duplicate()
+    public void Duplicate()
     {
         var owner = OwnerDictionary;
         if (owner != null)
@@ -650,7 +621,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         }
     }
 
-    private void Delete()
+    public void Delete()
     {
         var owner = OwnerDictionary;
         if (owner != null)
@@ -697,13 +668,6 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         base.Deselected();
 
         OutlinerNode.IsSelected = false;
-
-        StagehandKeybinds.EditorCutObject.Pressed -= Cut;
-        StagehandKeybinds.EditorCopyObject.Pressed -= Copy;
-        StagehandKeybinds.EditorDeleteObject.Pressed -= Delete;
-        StagehandKeybinds.EditorDuplicateObject.Pressed -= Duplicate;
-        StagehandKeybinds.EditorHideObject.Pressed -= Hide;
-        StagehandKeybinds.EditorUnhideObject.Pressed -= Unhide;
     }
 
     public virtual void AddedToStage()

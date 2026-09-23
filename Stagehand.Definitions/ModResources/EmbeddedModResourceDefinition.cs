@@ -37,6 +37,16 @@ public class EmbeddedModResourceDefinition : ModResourceDefinition
     public ModCompressionScheme CompressionScheme { get; set; } = ModCompressionScheme.None;
 
     /// <inheritdoc/>
+    public override ModResourceDefinition Clone()
+    {
+        return new EmbeddedModResourceDefinition()
+        {
+            CompressedDataBytes = [.. CompressedDataBytes],
+            CompressionScheme = CompressionScheme,
+        };
+    }
+
+    /// <inheritdoc/>
     public override TResult Visit<TVisitor, TParam, TResult>(ref TParam param)
     {
         return TVisitor.VisitEmbeddedModResourceDefinition(this, ref param);

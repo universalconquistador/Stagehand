@@ -17,7 +17,7 @@ namespace Stagehand.Utils;
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "Type")]
 [JsonDerivedType(typeof(AssetBookmarkService.BookmarkDataTransferFragment), typeDiscriminator: "BookmarkDataTransferFragment")]
-[JsonDerivedType(typeof(ObjectDefinitionDataTransferFragment), typeDiscriminator: "ObjectDefinitionDataTransferFragment")]
+[JsonDerivedType(typeof(StageDefinitionDataTransferFragment), typeDiscriminator: "StageDefinitionDataTransferFragment")]
 public abstract record class DataTransferFragment()
 {
     private static readonly JsonSerializerOptions _dataTransferFramentJsonOptions = new()

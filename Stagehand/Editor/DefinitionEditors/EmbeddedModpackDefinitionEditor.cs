@@ -118,7 +118,12 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
         }
     }
 
-    private void OnOutlinerNodeClicked(OutlinerNode obj)
+    public EmbeddedModpackDefinition CreateDefinitionCopy()
+    {
+        return Definition.Clone();
+    }
+
+    private void OnOutlinerNodeClicked(OutlinerNode obj, ImGuiMouseButton mouseButton)
     {
         if (ImGui.IsKeyDown(ImGuiKey.ModCtrl))
         {
@@ -131,7 +136,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
                 _selectionManager.TryAddSelectedEditor(this);
             }
         }
-        else
+        else if (mouseButton == ImGuiMouseButton.Left || !_selectionManager.SelectedEditors.Contains(this))
         {
             _selectionManager.SelectedEditors = [this];
         }
@@ -154,6 +159,19 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
         {
             Delete();
         });
+    }
+
+    public void Duplicate()
+    {
+        var owner = OwnerDictionary;
+        if (owner != null)
+        {
+            var clonedDefinition = Definition.Clone();
+            using (TransactionManager.BeginTransactionGroup($"Duplicate {DisplayName}"))
+            {
+                owner.Add(clonedDefinition);
+            }
+        }
     }
 
     public void Delete()
@@ -912,6 +930,25 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
     private static Dictionary<string, string> ComputeFinalModPaths(PenumbraModMetaV4 modMeta, IReadOnlyDictionary<string, List<string>> selectedOptions, string fullModPath)
     {
         Dictionary<string, string> result = new();
+
+        if (modMeta.DefaultData != null)
+        {
+            if (modMeta.DefaultData.FileSwaps != null)
+            {
+                foreach (var fileSwap in modMeta.DefaultData.FileSwaps)
+                {
+                    result[fileSwap.Key] = fileSwap.Value;
+                }
+            }
+
+            if (modMeta.DefaultData.Files != null)
+            {
+                foreach (var fileReplacement in modMeta.DefaultData.Files)
+                {
+                    result[fileReplacement.Key] = Path.Combine(fullModPath, fileReplacement.Value);
+                }
+            }
+        }
 
         if (modMeta.Groups != null)
         {

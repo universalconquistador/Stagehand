@@ -556,11 +556,11 @@ internal class EditorWindow : Window, IDisposable
 
             if (nodeLeftClicked)
             {
-                node.RaiseClicked();
+                node.RaiseClicked(ImGuiMouseButton.Left);
             }
             if (nodeRightClicked)
             {
-                node.RaiseClicked();
+                node.RaiseClicked(ImGuiMouseButton.Right);
                 if (node.ContextMenuItems != null && node.ContextMenuItems.Any())
                 {
                     ImGui.OpenPopup("###ContextMenu");

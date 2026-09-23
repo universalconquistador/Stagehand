@@ -1,3 +1,4 @@
+using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Stagehand.Services;
 using System;
@@ -90,7 +91,7 @@ public class OutlinerNode
 
     public OutlinerNode? ParentNode { get; private set; } = null;
     public bool IsVisibleWithFilter { get; private set; } = true;
-    public event Action<OutlinerNode>? Clicked;
+    public event Action<OutlinerNode, ImGuiMouseButton>? Clicked;
     public event Action<OutlinerNode>? IsVisibleClicked;
 
     private List<OutlinerNode> _childNodes = new List<OutlinerNode>();
@@ -166,9 +167,9 @@ public class OutlinerNode
         IsVisibleWithFilter = string.IsNullOrEmpty(filter) || anyChildrenVisibleWithFilter || DisplayName.Contains(filter, StringComparison.CurrentCultureIgnoreCase);
     }
 
-    public void RaiseClicked()
+    public void RaiseClicked(ImGuiMouseButton mouseButton)
     {
-        Clicked?.Invoke(this);
+        Clicked?.Invoke(this, mouseButton);
     }
 
     public void RaiseIsVisibleClicked()

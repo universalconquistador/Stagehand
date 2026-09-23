@@ -15,6 +15,15 @@ public class GameModResourceDefinition : ModResourceDefinition
     public string SourceGamePath { get; set; } = string.Empty;
 
     /// <inheritdoc/>
+    public override ModResourceDefinition Clone()
+    {
+        return new GameModResourceDefinition()
+        {
+            SourceGamePath = SourceGamePath,
+        };
+    }
+
+    /// <inheritdoc/>
     public override TResult Visit<TVisitor, TParam, TResult>(ref TParam param)
     {
         return TVisitor.VisitGameModResourceDefinition(this, ref param);

@@ -6,6 +6,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Text;
 
 namespace Stagehand.Editor.DefinitionEditors;
@@ -34,6 +35,29 @@ public interface IChildDefinitionEditor : IDefinitionEditor
     /// Notifies this object definition editor that it was removed from the Stage being edited.
     /// </summary>
     void RemovedFromStage();
+
+    /// <summary>
+    /// Removes this definition from its owner definition in a transaction.
+    /// </summary>
+    void Delete();
+
+    /// <summary>
+    /// Creates a copy of this definition and adds it to the owner, in a transaction.
+    /// </summary>
+    void Duplicate();
+}
+
+public static class ChildDefinitionEditorExtensions
+{
+    /// <summary>
+    /// Filters out any editors that have an ancestor also present in the input enumerable.
+    /// </summary>
+    /// <param name="editors"></param>
+    /// <returns></returns>
+    public static IEnumerable<IChildDefinitionEditor> WithoutDescendants(this IEnumerable<IChildDefinitionEditor> editors)
+    {
+        return editors.Where(editor => !(editor is IObjectDefinitionEditor objectEditor) || !objectEditor.GetAncestors().Any(editors.Contains));
+    }
 }
 
 /// <summary>
