@@ -293,7 +293,11 @@ public class StageDefinitionEditor : DefinitionEditorBase
                 List<IDefinitionEditor> newEditors = new();
                 foreach (var objectDefinition in objectDefinitionFragment.ObjectDefinitions)
                 {
-                    newEditors.Add(GetNewObjectContainer().Add(objectDefinition, select: false));
+                    var newEditor = GetNewObjectContainer().Add(objectDefinition, select: false);
+                    newEditors.Add(newEditor);
+                    newEditor.WorldPosition = objectDefinition.Position;
+                    newEditor.WorldRotationQuaternion = objectDefinition.RotationQuaternion;
+                    newEditor.WorldScale = objectDefinition.Scale;
                 }
 
                 foreach (var modpackDefinition in objectDefinitionFragment.ModpackDefinitions)
@@ -338,7 +342,14 @@ public class StageDefinitionEditor : DefinitionEditorBase
     public void CopyDefinitions(IEnumerable<IObjectDefinitionEditor> objectEditors, IEnumerable<EmbeddedModpackDefinitionEditor> modpackEditors)
     {
         var fragment = new StageDefinitionDataTransferFragment(
-            objectEditors.Select(objectEditor => objectEditor.CreateDefinitionCopy()).ToArray(),
+            objectEditors.Select(objectEditor =>
+            {
+                var definition = objectEditor.CreateDefinitionCopy();
+                definition.Position = objectEditor.WorldPosition;
+                definition.RotationQuaternion = objectEditor.WorldRotationQuaternion;
+                definition.Scale = objectEditor.WorldScale;
+                return definition;
+            }).ToArray(),
             modpackEditors.Select(modpackEditor => modpackEditor.CreateDefinitionCopy()).ToArray());
         ImGui.SetClipboardText(fragment.ToDataString());
     }
