@@ -1,5 +1,6 @@
 using Dalamud.Interface;
 using Stagehand.Definitions.Objects;
+using Stagehand.Editor.Services;
 using Stagehand.Live;
 using Stagehand.Services;
 using System;
@@ -27,6 +28,16 @@ internal class GroupDefinitionEditor : ObjectDefinitionEditor<GroupDefinition>
         : base(serviceProvider, definition, key, stage)
     {
         Objects = new(this, definition.Objects, OutlinerNode, CreateEditorForObjectDefinition, TransactionManager, SelectionManager);
+    }
+
+    protected override IEnumerable<OutlinerContextMenuItem> GenerateContextMenuItems()
+    {
+        yield return new KeybindOutlinerContextMenuItem(StagehandKeybinds.EditorCenterGroupPivots, _ => Stage.CenterSelectedGroupPivots());
+        yield return new KeybindOutlinerContextMenuItem(StagehandKeybinds.EditorUngroupObjects, _ => Stage.UngroupSelectedObjects());
+        foreach (var baseItem in base.GenerateContextMenuItems())
+        {
+            yield return baseItem;
+        }
     }
 
     private IObjectDefinitionEditor CreateEditorForObjectDefinition(ObjectDefinition objectDefinition, string objectKey)
@@ -128,6 +139,54 @@ internal class GroupDefinitionEditor : ObjectDefinitionEditor<GroupDefinition>
             if (TryGetOrientedBounds(out var orientedBounds))
             {
                 obj.DrawBox(orientedBounds.Transform, orientedBounds.HalfExtents, 2.0f, color);
+            }
+        }
+    }
+
+    public void Dissolve()
+    {
+        var newOwner = OwnerDictionary ?? Stage.Objects;
+
+        using (TransactionManager.BeginTransactionGroup($"Ungroup {DisplayName}"))
+        {
+            foreach (var child in Objects.Values.ToArray())
+            {
+                var worldPosition = child.WorldPosition;
+                var worldRotation = child.WorldRotationQuaternion;
+                var worldScale = child.WorldScale;
+
+                var definition = Objects.Remove(child);
+                if (definition != null)
+                {
+                    var newEditor = newOwner.Add(definition);
+                    newEditor.WorldPosition = worldPosition;
+                    newEditor.WorldRotationQuaternion = worldRotation;
+                    newEditor.WorldScale = worldScale;
+                }
+            }
+
+            Delete();
+        }
+    }
+
+    public void CenterPivot()
+    {
+        if (LiveGroup.TryGetGroupOrientedBounds(
+            WorldTransform,
+            Objects.Values.Select<IObjectDefinitionEditor, FFXIVClientStructs.FFXIV.Common.Math.OrientedBounds?>(obj => obj.TryGetOrientedBounds(out var bounds) ? bounds : null),
+            out var bounds))
+        {
+            if (Matrix4x4.Decompose(bounds.Transform, out _, out var boundsRotation, out var boundsTranslation))
+            {
+                using (TransactionManager.BeginTransactionGroup($"Center Pivot of {DisplayName}"))
+                {
+                    var deltaTranslation = boundsTranslation - WorldPosition;
+                    WorldPosition = boundsTranslation;
+                    foreach (var child in Objects.Values)
+                    {
+                        child.WorldPosition += -deltaTranslation;
+                    }
+                }
             }
         }
     }

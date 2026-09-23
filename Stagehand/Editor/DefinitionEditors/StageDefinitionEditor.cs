@@ -105,7 +105,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
         OutlinerNode.Clicked += OnOutlinerNodeClicked;
         OutlinerNode.ContextMenuItems = GenerateContextMenuItems();
 
-        // NOTE: We need to load the modpacks before the object because the objects need to be able to find the modpacks when creating their live preview objects.
+        // NOTE: We need to load the modpacks before the objects because the objects need to be able to find the modpacks when creating their live preview objects.
         // Maybe not the most theoretically elegant, but does the job.
         EmbeddedModpacks = new(definition.EmbeddedModpacks, OutlinerNode, CreateEditorForEmbeddedModpackDefinition, TransactionManager, _selectionManager);
         Objects = new ObjectDefinitionEditorDictionary(null, definition.Objects, OutlinerNode, CreateEditorForObjectDefinition, TransactionManager, _selectionManager);
@@ -118,6 +118,84 @@ public class StageDefinitionEditor : DefinitionEditorBase
         _stagehandKeybinds.EditorDuplicateObject.Pressed += DuplicateSelectedDefinitions;
         _stagehandKeybinds.EditorHideObject.Pressed += HideSelectedObjects;
         _stagehandKeybinds.EditorUnhideObject.Pressed += UnhideSelectedObjects;
+        _stagehandKeybinds.EditorGroupObjects.Pressed += GroupSelectedObjects;
+        _stagehandKeybinds.EditorUngroupObjects.Pressed += UngroupSelectedObjects;
+        _stagehandKeybinds.EditorCenterGroupPivots.Pressed += CenterSelectedGroupPivots;
+    }
+
+    public void GroupSelectedObjects()
+    {
+        var selectedObjects = _selectionManager.SelectedEditors.OfType<IObjectDefinitionEditor>().WithoutDescendants().ToArray();
+        if (selectedObjects.Length > 0)
+        {
+            var ancestor = selectedObjects.GetCommonAncestor();
+            var ownerDictionary = ancestor?.Container ?? Objects;
+
+            LiveGroup.TryGetGroupOrientedBounds(
+                ancestor?.Ancestor.WorldTransform ?? Matrix4x4.Identity,
+                selectedObjects.Select<IObjectDefinitionEditor, FFXIVClientStructs.FFXIV.Common.Math.OrientedBounds?>(obj => obj.TryGetOrientedBounds(out var bounds) ? bounds : null),
+                out var bounds);
+
+            var group = new GroupDefinition()
+            {
+                DisplayName = "New Group",
+            };
+            using (TransactionManager.BeginTransactionGroup($"Group {(selectedObjects.Length == 1 ? selectedObjects[0].DisplayName : $"{selectedObjects.Length} Items")}"))
+            {
+                var groupEditor = (GroupDefinitionEditor)ownerDictionary.Add(group);
+                if (Matrix4x4.Decompose(bounds.Transform, out _, out var boundsRotation, out var boundsTranslation))
+                {
+                    groupEditor.WorldPosition = boundsTranslation;
+                    groupEditor.WorldRotationQuaternion = boundsRotation;
+                }
+                foreach (var child in selectedObjects)
+                {
+                    var worldPosition = child.WorldPosition;
+                    var worldRotation = child.WorldRotationQuaternion;
+                    var worldScale = child.WorldScale;
+
+                    var definition = child.OwnerDictionary!.Remove(child);
+                    if (definition != null)
+                    {
+                        var newChild = groupEditor.Objects.Add(definition);
+                        newChild.WorldPosition = worldPosition;
+                        newChild.WorldRotationQuaternion = worldRotation;
+                        newChild.WorldScale = worldScale;
+                    }
+                }
+                _selectionManager.SelectedEditors = [groupEditor];
+            }
+        }
+    }
+
+    public void UngroupSelectedObjects()
+    {
+        var selectedGroups = _selectionManager.SelectedEditors.OfType<GroupDefinitionEditor>().ToArray();
+        if (selectedGroups.Length > 0)
+        {
+            using (TransactionManager.BeginTransactionGroup($"Ungroup {(selectedGroups.Length == 1 ? selectedGroups[0].DisplayName : $"{selectedGroups.Length} Items")}"))
+            {
+                foreach (var selectedGroup in selectedGroups)
+                {
+                    selectedGroup.Dissolve();
+                }
+            }
+        }
+    }
+
+    public void CenterSelectedGroupPivots()
+    {
+        var selectedGroups = _selectionManager.SelectedEditors.OfType<GroupDefinitionEditor>();
+        if (selectedGroups.Any())
+        {
+            using (TransactionManager.BeginTransactionGroup($"Center Pivots of {(selectedGroups.Count() == 1 ? selectedGroups.First().DisplayName : $"{selectedGroups.Count()} Items")}"))
+            {
+                foreach (var groupEditor in selectedGroups)
+                {
+                    groupEditor.CenterPivot();
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -447,6 +525,9 @@ public class StageDefinitionEditor : DefinitionEditorBase
         _stagehandKeybinds.EditorDuplicateObject.Pressed -= DuplicateSelectedDefinitions;
         _stagehandKeybinds.EditorHideObject.Pressed -= HideSelectedObjects;
         _stagehandKeybinds.EditorUnhideObject.Pressed -= UnhideSelectedObjects;
+        _stagehandKeybinds.EditorGroupObjects.Pressed -= GroupSelectedObjects;
+        _stagehandKeybinds.EditorUngroupObjects.Pressed -= UngroupSelectedObjects;
+        _stagehandKeybinds.EditorCenterGroupPivots.Pressed -= CenterSelectedGroupPivots;
 
         EmbeddedModpacks.Dispose();
         Objects.Dispose();

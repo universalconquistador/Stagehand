@@ -132,6 +132,74 @@ public static class ObjectDefinitionEditorExtensions
             parent = parent.ParentObject;
         }
     }
+
+    public static (IObjectDefinitionEditor Ancestor, DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor> Container)? GetCommonAncestor(this IEnumerable<IObjectDefinitionEditor> objectEditors)
+    {
+        List<List<IObjectDefinitionEditor>> ancestors = new();
+
+        int minLength = int.MaxValue;
+        foreach (var editor in objectEditors)
+        {
+            var ancestorList = editor.GetAncestors().ToList();
+            ancestorList.Reverse();
+            ancestors.Add(ancestorList);
+            minLength = int.Min(minLength, ancestorList.Count);
+        }
+
+        if (ancestors.Count == 0)
+        {
+            // No objects given
+            return null;
+        }
+
+        if (ancestors.Count == 1)
+        {
+            // Only one object given, so return its immediate ancestor
+            if (objectEditors.First().OwnerDictionary is DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor> ownerDictionary2 && ancestors[0].Count > 0)
+            {
+                return (ancestors[0][ancestors[0].Count - 1], ownerDictionary2);
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        if (minLength == 0)
+        {
+            // One of the elements had no ancestors
+            return null;
+        }
+
+        for (int i = 0; i < minLength; i++)
+        {
+            for (int j = 1; j < ancestors.Count; j++)
+            {
+                if (ancestors[j][i] != ancestors[0][i])
+                {
+                    // Depth i differs, so ancestor i-1 is shared
+                    if (i > 0)
+                    {
+                        return (ancestors[0][i - 1], ancestors[0][i].OwnerDictionary!);
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
+            }
+        }
+
+        // All ancestors are identical amongst all given objects
+        if (objectEditors.First().OwnerDictionary is DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor> ownerDictionary && ancestors[0].Count > 0)
+        {
+            return (ancestors[0][ancestors[0].Count - 1], ownerDictionary);
+        }
+        else
+        {
+            return null;
+        }
+    }
 }
 
 public static class DefinitionEditorDictionaryExtensions
@@ -618,6 +686,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
 
     protected virtual IEnumerable<OutlinerContextMenuItem> GenerateContextMenuItems()
     {
+        yield return new KeybindOutlinerContextMenuItem(StagehandKeybinds.EditorGroupObjects, _ => Stage.GroupSelectedObjects());
         yield return new KeybindOutlinerContextMenuItem(StagehandKeybinds.EditorCutObject, _ => Stage.CutSelectedDefinitions());
         yield return new KeybindOutlinerContextMenuItem(StagehandKeybinds.EditorCopyObject, _ => Stage.CopySelectedDefinitions());
         yield return new KeybindOutlinerContextMenuItem(StagehandKeybinds.EditorDuplicateObject, _ => Stage.DuplicateSelectedDefinitions());

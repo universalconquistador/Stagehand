@@ -54,9 +54,10 @@ public static class ChildDefinitionEditorExtensions
     /// </summary>
     /// <param name="editors"></param>
     /// <returns></returns>
-    public static IEnumerable<IChildDefinitionEditor> WithoutDescendants(this IEnumerable<IChildDefinitionEditor> editors)
+    public static IEnumerable<TEditor> WithoutDescendants<TEditor>(this IEnumerable<TEditor> editors)
+        where TEditor : IChildDefinitionEditor
     {
-        return editors.Where(editor => !(editor is IObjectDefinitionEditor objectEditor) || !objectEditor.GetAncestors().Any(editors.Contains));
+        return editors.Where(editor => !(editor is IObjectDefinitionEditor objectEditor) || !objectEditor.GetAncestors().Any(ed => ed is TEditor typedEd && editors.Contains(typedEd)));
     }
 }
 
@@ -144,7 +145,7 @@ public class DefinitionEditorDictionary<TDefinition, TEditor> : IDisposable, IRe
         return newEditor;
     }
 
-    public void Remove(TEditor objectEditor)
+    public TDefinition? Remove(TEditor objectEditor)
     {
         if (_objectEditors.TryGetValue(objectEditor.Key, out var foundEditor) && foundEditor == objectEditor)
         {
@@ -169,7 +170,13 @@ public class DefinitionEditorDictionary<TDefinition, TEditor> : IDisposable, IRe
                 // If the transaction is permanently done, dispose the editor
                 transaction.AddDisposable(foundEditor, disposeWhenDone: true, disposeWhenUndone: false);
                 _transactionManager.DoTransaction(transaction);
+
+                return definition;
             }
+        }
+        else
+        {
+            return default;
         }
     }
 
