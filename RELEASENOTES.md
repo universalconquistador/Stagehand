@@ -222,3 +222,4 @@ Later down the road:
    - Hiding a group also hides all the objects inside it.
  - The 'Modpack' property is now hidden for light and group objects as modpacks have no effect on them (for now).
  - Adds a file format version property to stage definitions so that Stagehand and other tools can alert you when you try to work with files newer than they can understand.
+ - Fixes a bug with importing Penumbra modpacks where the contents of the 'Default Option' would get skipped.
