@@ -25,6 +25,9 @@ public interface IStagehandKeybinds
     IKeybindAction EditorUnhideObject { get; }
     IKeybindAction EditorSnapObjectToGround { get; }
     IKeybindAction EditorSnapRotateObjectToGround { get; }
+    IKeybindAction EditorGroupObjects { get; }
+    IKeybindAction EditorUngroupObjects { get; }
+    IKeybindAction EditorCenterGroupPivots { get; }
 
     // Editor
     IKeybindAction EditorUndo { get; }
@@ -46,6 +49,8 @@ internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposab
 
     private bool _isDisposed = false;
 
+    // Note that these variable names drive the keybind IDs, and so changing them will reset that action's keybinds for users.
+
     public IKeybindAction EditorCutObject { get; }
     public IKeybindAction EditorCopyObject { get; }
     public IKeybindAction EditorPasteObject { get; }
@@ -56,6 +61,9 @@ internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposab
     public IKeybindAction EditorUnhideObject { get; }
     public IKeybindAction EditorSnapObjectToGround { get; }
     public IKeybindAction EditorSnapRotateObjectToGround { get; }
+    public IKeybindAction EditorGroupObjects { get; }
+    public IKeybindAction EditorUngroupObjects { get; }
+    public IKeybindAction EditorCenterGroupPivots { get; }
 
     public IKeybindAction EditorUndo { get; }
     public IKeybindAction EditorRedo { get; }
@@ -127,6 +135,24 @@ internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposab
             "Moves the object downwards and rotates it so that its origin point lies on whatever is directly below it.",
             new Keybind(VirtualKey.DOWN, KeybindModifierKeys.Control | KeybindModifierKeys.Shift)));
 
+        EditorGroupObjects = _keybindService.RegisterAction(new(nameof(EditorGroupObjects),
+            "Group Objects",
+            EditorObjectsGroupName,
+            "Creates a new group with any selected objects.",
+            new Keybind(VirtualKey.G, KeybindModifierKeys.Control)));
+
+        EditorUngroupObjects = _keybindService.RegisterAction(new(nameof(EditorUngroupObjects),
+            "Ungroup Objects",
+            EditorObjectsGroupName,
+            "Dissolves any selected groups, preserving their contents.",
+            new Keybind(VirtualKey.G, KeybindModifierKeys.Control | KeybindModifierKeys.Shift)));
+
+        EditorCenterGroupPivots = _keybindService.RegisterAction(new(nameof(EditorCenterGroupPivots),
+            "Center Group Pivots",
+            EditorObjectsGroupName,
+            "Moves the origin of any selected groups to the center of their child objects.",
+            Keybind.Unassigned));
+
         //
         // Editor
         //
@@ -180,6 +206,9 @@ internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposab
             _keybindService.UnregisterAction(EditorRedo);
             _keybindService.UnregisterAction(EditorUndo);
 
+            _keybindService.UnregisterAction(EditorCenterGroupPivots);
+            _keybindService.UnregisterAction(EditorUngroupObjects);
+            _keybindService.UnregisterAction(EditorGroupObjects);
             _keybindService.UnregisterAction(EditorSnapRotateObjectToGround);
             _keybindService.UnregisterAction(EditorSnapObjectToGround);
             _keybindService.UnregisterAction(EditorUnhideObject);
