@@ -206,7 +206,7 @@ public class ConfigWindow : Window, IConfigWindow, IDisposable
                                 using (ImRaii.PushStyle(ImGuiStyleVar.FrameBorderSize, 2.0f, isRecordingKeybind))
                                 using (ImRaii.PushColor(ImGuiCol.Border, ImGuiColors.DPSRed, isRecordingKeybind))
                                 {
-                                    if (ImGui.Button(isRecordingKeybind ? "(Recording)" : action.CurrentKeybind.ToString(), new(ImGui.GetContentRegionAvail().X, ImGui.GetFrameHeight())))
+                                    if (ImGui.Button(isRecordingKeybind ? "(Recording)" : action.CurrentKeybind.ToString() + "##" + action.Info.Id, new(ImGui.GetContentRegionAvail().X, ImGui.GetFrameHeight())))
                                     {
                                         if (isRecordingKeybind)
                                         {
