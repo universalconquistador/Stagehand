@@ -5,17 +5,22 @@ using Dalamud.Interface.Style;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using Microsoft.Extensions.Hosting;
 using Stagehand.AssetLibrary;
 using Stagehand.AssetLibrary.GameResources;
+using Stagehand.Definitions.Objects;
+using Stagehand.Editor;
 using Stagehand.Editor.DefinitionEditors.Objects;
 using Stagehand.Services;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Numerics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Object = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object;
 
 namespace Stagehand.Windows;
 
@@ -31,18 +36,20 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
     private readonly IViewportPickerService _viewportPickerService;
     private readonly IAssetBookmarkService _assetBookmarkService;
     private readonly IAssetLibraryWindow _assetLibraryWindow;
+    private readonly IEditorService _editorService;
+    private readonly IOverlayService _overlayService;
     private readonly WindowSystem _windowSystem;
+
+    private readonly List<PickedObjectInfo> _recentPickedObjects = new();
 
     public PickedObjectInfo? SelectedObjectInfo { get; private set; } = null;
     public PickedObjectInfo? HoveredObjectInfo { get; private set; } = null;
 
     public bool IsExpanded { get; set; } = false;
-
     public bool IsMini => HoveredObjectInfo == null && SelectedObjectInfo == null && !IsExpanded;
-
     public IFolderBookmarkItem? SelectedBookmarkFolder { get; set; } = null;
 
-    public QuickPickerWindow(ILogger<QuickPickerWindow> logger, IStagehandKeybinds stagehandKeybinds, IViewportPickerService viewportPickerService, IAssetBookmarkService assetBookmarkService, IAssetLibraryWindow assetLibraryWindow, WindowSystem windowSystem)
+    public QuickPickerWindow(ILogger<QuickPickerWindow> logger, IStagehandKeybinds stagehandKeybinds, IViewportPickerService viewportPickerService, IAssetBookmarkService assetBookmarkService, IAssetLibraryWindow assetLibraryWindow, IEditorService editorService, IOverlayService overlayService, WindowSystem windowSystem)
         : base("Stagehand Quick Picker", ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoResize)
     {
         _logger = logger;
@@ -50,6 +57,8 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
         _viewportPickerService = viewportPickerService;
         _assetBookmarkService = assetBookmarkService;
         _assetLibraryWindow = assetLibraryWindow;
+        _editorService = editorService;
+        _overlayService = overlayService;
         _windowSystem = windowSystem;
     }
 
@@ -59,6 +68,8 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
 
         _stagehandKeybinds.ToggleQuickPickerWindow.Pressed += Toggle;
         _stagehandKeybinds.StartQuickPicking.Pressed += StartPicking;
+
+        _overlayService.DrawOverlays += OnDrawOverlays;
 
         return Task.CompletedTask;
     }
@@ -274,6 +285,38 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
                             ImGui.TextUnformatted($"Add Bookmark{(SelectedBookmarkFolder != null ? $" to {SelectedBookmarkFolder.Name}" : "")}");
                         }
                     }
+                    ImGui.SameLine(0.0f, ImGui.GetStyle().ItemSpacing.X);
+                    using (ImRaii.Disabled(_editorService.OpenEditorWindow == null))
+                    {
+                        if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus, new(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
+                        {
+                            if (_editorService.OpenEditorWindow != null)
+                            {
+                                var newDefinition = new BgObjectDefinition()
+                                {
+                                    DisplayName = Path.GetFileNameWithoutExtension(bgInfo.ModelGamePath),
+                                    ModelGamePath = bgInfo.ModelGamePath,
+                                    Position = bgInfo.Position,
+                                    RotationQuaternion = bgInfo.Rotation,
+                                    Scale = bgInfo.Scale,
+                                    Opacity = 1.0f - bgInfo.Transparency,
+                                };
+                                if (bgInfo.DyeColor != null)
+                                {
+                                    newDefinition.DyeColor = new Vector4(bgInfo.DyeColor.Value.R / 255.0f, bgInfo.DyeColor.Value.G / 255.0f, bgInfo.DyeColor.Value.B / 255.0f, bgInfo.DyeColor.Value.A / 255.0f);
+                                    newDefinition.DyeColor = newDefinition.DyeColor * newDefinition.DyeColor;
+                                }
+                                _editorService.OpenEditorWindow.AddObject(newDefinition);
+                            }
+                        }
+                    }
+                    if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                    {
+                        using (ImRaii.Tooltip())
+                        {
+                            ImGui.TextUnformatted("Place in Stage");
+                        }
+                    }
                 }
             }
             ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
@@ -309,6 +352,10 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
             ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
             if (!IsMini)
             {
+                ImGui.AlignTextToFramePadding();
+                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetStyle().FramePadding.X);
+                ImGui.TextDisabled("(Nothing picked)");
+                ImGui.SameLine();
                 ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight());
             }
             using (ImRaii.Group())
@@ -382,12 +429,71 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
 
     private void DrawRecentTab()
     {
-        ImGui.TextDisabled("(Not yet implemented)");
+        if (!_viewportPickerService.IsPicking)
+        {
+            HoveredObjectInfo = null;
+        }
+        using (var listBox = ImRaii.ListBox("###RecentList", new Vector2(-1.0f, MathF.Max(ImGui.GetContentRegionAvail().Y, 200.0f))))
+        {
+            if (listBox.Success)
+            {
+                for (int i = _recentPickedObjects.Count - 1; i >= 0; i--)
+                {
+                    var item = _recentPickedObjects[i];
+                    if (ImGui.Selectable(item.ToString(), item.OriginalPointer == SelectedObjectInfo?.OriginalPointer))
+                    {
+                        SelectedObjectInfo = item;
+                    }
+                    if (!_viewportPickerService.IsPicking && ImGui.IsItemHovered())
+                    {
+                        HoveredObjectInfo = item;
+                    }
+                }
+            }
+        }
     }
 
     private void DrawDetailsTab(PickedObjectInfo? objectInfo)
     {
         ImGui.TextDisabled("(Not yet implemented)");
+    }
+
+    private unsafe void OnDrawOverlays(IOverlayDrawContext drawContext)
+    {
+        var objectInfo = HoveredObjectInfo ?? SelectedObjectInfo;
+        if (objectInfo != null && IsOpen)
+        {
+            void recurse(Object* obj)
+            {
+                if (obj == (Object*)objectInfo.OriginalPointer)
+                {
+                    var color = HoveredObjectInfo != null ? new Vector4(1.0f, 0.5f, 0.25f, 1.0f) : new Vector4(1.0f, 0.35f, 0.1f, 1.0f);
+                    var type = obj->GetObjectType();
+                    if (type == ObjectType.BgObject || type == ObjectType.VfxObject || type == ObjectType.CharacterBase || type == ObjectType.Decal || type == ObjectType.Light)
+                    {
+                        var drawObject = (DrawObject*)obj;
+                        FFXIVClientStructs.FFXIV.Common.Math.OrientedBounds bounds = default;
+                        drawObject->ComputeOrientedBounds(&bounds);
+
+                        drawContext.DrawBox(bounds.Transform, bounds.HalfExtents, 1.0f, color);
+                    }
+
+                    // If we've found the one object to outline, no need to iterate any further
+                    return;
+                }
+
+                foreach (var child in obj->ChildObjects)
+                {
+                    recurse(child);
+                }
+            }
+
+            var world = World.Instance();
+            if (world != null)
+            {
+                recurse((Object*)world);
+            }
+        }
     }
 
     public void StartPicking()
@@ -411,10 +517,18 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
     private void OnObjectClicked(PickedObjectInfo? objectInfo)
     {
         SelectedObjectInfo = objectInfo;
+
+        if (objectInfo != null)
+        {
+            _recentPickedObjects.RemoveAll(obj => obj.OriginalPointer == objectInfo.OriginalPointer);
+            _recentPickedObjects.Add(objectInfo);
+        }
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
+        _overlayService.DrawOverlays -= OnDrawOverlays;
+
         _stagehandKeybinds.ToggleQuickPickerWindow.Pressed -= Toggle;
         _stagehandKeybinds.StartQuickPicking.Pressed -= StartPicking;
 

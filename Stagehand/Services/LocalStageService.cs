@@ -188,7 +188,7 @@ internal class LocalStageService : IHostedService
         var liveKey = LiveStageHelpers.MakeLocalStageKey(path);
         bool currentlyVisible = _liveStageService.TryGetLiveStage(liveKey, out var liveStage);
 
-        bool shouldBeVisible = path != _editorService.OpenEditorFilename
+        bool shouldBeVisible = path != _editorService.OpenEditorWindow?.DefinitionFilename
             && _manualVisibilitySettings.GetValueOrDefault(path, _localDefinitionService.LocalDefinitions.TryGetValue(path, out var metadata)
             && metadata.AutomaticShowConditions.FirstOrDefault(condition => condition.Evaluate(_gameStateService.Location)) is AutomaticShowCondition condition && condition != default);
 

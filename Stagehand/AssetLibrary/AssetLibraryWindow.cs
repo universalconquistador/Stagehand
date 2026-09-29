@@ -12,6 +12,7 @@ using Stagehand.AssetLibrary.Assets;
 using Stagehand.AssetLibrary.Bookmarks;
 using Stagehand.AssetLibrary.GameResources;
 using Stagehand.Definitions.Objects;
+using Stagehand.Editor;
 using Stagehand.Live;
 using Stagehand.Services;
 using Stagehand.Utils;
@@ -41,14 +42,6 @@ public interface IAssetLibraryWindow : IHostedService
     /// Whether the Asset Library window is open.
     /// </summary>
     bool IsOpen { get; }
-
-    /// <summary>
-    /// Raised when the user requests to create an object definition from an asset.
-    /// </summary>
-    /// <remarks>
-    /// Whether this event has any handlers determines whether the Create button is visible.
-    /// </remarks>
-    event Action<ObjectDefinition> CreateObject;
 
     /// <summary>
     /// Shows the Asset Library window and brings it to the front of the window order.
@@ -128,6 +121,7 @@ internal partial class AssetLibraryWindow : Window, IAssetLibraryWindow
     private readonly IAssetBookmarkService _assetBookmarkService;
     private readonly IDataManager _dataManager;
     private readonly ITextureProvider _textureProvider;
+    private readonly IEditorService _editorService;
     private readonly StagehandConfiguration _configuration;
     private readonly WindowSystem _windowSystem;
 
@@ -160,8 +154,6 @@ internal partial class AssetLibraryWindow : Window, IAssetLibraryWindow
 
     bool IAssetLibraryWindow.IsOpen => base.IsOpen;
 
-    public event Action<ObjectDefinition>? CreateObject;
-
     private ILiveObject? _hoverPreviewObject;
     private AssetInfo? HoveredAssetInfo
     {
@@ -191,7 +183,7 @@ internal partial class AssetLibraryWindow : Window, IAssetLibraryWindow
         }
     }
 
-    public AssetLibraryWindow(ILogger<AssetLibraryWindow> logger, ILiveObjectService liveObjectService, IObjectTable objectTable, ITargetManager targetManager, IOverlayService overlayService, IGameResourceAssetService gameResourceAssetService, IAssetBookmarkService assetBookmarkService, IDataManager dataManager, ITextureProvider textureProvider, StagehandConfiguration configuration, WindowSystem windowSystem)
+    public AssetLibraryWindow(ILogger<AssetLibraryWindow> logger, ILiveObjectService liveObjectService, IObjectTable objectTable, ITargetManager targetManager, IOverlayService overlayService, IGameResourceAssetService gameResourceAssetService, IAssetBookmarkService assetBookmarkService, IDataManager dataManager, ITextureProvider textureProvider, IEditorService editorService, StagehandConfiguration configuration, WindowSystem windowSystem)
         : base("Stagehand Asset Library")
     {
         _logger = logger;
@@ -203,6 +195,7 @@ internal partial class AssetLibraryWindow : Window, IAssetLibraryWindow
         _assetBookmarkService = assetBookmarkService;
         _dataManager = dataManager;
         _textureProvider = textureProvider;
+        _editorService = editorService;
         _configuration = configuration;
         _windowSystem = windowSystem;
 
@@ -422,7 +415,7 @@ internal partial class AssetLibraryWindow : Window, IAssetLibraryWindow
                     _selectedAssetInfo.DrawProperties();
 
                     var createWidth = 0.0f;
-                    if (CreateObject != null)
+                    if (_editorService.OpenEditorWindow != null)
                     {
                         createWidth = ImGuiComponents.GetIconButtonWithTextWidth(FontAwesomeIcon.Plus, "Create");
                     }
@@ -448,7 +441,7 @@ internal partial class AssetLibraryWindow : Window, IAssetLibraryWindow
                                 }
                             }
                         }
-                        if (CreateObject != null)
+                        if (_editorService.OpenEditorWindow != null)
                         {
                             ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
                         }
@@ -458,7 +451,7 @@ internal partial class AssetLibraryWindow : Window, IAssetLibraryWindow
                         ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - createWidth);
                     }
 
-                    if (CreateObject != null)
+                    if (_editorService.OpenEditorWindow != null)
                     {
                         ImGui.SetNextItemWidth(createWidth);
                         if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Plus, "Create"))
@@ -485,7 +478,7 @@ internal partial class AssetLibraryWindow : Window, IAssetLibraryWindow
                                     _hoverPreviewObject = null;
                                 }
 
-                                CreateObject.Invoke(newObjectDefinition);
+                                _editorService.OpenEditorWindow.AddObject(newObjectDefinition);
                             }
                         }
                         if (ImGui.IsItemHovered())

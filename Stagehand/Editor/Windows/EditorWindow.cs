@@ -26,7 +26,27 @@ using System.Threading;
 
 namespace Stagehand.Editor.Windows;
 
-internal class EditorWindow : Window, IDisposable
+/// <summary>
+/// A stage editor window.
+/// </summary>
+public interface IEditorWindow
+{
+    /// <summary>
+    /// The filename of the stage definition that is being edited by this window.
+    /// </summary>
+    /// <remarks>
+    /// This will never change over the lifespan of this window.
+    /// </remarks>
+    string DefinitionFilename { get; }
+
+    /// <summary>
+    /// Adds the given object definition to the default new object destination in the stage definition being edited.
+    /// </summary>
+    /// <param name="definition">The object definition to add.</param>
+    void AddObject(ObjectDefinition definition);
+}
+
+internal class EditorWindow : Window, IEditorWindow, IDisposable
 {
     private static readonly TimeSpan _autosaveInterval = TimeSpan.FromSeconds(30.0f);
 
@@ -39,9 +59,10 @@ internal class EditorWindow : Window, IDisposable
     private readonly ISelectionManager _selectionManager;
     private readonly ITransactionManager _transactionManager;
     private readonly IObjectTable _objectTable;
-    private readonly IAssetLibraryWindow _assetLibraryWindow;
     private readonly IStagehandKeybinds _stagehandKeybinds;
     private readonly StagehandConfiguration _stagehandConfiguration;
+
+    public string DefinitionFilename => _definitionFilename;
 
     public event Action? Closed;
     public event Action? Saved;
@@ -67,7 +88,6 @@ internal class EditorWindow : Window, IDisposable
         _selectionManager = _serviceScope.ServiceProvider.GetRequiredService<ISelectionManager>();
         _transactionManager = _serviceScope.ServiceProvider.GetRequiredService<ITransactionManager>();
         _objectTable = _serviceScope.ServiceProvider.GetRequiredService<IObjectTable>();
-        _assetLibraryWindow = _serviceScope.ServiceProvider.GetRequiredService<IAssetLibraryWindow>();
         _stagehandKeybinds = _serviceScope.ServiceProvider.GetRequiredService<IStagehandKeybinds>();
         _stagehandConfiguration = _serviceScope.ServiceProvider.GetRequiredService<StagehandConfiguration>();
 
@@ -79,7 +99,6 @@ internal class EditorWindow : Window, IDisposable
         _transactionManager.ClearHistory();
         _transactionManager.TransactionDone += OnTransactionDoneOrUndone;
         _transactionManager.TransactionUndone += OnTransactionDoneOrUndone;
-        _assetLibraryWindow.CreateObject += OnAssetLibraryCreateObject;
         _autosaveTimer = new Timer(OnAutosaveTimerElapsed, null, _autosaveInterval, _autosaveInterval);
 
         ShowCloseButton = false;
@@ -97,17 +116,6 @@ internal class EditorWindow : Window, IDisposable
         {
             _hasUnsavedChanges = true;
         }
-    }
-
-    private void OnAssetLibraryCreateObject(ObjectDefinition newObjectDefinition)
-    {
-        var worldPosition = newObjectDefinition.Position;
-        var worldRotation = newObjectDefinition.RotationQuaternion;
-        var worldScale = newObjectDefinition.Scale;
-        var newEditor = _definitionEditor.GetNewObjectContainer().Add(newObjectDefinition);
-        newEditor.WorldPosition = worldPosition;
-        newEditor.WorldRotationQuaternion = worldRotation;
-        newEditor.WorldScale = worldScale;
     }
 
     private void OnAutosaveTimerElapsed(object? _)
@@ -669,6 +677,17 @@ internal class EditorWindow : Window, IDisposable
         }
     }
 
+    public void AddObject(ObjectDefinition definition)
+    {
+        var worldPosition = definition.Position;
+        var worldRotation = definition.RotationQuaternion;
+        var worldScale = definition.Scale;
+        var newEditor = _definitionEditor.GetNewObjectContainer().Add(definition);
+        newEditor.WorldPosition = worldPosition;
+        newEditor.WorldRotationQuaternion = worldRotation;
+        newEditor.WorldScale = worldScale;
+    }
+
     public override void OnClose()
     {
         base.OnClose();
@@ -688,7 +707,6 @@ internal class EditorWindow : Window, IDisposable
         _autosaveTimer.Dispose();
         _transactionManager.TransactionUndone -= OnTransactionDoneOrUndone;
         _transactionManager.TransactionDone -= OnTransactionDoneOrUndone;
-        _assetLibraryWindow.CreateObject -= OnAssetLibraryCreateObject;
         _definitionEditor.Dispose();
         _serviceScope.Dispose();
     }

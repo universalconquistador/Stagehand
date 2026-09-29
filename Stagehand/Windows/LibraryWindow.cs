@@ -287,7 +287,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                                 {
                                     // The file's treenode
                                     bool isVisible = _liveStageService.TryGetLiveStage(LiveStageHelpers.MakeLocalStageKey(localDefinition.Key), out _);
-                                    bool isEditing = _editorService.OpenEditorFilename == localDefinition.Key;
+                                    bool isEditing = _editorService.OpenEditorWindow?.DefinitionFilename == localDefinition.Key;
                                     using (ImRaii.PushFont(UiBuilder.IconFont))
                                     using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.HealerGreen, isVisible))
                                     using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.ParsedOrange, isEditing))
@@ -847,7 +847,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                         string liveKey = LiveStageHelpers.MakeLocalStageKey(_selectedLocalDefinitionFilename);
                         bool isVisible = _liveStageService.TryGetLiveStage(liveKey, out _);
 
-                        using (ImRaii.Disabled(_editorService.OpenEditorFilename == _selectedLocalDefinitionFilename))
+                        using (ImRaii.Disabled(_editorService.OpenEditorWindow?.DefinitionFilename == _selectedLocalDefinitionFilename))
                         {
                             if (isVisible)
                             {
@@ -866,7 +866,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                         }
 
                         ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
-                        if (_editorService.OpenEditorFilename == null)
+                        if (_editorService.OpenEditorWindow?.DefinitionFilename == null)
                         {
                             if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.Hammer, "Open Editor"))
                             {

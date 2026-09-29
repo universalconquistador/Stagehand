@@ -17,9 +17,9 @@ namespace Stagehand.Editor;
 public interface IEditorService
 {
     /// <summary>
-    /// The full path of the Stage definition currently being edited, if any.
+    /// The editor window that is currently open, if any.
     /// </summary>
-    string? OpenEditorFilename { get; }
+    IEditorWindow? OpenEditorWindow { get; }
 
     /// <summary>
     /// Attempts to open the editor for the Stage definition at the given path.
@@ -56,7 +56,7 @@ internal class EditorService : IEditorService, IDisposable
 
     private EditorWindow? _editorWindow;
 
-    public string? OpenEditorFilename { get; private set; }
+    public IEditorWindow? OpenEditorWindow { get; private set; }
     
     public event Action<string>? EditorOpened;
     public event Action<string>? EditorClosed;
@@ -71,7 +71,7 @@ internal class EditorService : IEditorService, IDisposable
 
     public bool TryOpenEditor(string definitionFilename)
     {
-        if (OpenEditorFilename != null)
+        if (OpenEditorWindow != null)
         {
             return false;
         }
@@ -89,7 +89,7 @@ internal class EditorService : IEditorService, IDisposable
                         _windowSystem.RemoveWindow(newWindow);
                         newWindow.Dispose();
                         _editorWindow = null;
-                        OpenEditorFilename = null;
+                        OpenEditorWindow = null;
                         EditorClosed?.Invoke(definitionFilename);
                     };
                     newWindow.Saved += () => EditorSaved?.Invoke(definitionFilename);
@@ -97,7 +97,7 @@ internal class EditorService : IEditorService, IDisposable
                     _windowSystem.AddWindow(newWindow);
                     newWindow.IsOpen = true;
 
-                    OpenEditorFilename = definitionFilename;
+                    OpenEditorWindow = newWindow;
                     EditorOpened?.Invoke(definitionFilename);
                     return true;
                 }
