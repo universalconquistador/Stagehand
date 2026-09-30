@@ -26,6 +26,11 @@ namespace Stagehand.Windows;
 
 public interface IQuickPickerWindow : IHostedService
 {
+    /// <summary>
+    /// The icon that represents the quick picker window.
+    /// </summary>
+    public const FontAwesomeIcon Icon = FontAwesomeIcon.EyeDropper;
+    
     void Show();
 }
 

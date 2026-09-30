@@ -63,6 +63,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
     private readonly IEditorService _editorService;
     private readonly IConfigWindow _configWindow;
     private readonly IAssetLibraryWindow _assetLibraryWindow;
+    private readonly IQuickPickerWindow _quickPickerWindow;
     private readonly LocalStageService _localStageService;
     private readonly WindowSystem _windowSystem;
     private readonly StagehandConfiguration _configuration;
@@ -73,7 +74,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
     private List<SelectableWorld> _allWorlds;
     private int[] _allHouses = Enumerable.Range(0, 31).ToArray();
 
-    public LibraryWindow(ILogger<LibraryWindow> logger, IDalamudPluginInterface dalamudPluginInterface, ICommandManager commandManager, IDataManager dataManager, IClientState clientState, IPlayerState playerState, ILocalDefinitionService localDefinitionService, ILiveStageService liveStageService, IEditorService editorService, IConfigWindow configWindow, IAssetLibraryWindow assetLibraryWindow, LocalStageService localStageService, WindowSystem windowSystem, StagehandConfiguration configuration)
+    public LibraryWindow(ILogger<LibraryWindow> logger, IDalamudPluginInterface dalamudPluginInterface, ICommandManager commandManager, IDataManager dataManager, IClientState clientState, IPlayerState playerState, ILocalDefinitionService localDefinitionService, ILiveStageService liveStageService, IEditorService editorService, IConfigWindow configWindow, IAssetLibraryWindow assetLibraryWindow, IQuickPickerWindow quickPickerWindow, LocalStageService localStageService, WindowSystem windowSystem, StagehandConfiguration configuration)
         : base($"Stagehand {dalamudPluginInterface.Manifest.AssemblyVersion}###StagehandLibrary")
     {
         SizeConstraints = new WindowSizeConstraints
@@ -94,6 +95,7 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
         _editorService = editorService;
         _configWindow = configWindow;
         _assetLibraryWindow = assetLibraryWindow;
+        _quickPickerWindow = quickPickerWindow;
         _localStageService = localStageService;
         _windowSystem = windowSystem;
         _configuration = configuration;
@@ -137,6 +139,46 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                 _autoLoadNewWorldIndex = i;
             }
         }
+
+        TitleBarButtons.Add(new()
+        {
+            Icon = IConfigWindow.Icon,
+            IconOffset = new(2.0f, 1.0f),
+            Click = _ => _configWindow.Show(),
+            ShowTooltip = () =>
+            {
+                using (ImRaii.Tooltip())
+                {
+                    ImGui.TextUnformatted("Show Stagehand Settings");
+                }
+            }
+        });
+        TitleBarButtons.Add(new()
+        {
+            Icon = IAssetLibraryWindow.Icon,
+            IconOffset = new(2.0f, 1.0f),
+            Click = _ => _assetLibraryWindow.Show(),
+            ShowTooltip = () =>
+            {
+                using (ImRaii.Tooltip())
+                {
+                    ImGui.TextUnformatted("Show Asset Library");
+                }
+            }
+        });
+        TitleBarButtons.Add(new()
+        {
+            Icon = IQuickPickerWindow.Icon,
+            IconOffset = new(2.0f, 1.0f),
+            Click = _ => _quickPickerWindow.Show(),
+            ShowTooltip = () =>
+            {
+                using (ImRaii.Tooltip())
+                {
+                    ImGui.TextUnformatted("Show Quick Picker");
+                }
+            }
+        });
     }
 
     public void Dispose()
@@ -192,32 +234,9 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                         ImGui.TextDisabled("Click to open.");
                     }
                 }
+                ImGui.Spacing();
 
                 ImGui.TableNextColumn();
-                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X - ImGuiComponents.GetIconButtonWithTextWidth(FontAwesomeIcon.Cog, "") - ImGui.GetStyle().ItemInnerSpacing.X - ImGuiComponents.GetIconButtonWithTextWidth(FontAwesomeIcon.Cubes, ""));
-                if (ImGuiComponents.IconButton(IAssetLibraryWindow.Icon))
-                {
-                    _assetLibraryWindow.Show();
-                }
-                if (ImGui.IsItemHovered())
-                {
-                    using (ImRaii.Tooltip())
-                    {
-                        ImGui.Text("Open the Asset Library");
-                    }
-                }
-                ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
-                if (ImGuiComponents.IconButton(FontAwesomeIcon.Cog))
-                {
-                    _configWindow.Show();
-                }
-                if (ImGui.IsItemHovered())
-                {
-                    using (ImRaii.Tooltip())
-                    {
-                        ImGui.Text("Open the Stagehand settings");
-                    }
-                }
 
                 ImGui.TableNextColumn();
 

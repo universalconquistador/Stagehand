@@ -16,6 +16,7 @@ using Stagehand.Editor.DefinitionEditors;
 using Stagehand.Editor.DefinitionEditors.Objects;
 using Stagehand.Editor.Services;
 using Stagehand.Services;
+using Stagehand.Windows;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -60,6 +61,9 @@ internal class EditorWindow : Window, IEditorWindow, IDisposable
     private readonly ITransactionManager _transactionManager;
     private readonly IObjectTable _objectTable;
     private readonly IStagehandKeybinds _stagehandKeybinds;
+    private readonly IQuickPickerWindow _quickPickerWindow;
+    private readonly IAssetLibraryWindow _assetLibraryWindow;
+    private readonly IConfigWindow _configWindow;
     private readonly StagehandConfiguration _stagehandConfiguration;
 
     public string DefinitionFilename => _definitionFilename;
@@ -89,6 +93,9 @@ internal class EditorWindow : Window, IEditorWindow, IDisposable
         _transactionManager = _serviceScope.ServiceProvider.GetRequiredService<ITransactionManager>();
         _objectTable = _serviceScope.ServiceProvider.GetRequiredService<IObjectTable>();
         _stagehandKeybinds = _serviceScope.ServiceProvider.GetRequiredService<IStagehandKeybinds>();
+        _quickPickerWindow = _serviceScope.ServiceProvider.GetRequiredService<IQuickPickerWindow>();
+        _assetLibraryWindow = _serviceScope.ServiceProvider.GetRequiredService<IAssetLibraryWindow>();
+        _configWindow = _serviceScope.ServiceProvider.GetRequiredService<IConfigWindow>();
         _stagehandConfiguration = _serviceScope.ServiceProvider.GetRequiredService<StagehandConfiguration>();
 
         _definitionFilename = definitionFilename;
@@ -108,6 +115,46 @@ internal class EditorWindow : Window, IEditorWindow, IDisposable
         _stagehandKeybinds.EditorUndo.Pressed += _transactionManager.Undo;
         _stagehandKeybinds.EditorRedo.Pressed += _transactionManager.Redo;
         _stagehandKeybinds.EditorSave.Pressed += SaveDefinition;
+
+        TitleBarButtons.Add(new()
+        {
+            Icon = IConfigWindow.Icon,
+            IconOffset = new(2.0f, 1.0f),
+            Click = _ => _configWindow.Show(),
+            ShowTooltip = () =>
+            {
+                using (ImRaii.Tooltip())
+                {
+                    ImGui.TextUnformatted("Show Stagehand Settings");
+                }
+            }
+        });
+        TitleBarButtons.Add(new()
+        {
+            Icon = IAssetLibraryWindow.Icon,
+            IconOffset = new(2.0f, 1.0f),
+            Click = _ => _assetLibraryWindow.Show(),
+            ShowTooltip = () =>
+            {
+                using (ImRaii.Tooltip())
+                {
+                    ImGui.TextUnformatted("Show Asset Library");
+                }
+            }
+        });
+        TitleBarButtons.Add(new()
+        {
+            Icon = IQuickPickerWindow.Icon,
+            IconOffset = new(2.0f, 1.0f),
+            Click = _ => _quickPickerWindow.Show(),
+            ShowTooltip = () =>
+            {
+                using (ImRaii.Tooltip())
+                {
+                    ImGui.TextUnformatted("Show Quick Picker");
+                }
+            }
+        });
     }
 
     private void OnTransactionDoneOrUndone(ITransaction transaction)

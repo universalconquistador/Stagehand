@@ -16,6 +16,7 @@ using Stagehand.Editor;
 using Stagehand.Live;
 using Stagehand.Services;
 using Stagehand.Utils;
+using Stagehand.Windows;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -122,6 +123,7 @@ internal partial class AssetLibraryWindow : Window, IAssetLibraryWindow
     private readonly IDataManager _dataManager;
     private readonly ITextureProvider _textureProvider;
     private readonly IEditorService _editorService;
+    private readonly IConfigWindow _configWindow;
     private readonly StagehandConfiguration _configuration;
     private readonly WindowSystem _windowSystem;
 
@@ -183,7 +185,7 @@ internal partial class AssetLibraryWindow : Window, IAssetLibraryWindow
         }
     }
 
-    public AssetLibraryWindow(ILogger<AssetLibraryWindow> logger, ILiveObjectService liveObjectService, IObjectTable objectTable, ITargetManager targetManager, IOverlayService overlayService, IGameResourceAssetService gameResourceAssetService, IAssetBookmarkService assetBookmarkService, IDataManager dataManager, ITextureProvider textureProvider, IEditorService editorService, StagehandConfiguration configuration, WindowSystem windowSystem)
+    public AssetLibraryWindow(ILogger<AssetLibraryWindow> logger, ILiveObjectService liveObjectService, IObjectTable objectTable, ITargetManager targetManager, IOverlayService overlayService, IGameResourceAssetService gameResourceAssetService, IAssetBookmarkService assetBookmarkService, IDataManager dataManager, ITextureProvider textureProvider, IEditorService editorService, IConfigWindow configWindow, StagehandConfiguration configuration, WindowSystem windowSystem)
         : base("Stagehand Asset Library")
     {
         _logger = logger;
@@ -196,6 +198,7 @@ internal partial class AssetLibraryWindow : Window, IAssetLibraryWindow
         _dataManager = dataManager;
         _textureProvider = textureProvider;
         _editorService = editorService;
+        _configWindow = configWindow;
         _configuration = configuration;
         _windowSystem = windowSystem;
 
@@ -224,6 +227,20 @@ internal partial class AssetLibraryWindow : Window, IAssetLibraryWindow
         _bookmarkTreeView = new(_assetBookmarkService, _gameResourceAssetService);
         _bookmarkTreeView.GameFolderDoubleClicked += OnGameFolderBookmarkDoubleClicked;
         _bookmarkTreeView.GameResourceDoubleClicked += OnGameResourceBookmarkDoubleClicked;
+
+        TitleBarButtons.Add(new()
+        {
+            Icon = IConfigWindow.Icon,
+            IconOffset = new(2.0f, 1.0f),
+            Click = _ => _configWindow.Show(),
+            ShowTooltip = () =>
+            {
+                using (ImRaii.Tooltip())
+                {
+                    ImGui.TextUnformatted("Show Stagehand Settings");
+                }
+            }
+        });
 
         LoadHousingNodes();
     }
