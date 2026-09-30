@@ -1,12 +1,16 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
+using Stagehand.Definitions.Objects;
+using Stagehand.Editor.DefinitionEditors.Objects;
 using Stagehand.Live;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Numerics;
 using System.Text;
 using System.Threading;
@@ -19,25 +23,75 @@ namespace Stagehand.Services;
 // so instead the picker service stores their info in these classes. The OriginalPointer is used to identify this object in the scene.
 public record class PickedObjectInfo(IntPtr OriginalPointer, Vector3 Position, Quaternion Rotation, Vector3 Scale, ObjectType ObjectType)
 {
+    public virtual FontAwesomeIcon Icon => FontAwesomeIcon.Question;
+    public virtual string TypeName => ObjectType.ToString();
+    public virtual string? PrimaryResourcePath => null;
+
     public override string ToString()
     {
         return $"{ObjectType} at <{Position.X}, {Position.Y}, {Position.Z}>";
+    }
+
+    public virtual ObjectDefinition? CreateObjectDefinition()
+    {
+        return null;
     }
 }
 
 public record class PickedBgObjectInfo(IntPtr OriginalPointer, Vector3 Position, Quaternion Rotation, Vector3 Scale, string ModelGamePath, ILiveModpack? Modpack, float Transparency, ByteColor? DyeColor) : PickedObjectInfo(OriginalPointer, Position, Rotation, Scale, ObjectType.BgObject)
 {
+    public override FontAwesomeIcon Icon => BgObjectDefinitionEditor.StaticTypeInfo.Icon;
+    public override string TypeName => BgObjectDefinitionEditor.StaticTypeInfo.DisplayName;
+    public override string? PrimaryResourcePath => ModelGamePath;
+
     public override string ToString()
     {
         return $"{base.ToString()}\n{ModelGamePath}{(Modpack != null ? $"\nModpack {Modpack.DebugName}" : "")}";
     }
+
+    public override ObjectDefinition? CreateObjectDefinition()
+    {
+        var newDefinition = new BgObjectDefinition()
+        {
+            DisplayName = Path.GetFileNameWithoutExtension(ModelGamePath),
+            ModelGamePath = ModelGamePath,
+            Position = Position,
+            RotationQuaternion = Rotation,
+            Scale = Scale,
+            Opacity = 1.0f - Transparency,
+        };
+        if (DyeColor != null)
+        {
+            newDefinition.DyeColor = new Vector4(DyeColor.Value.R / 255.0f, DyeColor.Value.G / 255.0f, DyeColor.Value.B / 255.0f, DyeColor.Value.A / 255.0f);
+            newDefinition.DyeColor = newDefinition.DyeColor * newDefinition.DyeColor;
+        }
+        return newDefinition;
+    }
 }
 
-public record class PickedVfxObjectInfo(IntPtr OriginalPointer, Vector3 Position, Quaternion Rotation, Vector3 Scale, string VfxGamePath, ILiveModpack? Modpack, float Transparency, Vector4 TintColor) : PickedObjectInfo(OriginalPointer, Position, Rotation, Scale, ObjectType.VfxObject)
+public record class PickedVfxObjectInfo(IntPtr OriginalPointer, Vector3 Position, Quaternion Rotation, Vector3 Scale, string VfxGamePath, ILiveModpack? Modpack, Vector4 TintColor) : PickedObjectInfo(OriginalPointer, Position, Rotation, Scale, ObjectType.VfxObject)
 {
+    public override FontAwesomeIcon Icon => VfxObjectDefinitionEditor.StaticTypeInfo.Icon;
+    public override string TypeName => VfxObjectDefinitionEditor.StaticTypeInfo.DisplayName;
+    public override string? PrimaryResourcePath => VfxGamePath;
+
     public override string ToString()
     {
         return $"{base.ToString()}\n{VfxGamePath}{(Modpack != null ? $"\nModpack {Modpack.DebugName}" : "")}";
+    }
+
+    public override ObjectDefinition? CreateObjectDefinition()
+    {
+        var newDefinition = new VfxObjectDefinition()
+        {
+            DisplayName = Path.GetFileNameWithoutExtension(VfxGamePath),
+            VfxGamePath = VfxGamePath,
+            Position = Position,
+            RotationQuaternion = Rotation,
+            Scale = Scale,
+            Color = TintColor,
+        };
+        return newDefinition;
     }
 }
 
@@ -303,7 +357,7 @@ internal class ViewportPickerService : IViewportPickerService
                     }
                 }
             }
-            return new PickedVfxObjectInfo((IntPtr)sceneObject, vfxObject->Position, vfxObject->Rotation, vfxObject->Scale, vfxGamePath, modpack, vfxObject->GetTransparency(), vfxObject->Color);
+            return new PickedVfxObjectInfo((IntPtr)sceneObject, vfxObject->Position, vfxObject->Rotation, vfxObject->Scale, vfxGamePath, modpack, vfxObject->Color);
         }
         else
         {

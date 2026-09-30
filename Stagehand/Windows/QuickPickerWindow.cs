@@ -9,7 +9,6 @@ using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using Microsoft.Extensions.Hosting;
 using Stagehand.AssetLibrary;
 using Stagehand.AssetLibrary.GameResources;
-using Stagehand.Definitions.Objects;
 using Stagehand.Editor;
 using Stagehand.Editor.DefinitionEditors.Objects;
 using Stagehand.Services;
@@ -184,23 +183,23 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
             ImGui.SameLine();
             using (ImRaii.Group())
             {
-                if (objectInfo is PickedBgObjectInfo bgInfo)
+                ImGui.AlignTextToFramePadding();
+                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetStyle().FramePadding.X); // Align with first iconbutton below
+                using (ImRaii.PushFont(UiBuilder.IconFont))
                 {
-                    ImGui.AlignTextToFramePadding();
-                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetStyle().FramePadding.X); // Align with first iconbutton below
-                    using (ImRaii.PushFont(UiBuilder.IconFont))
+                    ImGui.TextUnformatted(BgObjectDefinitionEditor.StaticTypeInfo.Icon.ToIconString());
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    using (ImRaii.Tooltip())
                     {
-                        ImGui.TextUnformatted(BgObjectDefinitionEditor.StaticTypeInfo.Icon.ToIconString());
+                        ImGui.TextUnformatted(BgObjectDefinitionEditor.StaticTypeInfo.DisplayName);
                     }
-                    if (ImGui.IsItemHovered())
-                    {
-                        using (ImRaii.Tooltip())
-                        {
-                            ImGui.TextUnformatted(BgObjectDefinitionEditor.StaticTypeInfo.DisplayName);
-                        }
-                    }
-                    ImGui.SameLine();
-                    ImGui.TextUnformatted(bgInfo.ModelGamePath);
+                }
+                ImGui.SameLine();
+                if (objectInfo.PrimaryResourcePath != null)
+                {
+                    ImGui.TextUnformatted(objectInfo.PrimaryResourcePath);
                     if (ImGui.IsItemHovered())
                     {
                         ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
@@ -209,14 +208,14 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
                     {
                         if (dragSource.Success)
                         {
-                            ImGui.SetDragDropPayload(GameResourceDragDrop.DataTypeId, GameResourceDragDrop.MakeGameResourcePayload(bgInfo.ModelGamePath));
-                            ImGui.TextUnformatted(bgInfo.ModelGamePath);
+                            ImGui.SetDragDropPayload(GameResourceDragDrop.DataTypeId, GameResourceDragDrop.MakeGameResourcePayload(objectInfo.PrimaryResourcePath));
+                            ImGui.TextUnformatted(objectInfo.PrimaryResourcePath);
                         }
                     }
 
                     if (ImGuiComponents.IconButton(FontAwesomeIcon.ExternalLinkSquareAlt, new(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
                     {
-                        if (_assetLibraryWindow.TrySelectGameResource(bgInfo.ModelGamePath))
+                        if (_assetLibraryWindow.TrySelectGameResource(objectInfo.PrimaryResourcePath))
                         {
                             _assetLibraryWindow.Show();
                         }
@@ -276,7 +275,7 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
                     ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
                     if (ImGuiComponents.IconButton(FontAwesomeIcon.Bookmark, new(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
                     {
-                        _ = _assetBookmarkService.CreateGameResourceBookmarkAsync(bgInfo.ModelGamePath, SelectedBookmarkFolder);
+                        _ = _assetBookmarkService.CreateGameResourceBookmarkAsync(objectInfo.PrimaryResourcePath, SelectedBookmarkFolder);
                     }
                     if (ImGui.IsItemHovered())
                     {
@@ -292,21 +291,11 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
                         {
                             if (_editorService.OpenEditorWindow != null)
                             {
-                                var newDefinition = new BgObjectDefinition()
+                                var newDefinition = objectInfo.CreateObjectDefinition();
+                                if (newDefinition != null)
                                 {
-                                    DisplayName = Path.GetFileNameWithoutExtension(bgInfo.ModelGamePath),
-                                    ModelGamePath = bgInfo.ModelGamePath,
-                                    Position = bgInfo.Position,
-                                    RotationQuaternion = bgInfo.Rotation,
-                                    Scale = bgInfo.Scale,
-                                    Opacity = 1.0f - bgInfo.Transparency,
-                                };
-                                if (bgInfo.DyeColor != null)
-                                {
-                                    newDefinition.DyeColor = new Vector4(bgInfo.DyeColor.Value.R / 255.0f, bgInfo.DyeColor.Value.G / 255.0f, bgInfo.DyeColor.Value.B / 255.0f, bgInfo.DyeColor.Value.A / 255.0f);
-                                    newDefinition.DyeColor = newDefinition.DyeColor * newDefinition.DyeColor;
+                                    _editorService.OpenEditorWindow.AddObject(newDefinition);
                                 }
-                                _editorService.OpenEditorWindow.AddObject(newDefinition);
                             }
                         }
                     }
@@ -317,6 +306,10 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
                             ImGui.TextUnformatted("Place in Stage");
                         }
                     }
+                }
+                else
+                {
+                    ImGui.TextDisabled("(No resources for selection)");
                 }
             }
             ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
@@ -433,7 +426,7 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
         {
             HoveredObjectInfo = null;
         }
-        using (var listBox = ImRaii.ListBox("###RecentList", new Vector2(-1.0f, MathF.Max(ImGui.GetContentRegionAvail().Y, 200.0f))))
+        using (var listBox = ImRaii.ListBox("###RecentList", new Vector2(-1.0f, MathF.Max(ImGui.GetContentRegionAvail().Y, 200.0f * ImGuiHelpers.GlobalScale))))
         {
             if (listBox.Success)
             {
@@ -455,7 +448,92 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
 
     private void DrawDetailsTab(PickedObjectInfo? objectInfo)
     {
-        ImGui.TextDisabled("(Not yet implemented)");
+        if (objectInfo != null)
+        {
+            ImGui.Spacing();
+            Utils.ImGuiExtensions.PropertiesHeader(objectInfo.PrimaryResourcePath ?? objectInfo.TypeName, additionalSelectionCount: 0, objectInfo.TypeName, objectInfo.Icon, string.Empty, out bool isDisplayNameHovered);
+            if (isDisplayNameHovered)
+            {
+                using (ImRaii.Tooltip())
+                {
+                    ImGui.TextUnformatted(objectInfo.ObjectType.ToString());
+                }
+            }
+
+            // Uncomment the scrolling container if lights have too many properties to be manageable
+            //using (var propertiesPanel = ImRaii.Child("###PropertiesPanel", new Vector2(-1.0f, MathF.Max(ImGui.GetContentRegionAvail().Y, 200.0f)), border: false))
+            {
+                //if (propertiesPanel.Success)
+                {
+                    using (ImRaii.ItemWidth(-ImGui.GetContentRegionAvail().X * 0.33f))
+                    {
+                        Vector3 position = objectInfo.Position;
+                        ImGui.InputFloat3("Position"u8, ref position);
+                        Vector3 rotation = QuaternionToPitchYawRollDegrees(objectInfo.Rotation);
+                        ImGui.InputFloat3("Rotation"u8, ref rotation);
+                        Vector3 scale = objectInfo.Scale;
+                        ImGui.InputFloat3("Scale"u8, ref scale);
+                        ImGui.Spacing();
+
+                        if (objectInfo is PickedBgObjectInfo bgInfo)
+                        {
+                            ImGui.LabelText("Model"u8, bgInfo.ModelGamePath);
+                            if (ImGui.IsItemHovered())
+                            {
+                                using (ImRaii.Tooltip())
+                                {
+                                    ImGui.TextUnformatted(bgInfo.ModelGamePath);
+                                    ImGui.Separator();
+                                    ImGui.TextDisabled("Click to copy");
+                                }
+                            }
+                            if (ImGui.IsItemClicked())
+                            {
+                                ImGui.SetClipboardText(bgInfo.ModelGamePath);
+                            }
+                            ImGui.Spacing();
+                            float transparency = bgInfo.Transparency;
+                            ImGui.SliderFloat("Transparency"u8, ref transparency);
+                            if (bgInfo.DyeColor != null)
+                            {
+                                var dyeColor = new Vector4(bgInfo.DyeColor.Value.R / 255.0f, bgInfo.DyeColor.Value.G / 255.0f, bgInfo.DyeColor.Value.B / 255.0f, bgInfo.DyeColor.Value.A / 255.0f);
+                                dyeColor = dyeColor * dyeColor;
+                                ImGui.ColorEdit4("Dye Color"u8, ref dyeColor, ImGuiColorEditFlags.NoPicker);
+                            }
+                        }
+                        else if (objectInfo is PickedVfxObjectInfo vfxInfo)
+                        {
+                            ImGui.LabelText("VFX"u8, vfxInfo.VfxGamePath);
+                            if (ImGui.IsItemHovered())
+                            {
+                                using (ImRaii.Tooltip())
+                                {
+                                    ImGui.TextUnformatted(vfxInfo.VfxGamePath);
+                                    ImGui.Separator();
+                                    ImGui.TextDisabled("Click to copy");
+                                }
+                            }
+                            if (ImGui.IsItemClicked())
+                            {
+                                ImGui.SetClipboardText(vfxInfo.VfxGamePath);
+                            }
+                            ImGui.Spacing();
+                            Vector4 color = vfxInfo.TintColor;
+                            ImGui.ColorEdit4("Color", ref color, ImGuiColorEditFlags.NoPicker);
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            ImGui.Spacing();
+            using (ImRaii.Disabled())
+            {
+                ImGuiHelpers.CenteredText("(Nothing selected)"u8);
+            }
+            ImGui.Spacing();
+        }
     }
 
     private unsafe void OnDrawOverlays(IOverlayDrawContext drawContext)
@@ -539,4 +617,24 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
 
     public void Dispose()
     { }
+
+    private static Vector3 QuaternionToPitchYawRollDegrees(Quaternion value)
+    {
+        // The formula I'm using for quat -> PYR is z-up, so swizzle the dimensions around
+        float x = value.Z;
+        float y = value.X;
+        float z = value.Y;
+        float w = value.W;
+
+        var roll = MathF.Atan2((2 * w * x) + (2 * y * z), 1 - (2 * x * x) - (2 * y * y));
+        var pitch = MathF.Asin((2 * w * y) - (2 * z * x));
+        var yaw = MathF.Atan2((2 * w * z) + (2 * x * y), 1 - (2 * y * y) - (2 * z * z));
+
+        return new Vector3(RadiansToDegrees(pitch), RadiansToDegrees(yaw), RadiansToDegrees(roll));
+    }
+
+    private static float RadiansToDegrees(float radians)
+    {
+        return radians * 180.0f / MathF.PI;
+    }
 }
