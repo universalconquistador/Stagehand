@@ -227,3 +227,20 @@ Later down the road:
 ## 0.5.1
 
  - Fixes a bug where collision of editor objects that were children of a group when the editor was opened would stick around incorrectly.
+
+## 0.5.2
+
+ - Adds the Quick Picker window! The quick picker is designed to let you quickly select objects in the world at any time to inspect them and add them to your bookmarks.
+   - You can show the quick picker window by using the keybinds (Alt+P) or clicking the little eyedropper icon on the right side of the titlebar of the Stagehand and stage editor windows.
+   - To use the quick picker window, activate picking with the big pipette button and then click on an object in the game world. You can right-click or use the Cancel Picking keybind (Escape) to deactivate picking without selecting anything.
+   - Once you have selected an object you can see its model/vfx path, which can be dragged to your bookmarks or to the 'Model Path'/'VFX Path' properties of objects in the stage editor.  
+     You can also use the bookmark button to create a bookmark in the selected folder, and you can use the plus button to create a copy of the object in the stage editor (if it is open).
+   - You can use the down/up button at the right side of the quick picker window to show and hide the 'Nearby', 'Recent', and 'Details' tabs, which give you other ways to select objects in the game world and view their details.
+   - There are two different keybindable actions to bring up the quick picker: 'Start Quick Picking' (Alt+P by default) and 'Toggle Quick Picker Window' (no default keybind).  
+     'Start Quick Picking' will show the quick picker window if it is not visible and then immediately activates picking. This makes it super quick to pick something at a moment's notice, but this action can't be used to close the quick picker window.  
+     'Toggle Quick Picker Window' shows the quick picker window if it is hidden, or hides the window if it is visible. This makes logical sense, but does not activate picking for you.
+     Feel free to use one or both or none of these actions as best suits your needs via the Stagehand settings.
+ - Adds buttons to open the Quick Picker, Asset Library, and Settings to the titlebars of the main Stagehand window and the stage editor window. Also adds a Settings button to the titlebar of the Asset Library window.
+ - Moves the 'Open stage folder' functionality from the 'My Stages' heading to a dedicated button.
+ - Fixes the plugin failing when the stage directory or autosave directory are inaccessible (e.g. because they refer to a user folder that does not exist, because the user copied their config from one PC/account to another).
+ - Fixes bug with the keybind settings where you could not modify unbound keybinds beyond the first unbound keybind in a section.
