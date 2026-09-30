@@ -70,7 +70,17 @@ public sealed class Plugin : IDalamudPlugin
             Configuration.Save();
         }
 
-        Directory.CreateDirectory(Configuration.DefinitionLibraryPath);
+        try
+        {
+            Directory.CreateDirectory(Configuration.DefinitionLibraryPath);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Exception creating stage definition directory {path} given in config! Resetting.", Configuration.DefinitionLibraryPath);
+            Configuration.DefinitionLibraryPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Stages");
+            Configuration.Save();
+            Directory.CreateDirectory(Configuration.DefinitionLibraryPath);
+        }
 
         _overlayService = new OverlayService(GameGui);
         _dialogManager = new FileDialogManager();

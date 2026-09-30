@@ -1,4 +1,5 @@
 using Dalamud.Configuration;
+using Newtonsoft.Json;
 using Stagehand.Services;
 using System;
 using System.Collections.Generic;
@@ -37,6 +38,7 @@ public class StagehandConfiguration : IPluginConfiguration
     /// <summary>
     /// The absolute path to the definition autosave directory.
     /// </summary>
+    [JsonIgnore]
     public string FinalAutosavePath => AutosavePath != "" ? AutosavePath : Path.Combine(Plugin.PluginInterface.GetPluginConfigDirectory(), AutosaveFolderName);
 
     /// <summary>

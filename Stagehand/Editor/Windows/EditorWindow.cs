@@ -178,7 +178,15 @@ internal class EditorWindow : Window, IEditorWindow, IDisposable
                 var autosaveDirectory = Path.GetDirectoryName(autosavePath);
                 if (autosaveDirectory != null)
                 {
-                    Directory.CreateDirectory(autosaveDirectory);
+                    try
+                    {
+                        Directory.CreateDirectory(autosaveDirectory);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to create autosave directory {path}! Autosaving will not function.", autosaveDirectory);
+                        return;
+                    }
                 }
 
                 TryWriteDefinition(autosavePath);
