@@ -5,6 +5,7 @@ using Dalamud.Interface.Style;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
+using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using Microsoft.Extensions.Hosting;
 using Stagehand.AssetLibrary;
@@ -31,6 +32,7 @@ public interface IQuickPickerWindow : IHostedService
 internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
 {
     private readonly ILogger _logger;
+    private readonly IObjectTable _objectTable;
     private readonly IStagehandKeybinds _stagehandKeybinds;
     private readonly IViewportPickerService _viewportPickerService;
     private readonly IAssetBookmarkService _assetBookmarkService;
@@ -39,6 +41,10 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
     private readonly IOverlayService _overlayService;
     private readonly WindowSystem _windowSystem;
 
+    private bool _autoRefreshNearbyObjects = true;
+    private DateTimeOffset _lastNearbyObjectsRefresh = DateTimeOffset.MinValue;
+    private bool _nearbyUsesCamera = false;
+    private List<PickedObjectInfo> _nearbyObjects = new();
     private readonly List<PickedObjectInfo> _recentPickedObjects = new();
 
     public PickedObjectInfo? SelectedObjectInfo { get; private set; } = null;
@@ -48,10 +54,11 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
     public bool IsMini => HoveredObjectInfo == null && SelectedObjectInfo == null && !IsExpanded;
     public IFolderBookmarkItem? SelectedBookmarkFolder { get; set; } = null;
 
-    public QuickPickerWindow(ILogger<QuickPickerWindow> logger, IStagehandKeybinds stagehandKeybinds, IViewportPickerService viewportPickerService, IAssetBookmarkService assetBookmarkService, IAssetLibraryWindow assetLibraryWindow, IEditorService editorService, IOverlayService overlayService, WindowSystem windowSystem)
+    public QuickPickerWindow(ILogger<QuickPickerWindow> logger, IObjectTable objectTable, IStagehandKeybinds stagehandKeybinds, IViewportPickerService viewportPickerService, IAssetBookmarkService assetBookmarkService, IAssetLibraryWindow assetLibraryWindow, IEditorService editorService, IOverlayService overlayService, WindowSystem windowSystem)
         : base("Stagehand Quick Picker", ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoResize)
     {
         _logger = logger;
+        _objectTable = objectTable;
         _stagehandKeybinds = stagehandKeybinds;
         _viewportPickerService = viewportPickerService;
         _assetBookmarkService = assetBookmarkService;
@@ -187,13 +194,13 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
                 ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ImGui.GetStyle().FramePadding.X); // Align with first iconbutton below
                 using (ImRaii.PushFont(UiBuilder.IconFont))
                 {
-                    ImGui.TextUnformatted(BgObjectDefinitionEditor.StaticTypeInfo.Icon.ToIconString());
+                    ImGui.TextUnformatted(objectInfo.Icon.ToIconString());
                 }
                 if (ImGui.IsItemHovered())
                 {
                     using (ImRaii.Tooltip())
                     {
-                        ImGui.TextUnformatted(BgObjectDefinitionEditor.StaticTypeInfo.DisplayName);
+                        ImGui.TextUnformatted(objectInfo.TypeName);
                     }
                 }
                 ImGui.SameLine();
@@ -415,9 +422,75 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
         }
     }
 
+    private unsafe void RefreshNearbyObjects()
+    {
+        _lastNearbyObjectsRefresh = DateTimeOffset.Now;
+        _nearbyObjects = _viewportPickerService.GetAllObjects(onlyKnown: true);
+        var playerObject = _objectTable.LocalPlayer;
+        Vector3 referencePoint = (_nearbyUsesCamera || playerObject == null) ? CameraManager.Instance()->CurrentCamera->Position : playerObject.Position;
+        _nearbyObjects.Sort((a, b) => MathF.Sign(Vector3.DistanceSquared(a.Position, referencePoint) - Vector3.DistanceSquared(b.Position, referencePoint)));
+    }
+
     private void DrawNearbyTab()
     {
-        ImGui.TextDisabled("(Not yet implemented)");
+        ImGui.Spacing();
+        if (ImGuiComponents.IconButtonWithText(FontAwesomeIcon.SyncAlt, "Refresh Objects")
+            || (_autoRefreshNearbyObjects && (DateTimeOffset.Now - _lastNearbyObjectsRefresh).TotalSeconds >= 5.0f))
+        {
+            RefreshNearbyObjects();
+        }
+        ImGui.SameLine();
+        if (ImGui.Checkbox("Refresh automatically"u8, ref _autoRefreshNearbyObjects) && _autoRefreshNearbyObjects)
+        {
+            RefreshNearbyObjects();
+        }
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight() - 1.0f);
+        if (ImGuiComponents.IconButton(_nearbyUsesCamera ? FontAwesomeIcon.Camera : FontAwesomeIcon.Female, new(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
+        {
+            _nearbyUsesCamera = !_nearbyUsesCamera;
+            RefreshNearbyObjects();
+        }
+        if (ImGui.IsItemHovered())
+        {
+            using (ImRaii.Tooltip())
+            {
+                ImGui.TextUnformatted(_nearbyUsesCamera ? "Measuring Distance to Camera" : "Measuring Distance to Player");
+                ImGui.Separator();
+                ImGui.TextDisabled(_nearbyUsesCamera ? "Click to use distance to player." : "Click to use distance to camera.");
+            }
+        }
+
+        if (!_viewportPickerService.IsPicking)
+        {
+            HoveredObjectInfo = null;
+        }
+        using (var listBox = ImRaii.ListBox("###NearbyList"u8, new Vector2(-1.0f, MathF.Max(ImGui.GetContentRegionAvail().Y, 200.0f * ImGuiHelpers.GlobalScale))))
+        using (ImRaii.PushFont(UiBuilder.IconFontFixedWidth))
+        using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, ImGui.GetStyle().ItemSpacing * 1.5f))
+        {
+            if (listBox.Success)
+            {
+                foreach (var objectInfo in _nearbyObjects)
+                {
+                    if (ImGui.Selectable($"{objectInfo.Icon.ToIconString()}###{objectInfo.OriginalPointer}", objectInfo.OriginalPointer == SelectedObjectInfo?.OriginalPointer))
+                    {
+                        SelectedObjectInfo = objectInfo;
+                        _recentPickedObjects.RemoveAll(obj => obj.OriginalPointer == objectInfo.OriginalPointer);
+                        _recentPickedObjects.Add(objectInfo);
+                    }
+                    if (!_viewportPickerService.IsPicking && ImGui.IsItemHovered())
+                    {
+                        HoveredObjectInfo = objectInfo;
+                    }
+                    ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
+                    using (ImRaii.DefaultFont())
+                    {
+                        ImGui.TextUnformatted(objectInfo.PrimaryResourcePath ?? objectInfo.TypeName);
+                    }
+                }
+            }
+        }
     }
 
     private void DrawRecentTab()
@@ -427,19 +500,26 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
             HoveredObjectInfo = null;
         }
         using (var listBox = ImRaii.ListBox("###RecentList", new Vector2(-1.0f, MathF.Max(ImGui.GetContentRegionAvail().Y, 200.0f * ImGuiHelpers.GlobalScale))))
+        using (ImRaii.PushFont(UiBuilder.IconFontFixedWidth))
+        using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, ImGui.GetStyle().ItemSpacing * 1.5f))
         {
             if (listBox.Success)
             {
                 for (int i = _recentPickedObjects.Count - 1; i >= 0; i--)
                 {
-                    var item = _recentPickedObjects[i];
-                    if (ImGui.Selectable(item.ToString(), item.OriginalPointer == SelectedObjectInfo?.OriginalPointer))
+                    var objectInfo = _recentPickedObjects[i];
+                    if (ImGui.Selectable($"{objectInfo.Icon.ToIconString()}###{objectInfo.OriginalPointer}", objectInfo.OriginalPointer == SelectedObjectInfo?.OriginalPointer))
                     {
-                        SelectedObjectInfo = item;
+                        SelectedObjectInfo = objectInfo;
                     }
                     if (!_viewportPickerService.IsPicking && ImGui.IsItemHovered())
                     {
-                        HoveredObjectInfo = item;
+                        HoveredObjectInfo = objectInfo;
+                    }
+                    ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
+                    using (ImRaii.DefaultFont())
+                    {
+                        ImGui.TextUnformatted(objectInfo.PrimaryResourcePath ?? objectInfo.TypeName);
                     }
                 }
             }

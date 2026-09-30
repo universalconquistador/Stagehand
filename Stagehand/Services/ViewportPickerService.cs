@@ -125,6 +125,12 @@ public interface IViewportPickerService
     /// Exits object-picking mode if it is active.
     /// </summary>
     void CancelPicking();
+
+    /// <summary>
+    /// Gets info about all the pickable objects currently onscreen.
+    /// </summary>
+    /// <param name="onlyKnown">Whether to only return object info for objects with a known <see cref="PickedObjectInfo"/> subclass.</param>
+    List<PickedObjectInfo> GetAllObjects(bool onlyKnown);
 }
 
 internal class ViewportPickerService : IViewportPickerService
@@ -319,7 +325,31 @@ internal class ViewportPickerService : IViewportPickerService
         }
     }
 
-    private unsafe PickedObjectInfo MakeObjectInfo(Object* sceneObject)
+    public unsafe List<PickedObjectInfo> GetAllObjects(bool onlyKnown)
+    {
+        var world = World.Instance();
+        var result = new List<PickedObjectInfo>(100);
+
+        void recurse(Object* obj, List<PickedObjectInfo> objectInfos, bool onlyKnown)
+        {
+            var info = onlyKnown ? MakeKnownObjectInfo(obj) : MakeObjectInfo(obj);
+            if (info != null)
+            {
+                objectInfos.Add(info);
+            }
+
+            foreach (var childObject in obj->ChildObjects)
+            {
+                recurse(childObject, objectInfos, onlyKnown);
+            }
+        }
+
+        recurse((Object*)world, result, onlyKnown);
+
+        return result;
+    }
+
+    private unsafe PickedObjectInfo? MakeKnownObjectInfo(Object* sceneObject)
     {
         ObjectType objectType = sceneObject->GetObjectType();
         if (objectType == ObjectType.BgObject)
@@ -361,7 +391,12 @@ internal class ViewportPickerService : IViewportPickerService
         }
         else
         {
-            return new PickedObjectInfo((IntPtr)sceneObject, sceneObject->Position, sceneObject->Rotation, sceneObject->Scale, objectType);
+            return null;
         }
+    }
+
+    private unsafe PickedObjectInfo MakeObjectInfo(Object* sceneObject)
+    {
+        return MakeKnownObjectInfo(sceneObject) ?? new PickedObjectInfo((IntPtr)sceneObject, sceneObject->Position, sceneObject->Rotation, sceneObject->Scale, sceneObject->GetObjectType());
     }
 }
