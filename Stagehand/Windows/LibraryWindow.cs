@@ -220,8 +220,12 @@ internal class LibraryWindow : Window, IHostedService, IDisposable
                 ImGui.TableSetupColumn("properties", ImGuiTableColumnFlags.WidthStretch, 1);
                 ImGui.TableNextColumn();
 
+                ImGui.AlignTextToFramePadding();
                 ImGui.Text("My Stages");
-                if (ImGui.IsItemClicked())
+
+                ImGui.SameLine();
+                ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight());
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.ExternalLinkAlt, new(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)))
                 {
                     Process.Start("explorer", $"/root, {_configuration.DefinitionLibraryPath}");
                 }
