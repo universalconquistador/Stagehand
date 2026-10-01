@@ -478,10 +478,10 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
             {
                 foreach (var objectInfo in _nearbyObjects)
                 {
-                    if (ImGui.Selectable($"{objectInfo.Icon.ToIconString()}###{objectInfo.OriginalPointer}", objectInfo.OriginalPointer == SelectedObjectInfo?.OriginalPointer))
+                    if (ImGui.Selectable($"{objectInfo.Icon.ToIconString()}###{objectInfo.OriginalPointer}", objectInfo.OriginalPointer == SelectedObjectInfo?.OriginalPointer && objectInfo.ObjectType == SelectedObjectInfo?.ObjectType && objectInfo.PrimaryResourcePath == SelectedObjectInfo?.PrimaryResourcePath))
                     {
                         SelectedObjectInfo = objectInfo;
-                        _recentPickedObjects.RemoveAll(obj => obj.OriginalPointer == objectInfo.OriginalPointer);
+                        _recentPickedObjects.RemoveAll(obj => obj.OriginalPointer == objectInfo.OriginalPointer && obj.ObjectType == objectInfo.ObjectType && obj.PrimaryResourcePath == objectInfo.PrimaryResourcePath);
                         _recentPickedObjects.Add(objectInfo);
                     }
                     if (!_viewportPickerService.IsPicking && ImGui.IsItemHovered())
@@ -513,7 +513,7 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
                 for (int i = _recentPickedObjects.Count - 1; i >= 0; i--)
                 {
                     var objectInfo = _recentPickedObjects[i];
-                    if (ImGui.Selectable($"{objectInfo.Icon.ToIconString()}###{objectInfo.OriginalPointer}", objectInfo.OriginalPointer == SelectedObjectInfo?.OriginalPointer))
+                    if (ImGui.Selectable($"{objectInfo.Icon.ToIconString()}###{objectInfo.OriginalPointer}", objectInfo.OriginalPointer == SelectedObjectInfo?.OriginalPointer && objectInfo.ObjectType == SelectedObjectInfo?.ObjectType && objectInfo.PrimaryResourcePath == SelectedObjectInfo?.PrimaryResourcePath))
                     {
                         SelectedObjectInfo = objectInfo;
                     }
@@ -628,12 +628,22 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
         {
             void recurse(Object* obj)
             {
-                if (obj == (Object*)objectInfo.OriginalPointer)
+                if (obj == (Object*)objectInfo.OriginalPointer && obj->GetObjectType() == objectInfo.ObjectType)
                 {
                     var color = HoveredObjectInfo != null ? new Vector4(1.0f, 0.5f, 0.25f, 1.0f) : new Vector4(1.0f, 0.35f, 0.1f, 1.0f);
                     var type = obj->GetObjectType();
                     if (type == ObjectType.BgObject || type == ObjectType.VfxObject || type == ObjectType.CharacterBase || type == ObjectType.Decal || type == ObjectType.Light)
                     {
+                        // Skip scene objects whose bounds cannot be computed without throwing an exception
+                        if (type == ObjectType.BgObject)
+                        {
+                            var bgObject = (BgObject*)obj;
+                            if (bgObject->ModelResourceHandle == null || bgObject->ModelResourceHandle->LoadState != 7 || bgObject->ModelResourceHandle->FileName.ToString() != objectInfo.PrimaryResourcePath)
+                            {
+                                return;
+                            }
+                        }
+
                         var drawObject = (DrawObject*)obj;
                         FFXIVClientStructs.FFXIV.Common.Math.OrientedBounds bounds = default;
                         drawObject->ComputeOrientedBounds(&bounds);
@@ -683,7 +693,7 @@ internal class QuickPickerWindow : Window, IQuickPickerWindow, IDisposable
 
         if (objectInfo != null)
         {
-            _recentPickedObjects.RemoveAll(obj => obj.OriginalPointer == objectInfo.OriginalPointer);
+            _recentPickedObjects.RemoveAll(obj => obj.OriginalPointer == objectInfo.OriginalPointer && obj.ObjectType == objectInfo.ObjectType && obj.PrimaryResourcePath == objectInfo.PrimaryResourcePath);
             _recentPickedObjects.Add(objectInfo);
         }
     }

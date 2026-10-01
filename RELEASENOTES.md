@@ -244,3 +244,7 @@ Later down the road:
  - Moves the 'Open stage folder' functionality from the 'My Stages' heading to a dedicated button.
  - Fixes the plugin failing when the stage directory or autosave directory are inaccessible (e.g. because they refer to a user folder that does not exist, because the user copied their config from one PC/account to another).
  - Fixes bug with the keybind settings where you could not modify unbound keybinds beyond the first unbound keybind in a section.
+
+## 0.5.3
+
+ - Fixes crash and increases robustness around models that haven't loaded yet or are reused, e.g. housing items & previews.
