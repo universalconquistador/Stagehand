@@ -22,23 +22,23 @@ Notes:
  - To find VFX or model paths, either use the Penumbra resource logger or the `/stagehanddebug` command which will let you inspect the objects onscreen and click to copy model and vfx paths.
 
 Known issues:
- - Settings button does not open the Settings
- - Settings page is very unfinished (press Enter to save, in the meantime)
+ - ~~Settings button does not open the Settings~~
+ - ~~Settings page is very unfinished (press Enter to save, in the meantime)~~
 
 Not yet implemented: (in no particular order)
  - Better stage library tools (delete, rename, make folder, etc), although if you put your stages into folders via the file explorer, those will be reflected in the plugin
  - ~~Click-to-select~~
  - ~~Undo + redo~~
  - ~~3D light widgets to show spot light cone angle, etc~~
- - Better resource browsing for model & VFX resources
+ - ~~Better resource browsing for model & VFX resources~~
  - Public website for documentation
  - ~~IPC API to facilitate e.g. sync services~~
 
 Later down the road:
  - Support for modded models, weapons, and VFX
  - Housing object import (and .sgb layouts in general)
- - Object folders for organization
- - Hotkey support in editor
+ - ~~Object folders for organization~~
+ - ~~Hotkey support in editor~~
  - Interactive placement tools
  - Saveable prefabs
  - Looping animations
@@ -248,3 +248,13 @@ Later down the road:
 ## 0.5.3
 
  - Fixes crash and increases robustness around models that haven't loaded yet or are reused, e.g. housing items & previews.
+
+## 0.5.4
+
+ - Adds light textures! Lights now have a 'Projected Texture' property that you can set to the path of a texture resource (*.tex) to control the shape of the light.
+   - Spot lights and flat lights use regular 2D texture resources. Vanilla example: `bgcommon/hou/indoor/general/0538/texture/fun_b0_m0538_0a_i.tex`
+   - Point lights use cube texture resources, not 2D ones. Vanilla example: `bgcommon/hou/dyna/lmp/lp/0018/texture/lmp_s0_m0018_1a_i.tex`
+   - Ambient lights do not support textures and the property is hidden for them.
+   - You can use modded textures for lights, and the modpack selector is once again visible when editing textures.
+ - Adds Inf and NaN protection to definition serialization. There is still a gimbal lock issue with rotating around the Z (blue) axis using the rotation tool while the X (pitch) rotation is exactly 90 or -90 degrees.
+ - Improves the save and autosave process to be resiliant against errors so that in the case of failure your last save is preserved.
