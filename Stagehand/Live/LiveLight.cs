@@ -1,22 +1,36 @@
+using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.Graphics;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
+using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using Stagehand.Definitions.Objects;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text;
-using RenderLightShape = FFXIVClientStructs.FFXIV.Client.Graphics.Render.LightShape;
+using static FFXIVClientStructs.FFXIV.Client.UI.Misc.GroupPoseModule;
 using DefinitionLightShape = Stagehand.Definitions.Objects.LightShape;
 using Object = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object;
 using RenderLight = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Light;
+using RenderLightShape = FFXIVClientStructs.FFXIV.Client.Graphics.Render.LightShape;
 using SceneLight = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Light;
-using Dalamud.Plugin.Services;
-using FFXIVClientStructs.FFXIV.Client.Graphics;
 
 namespace Stagehand.Live;
 
 internal sealed unsafe class LiveLight : LiveDrawObject
 {
+    // TODO: Integrate to ClientStructs
+    [StructLayout(LayoutKind.Explicit, Size = 0x130)]
+    private struct RenderLightEx
+    {
+        [FieldOffset(0x00)]
+        public RenderLight RenderLight;
+        [FieldOffset(0x120)]
+        public Texture* ProjectedTexture;
+    }
+
     private readonly IFramework _framework;
 
     private SceneLight* SceneLightPtr => (SceneLight*)ObjectPtr;
@@ -25,6 +39,40 @@ internal sealed unsafe class LiveLight : LiveDrawObject
     public RenderLightShape LightShape { get => SceneLightPtr->RenderLight->LightShape; set => SceneLightPtr->RenderLight->LightShape = value; }
     public Vector3 Color { get => SceneLightPtr->RenderLight->Color; set => SceneLightPtr->RenderLight->Color = value; }
     public float Intensity { get => SceneLightPtr->RenderLight->Intensity; set => SceneLightPtr->RenderLight->Intensity = value; }
+    public string ProjectedTextureGamePath
+    {
+        get => field;
+        set
+        {
+            if (field != value)
+            {
+                var newTextureResource = value.Length > 0 ? ResourceHandle.GetAsync(value) : null;
+                var oldTextureResource = SceneLightPtr->ProjectedCubemapTexture;
+                SceneLightPtr->ProjectedCubemapTexture = (TextureResourceHandle*)newTextureResource;
+                if (oldTextureResource != null)
+                {
+                    oldTextureResource->DecRef();
+                    var oldKernelTexture = ((RenderLightEx*)SceneLightPtr->RenderLight)->ProjectedTexture;
+                    ((RenderLightEx*)SceneLightPtr->RenderLight)->ProjectedTexture = null;
+                    if (oldKernelTexture != null)
+                    {
+                        oldKernelTexture->DecRef();
+                    }
+                }
+
+                if (newTextureResource != null)
+                {
+                    SceneLightPtr->OutlineFlags = (byte)(SceneLightPtr->OutlineFlags & 0xF0 | 2);
+                }
+                else
+                {
+                    SceneLightPtr->OutlineFlags = (byte)(SceneLightPtr->OutlineFlags & 0xF0 | 4);
+                }
+
+                field = value;
+            }
+        }
+    } = "";
     public float Range { get => SceneLightPtr->RenderLight->Range; set => SceneLightPtr->RenderLight->Range = value; }
     public LightFalloffType FalloffType { get => SceneLightPtr->RenderLight->FalloffType; set => SceneLightPtr->RenderLight->FalloffType = value; }
     public float FalloffFactor { get => SceneLightPtr->RenderLight->FalloffFactor; set => SceneLightPtr->RenderLight->FalloffFactor = value; }
@@ -141,6 +189,13 @@ internal sealed unsafe class LiveLight : LiveDrawObject
 
             Color = lightDefinition.Color;
             Intensity = lightDefinition.Intensity;
+
+            var finalTexturePath = lightDefinition.ProjectedTextureGamePath;
+            if (modpack != null && lightDefinition.ProjectedTextureGamePath != "")
+            {
+                finalTexturePath = ResourceRedirectionHelpers.MakeModpackPath(finalTexturePath, modpack);
+            }
+            ProjectedTextureGamePath = finalTexturePath;
 
             ShadowPlaneNear = lightDefinition.ShadowPlaneNear;
             ShadowPlaneFar = lightDefinition.ShadowPlaneFar;

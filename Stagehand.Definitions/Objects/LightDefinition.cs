@@ -95,6 +95,14 @@ public class LightDefinition : ObjectDefinition
     /// </summary>
     public float Intensity { get; set; } = 4.0f;
 
+    /// <summary>
+    /// The game path of a texture resource to use as a projected mask, or empty to not use one.
+    /// </summary>
+    /// <remarks>
+    /// Point lights must use a cubemap texture, while spot and flat lights must use a 2D texture.
+    /// </remarks>
+    public string ProjectedTextureGamePath { get; set; } = "";
+
     // TODO: Could include AxisAlignedBounds but for now let's assume they are unlimited
 
     /// <summary>
@@ -179,6 +187,7 @@ public class LightDefinition : ObjectDefinition
             otherLight.Shape = Shape;
             otherLight.Color = Color;
             otherLight.Intensity = Intensity;
+            otherLight.ProjectedTextureGamePath = ProjectedTextureGamePath;
             otherLight.ShadowPlaneNear = ShadowPlaneNear;
             otherLight.ShadowPlaneFar = ShadowPlaneFar;
             otherLight.FalloffFunction = FalloffFunction;

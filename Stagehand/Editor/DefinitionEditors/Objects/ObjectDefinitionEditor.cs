@@ -557,10 +557,10 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         ImGuiHelpers.ScaledDummy(4.0f);
     }
 
-    protected bool DrawResourceGamePath(string propertyName, ref string gamePath, AssetType assetType, ViewportPickerObjectDelegate? picker = null)
+    protected bool DrawResourceGamePath(string propertyName, ref string gamePath, AssetType assetType, ViewportPickerObjectDelegate? picker = null, bool allowEmpty = false)
     {
         var result = false;
-        if (ImGui.InputText(propertyName, ref gamePath, 1024, ImGuiInputTextFlags.EnterReturnsTrue))
+        if (ImGui.InputTextWithHint(propertyName, assetType.DisplayDescription, ref gamePath, 1024, ImGuiInputTextFlags.EnterReturnsTrue))
         {
             result = true;
         }
@@ -612,22 +612,25 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
             }
         }
 
-        bool existsModded = !string.IsNullOrEmpty(ModpackId) && GetPreviewModpack() is ILiveModpack liveModpack && liveModpack.ModdedResourceExists(gamePath);
-        bool existsVanilla = DataManager.GameData.FileExists(gamePath);
-        string modpackName = (!string.IsNullOrEmpty(ModpackId) && Stage.EmbeddedModpacks.TryGetValue(ModpackId, out var modpack)) ? modpack.DisplayName : string.Empty;
-        var icon = existsModded ? FontAwesomeIcon.PlusCircle : existsVanilla ? FontAwesomeIcon.CheckCircle : FontAwesomeIcon.ExclamationCircle;
         float propertiesColumnWidth = (ImGui.GetContentRegionMax().X - ImGui.GetWindowContentRegionMin().X) * 0.333f;
-        ImGui.SameLine(ImGui.GetContentRegionMax().X - propertiesColumnWidth - 16.0f * ImGuiHelpers.GlobalScale);
-        using (ImRaii.PushColor(ImGuiCol.Text, existsModded ? ImGuiColors.HealerGreen : existsVanilla ? ImGuiColors.DalamudWhite : ImGuiColors.DPSRed))
-        using (ImRaii.PushFont(UiBuilder.IconFont))
+        if (!string.IsNullOrEmpty(gamePath) || !allowEmpty)
         {
-            ImGui.TextUnformatted(icon.ToIconString());
-        }
-        if (ImGui.IsItemHovered())
-        {
-            using (ImRaii.Tooltip())
+            bool existsModded = !string.IsNullOrEmpty(ModpackId) && GetPreviewModpack() is ILiveModpack liveModpack && liveModpack.ModdedResourceExists(gamePath);
+            bool existsVanilla = DataManager.GameData.FileExists(gamePath);
+            string modpackName = (!string.IsNullOrEmpty(ModpackId) && Stage.EmbeddedModpacks.TryGetValue(ModpackId, out var modpack)) ? modpack.DisplayName : string.Empty;
+            var icon = existsModded ? FontAwesomeIcon.PlusCircle : existsVanilla ? FontAwesomeIcon.CheckCircle : FontAwesomeIcon.ExclamationCircle;
+            ImGui.SameLine(ImGui.GetContentRegionMax().X - propertiesColumnWidth - 16.0f * ImGuiHelpers.GlobalScale);
+            using (ImRaii.PushColor(ImGuiCol.Text, existsModded ? ImGuiColors.HealerGreen : existsVanilla ? ImGuiColors.DalamudWhite : ImGuiColors.DPSRed))
+            using (ImRaii.PushFont(UiBuilder.IconFont))
             {
-                ImGui.TextUnformatted(existsModded ? $"Game path is modded in {modpackName}" : existsVanilla ? "Game path exists" : "Game path does not exist");
+                ImGui.TextUnformatted(icon.ToIconString());
+            }
+            if (ImGui.IsItemHovered())
+            {
+                using (ImRaii.Tooltip())
+                {
+                    ImGui.TextUnformatted(existsModded ? $"Game path is modded in {modpackName}" : existsVanilla ? "Game path exists" : "Game path does not exist");
+                }
             }
         }
         ImGui.SameLine(ImGui.GetContentRegionMax().X - ImGui.GetFrameHeight());

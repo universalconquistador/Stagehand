@@ -4,6 +4,7 @@ using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Microsoft.Extensions.DependencyInjection;
+using Stagehand.AssetLibrary.Assets;
 using Stagehand.Definitions.Objects;
 using Stagehand.Editor.Services;
 using Stagehand.Services;
@@ -21,8 +22,6 @@ internal class LightDefinitionEditor : ObjectDefinitionEditor<LightDefinition>
     public static readonly DefinitionTypeInfo StaticTypeInfo = new DefinitionTypeInfo("Light", "A light source.", FontAwesomeIcon.Lightbulb);
 
     public override DefinitionTypeInfo TypeInfo => StaticTypeInfo;
-
-    public override bool ShowModpackSelector => false; // Until the projection texture is added
 
     private readonly IEditorHitTestService _hitTestService;
     private readonly EditorHitTestSphere _hitTestSphere;
@@ -45,6 +44,12 @@ internal class LightDefinitionEditor : ObjectDefinitionEditor<LightDefinition>
     {
         get => Definition.Intensity;
         set => SetPropertyValue(value => Definition.Intensity = value, value, Definition.Intensity);
+    }
+
+    public string ProjectedTextureGamePath
+    {
+        get => Definition.ProjectedTextureGamePath;
+        set => SetPropertyValue(value => Definition.ProjectedTextureGamePath = value, value, Definition.ProjectedTextureGamePath);
     }
 
     public bool EnableSpecularHighlights
@@ -314,6 +319,15 @@ internal class LightDefinitionEditor : ObjectDefinitionEditor<LightDefinition>
         if (ImGui.DragFloat("Intensity", ref intensity, vSpeed: 0.025f, vMin: 0.0f, vMax: 100.0f))
         {
             Intensity = intensity;
+        }
+
+        if (Shape != LightShape.Ambient)
+        {
+            string projectedTextureGamePath = ProjectedTextureGamePath;
+            if (DrawResourceGamePath("Projected Texture", ref projectedTextureGamePath, AssetType.TexResource, picker: null, allowEmpty: true))
+            {
+                ProjectedTextureGamePath = projectedTextureGamePath;
+            }
         }
 
         var enableSpecularHighlights = EnableSpecularHighlights;

@@ -14,6 +14,7 @@ public record class AssetType(string DisplayName, string DisplayDescription, Fon
     public static readonly AssetType<AvfxResourceAssetInfo> AvfxResource = new("VFX Resource", ".avfx", FontAwesomeIcon.WandSparkles);
     public static readonly AssetType<ResourceAssetInfo> SgbResource = new("Shared Group Resource", ".sgb", FontAwesomeIcon.Archive);
     public static readonly AssetType<ScdResourceAssetInfo> ScdResource = new("Sound Resource", ".scd", FontAwesomeIcon.VolumeUp);
+    public static readonly AssetType<TexResourceAssetInfo> TexResource = new("Texture Resource", "*.tex", FontAwesomeIcon.Image);
 
     public static AssetType[] AllAssetTypes { get; } =
     [

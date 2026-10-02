@@ -89,7 +89,7 @@ public class StageDefinition
     /// <summary>
     /// The version of the stage definition file format that this <c>Stagehand.Definitions</c> library can read and write.
     /// </summary>
-    public static int CurrentFormatVersion => 1;
+    public static int CurrentFormatVersion => 2;
 
     /// <summary>
     /// The version of the stage definition format of the <c>Stagehand.Definitions</c> library that created this stage definition.
