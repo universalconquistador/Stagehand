@@ -204,12 +204,14 @@ internal class EditorWindow : Window, IEditorWindow, IDisposable
 
     private bool TryWriteDefinition(string filename)
     {
+        var tempPath = Path.GetTempFileName();
         try
         {
-            using (var stream = new FileStream(filename, FileMode.Create, FileAccess.Write))
+            using (var stream = new FileStream(tempPath, FileMode.Create, FileAccess.Write))
             {
                 _definition.WriteToJSONStream(stream);
             }
+            File.Move(tempPath, filename, overwrite: true);
             if (filename == _definitionFilename)
             {
                 Saved?.Invoke();
