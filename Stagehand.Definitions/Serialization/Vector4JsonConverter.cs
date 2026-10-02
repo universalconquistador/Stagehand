@@ -64,10 +64,10 @@ public class Vector4JsonConverter : JsonConverter<Vector4>
     {
         writer.WriteStartObject();
 
-        writer.WriteNumber(nameof(Vector4.X), value.X);
-        writer.WriteNumber(nameof(Vector4.Y), value.Y);
-        writer.WriteNumber(nameof(Vector4.Z), value.Z);
-        writer.WriteNumber(nameof(Vector4.W), value.W);
+        writer.WriteNumber(nameof(Vector4.X), Utils.MakeNonInfinite(value.X));
+        writer.WriteNumber(nameof(Vector4.Y), Utils.MakeNonInfinite(value.Y));
+        writer.WriteNumber(nameof(Vector4.Z), Utils.MakeNonInfinite(value.Z));
+        writer.WriteNumber(nameof(Vector4.W), Utils.MakeNonInfinite(value.W));
 
         writer.WriteEndObject();
     }

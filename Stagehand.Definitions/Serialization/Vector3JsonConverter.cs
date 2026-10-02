@@ -61,9 +61,9 @@ public class Vector3JsonConverter : JsonConverter<Vector3>
     {
         writer.WriteStartObject();
 
-        writer.WriteNumber(nameof(Vector3.X), value.X);
-        writer.WriteNumber(nameof(Vector3.Y), value.Y);
-        writer.WriteNumber(nameof(Vector3.Z), value.Z);
+        writer.WriteNumber(nameof(Vector3.X), Utils.MakeNonInfinite(value.X));
+        writer.WriteNumber(nameof(Vector3.Y), Utils.MakeNonInfinite(value.Y));
+        writer.WriteNumber(nameof(Vector3.Z), Utils.MakeNonInfinite(value.Z));
 
         writer.WriteEndObject();
     }

@@ -58,8 +58,13 @@ public class Vector2JsonConverter : JsonConverter<Vector2>
     {
         writer.WriteStartObject();
 
-        writer.WriteNumber(nameof(Vector2.X), value.X);
-        writer.WriteNumber(nameof(Vector2.Y), value.Y);
+        if (float.IsNegativeInfinity(value.X))
+        {
+            value.X = float.MaxValue;
+        }
+
+        writer.WriteNumber(nameof(Vector2.X), Utils.MakeNonInfinite(value.X));
+        writer.WriteNumber(nameof(Vector2.Y), Utils.MakeNonInfinite(value.Y));
 
         writer.WriteEndObject();
     }
