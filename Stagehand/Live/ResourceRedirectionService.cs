@@ -59,6 +59,27 @@ public interface IResourceRedirectionService
         where T : FileResource;
 
     ILiveModpack? SetCurrentModpack(ILiveModpack? modpack);
+
+    /// <summary>
+    /// Associates a draw object with the modpack to use when the game resolves resource paths on its behalf.
+    /// </summary>
+    /// <remarks>
+    /// Objects whose resources are loaded from a path we hand the game (background objects, VFX, sounds) carry their
+    /// modpack in that path. Objects the game builds paths for itself (weapons and other character models) have no such
+    /// path, so they are registered here instead and looked up by draw object when the game resolves a path for them.
+    /// </remarks>
+    void RegisterDrawObjectModpack(nint drawObject, ILiveModpack modpack);
+
+    /// <summary>
+    /// Removes the modpack association for a draw object. Must be called before the draw object's memory is freed,
+    /// as the address may be reused by a later allocation.
+    /// </summary>
+    void UnregisterDrawObjectModpack(nint drawObject);
+
+    /// <summary>
+    /// Gets the modpack associated with the given draw object by <see cref="RegisterDrawObjectModpack"/>, if any.
+    /// </summary>
+    bool TryGetDrawObjectModpack(nint drawObject, [NotNullWhen(true)] out ILiveModpack? modpack);
 }
 
 public static class ResourceRedirectionHelpers
@@ -306,6 +327,8 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
 
     private readonly ThreadLocal<ILiveModpack?> _currentThreadModpack = new();
 
+    private readonly ConcurrentDictionary<nint, ILiveModpack> _drawObjectModpacks = new();
+
     public ResourceRedirectionService(ILogger<ResourceRedirectionService> logger, IGameInteropProvider gameInteropProvider, IDataManager dataManager, IMemoryResourceService memoryResourceService, StagehandConfiguration config)
     {
         _logger = logger;
@@ -329,7 +352,7 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
         // We strip the shnd and mem prefixes when reading the resource. However, sometimes this is called outside that.
 
         // If this path is already a modpack path, use the modpack to resolve the final path
-        if (Utf8StringStartsWith(modelResourceHandle->FileName.BasicString.First, StagehandPathIdentifier) && TryParseModpackPath(modelResourceHandle->FileName.ToString(), out var modpack, out var gamePath))
+        if (Utf8StringStartsWith(SkipCollectionTag(modelResourceHandle->FileName.BasicString.First), StagehandPathIdentifier) && TryParseModpackPath(modelResourceHandle->FileName.ToString(), out var modpack, out var gamePath))
         {
             _currentThreadModpack.Value = modpack;
             _logger.LogDebug("Using modpack {pack} for materials of {path}", modpack.DebugName, modelResourceHandle->FileName.ToString());
@@ -440,6 +463,8 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
 
     public bool TryParseModpackPath(string modpackPath, [NotNullWhen(true)] out ILiveModpack? modpack, [NotNullWhen(true)] out string? gamePath)
     {
+        modpackPath = SkipCollectionTag(modpackPath);
+
         if (!modpackPath.StartsWith(StagehandPathIdentifier))
         {
             modpack = null;
@@ -527,10 +552,12 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
     private ResourceHandle* GetResourceHandler(bool isSync, ResourceManager* resourceManager, ResourceCategory* categoryId,
         ResourceType* resourceType, int* resourceHash, byte* path, GetResourceParameters* pGetResParams, byte hasHandleLock, byte* file, uint line)
     {
-        string pathString = ReadUtf8String(path);
-        
+        // Tagged names reach the outer-modpack branch below as an AllRedirections key, not just as log text, so strip
+        // the tag once here rather than at each use.
+        string pathString = SkipCollectionTag(ReadUtf8String(path));
+
         // If this path is already a modpack path, use the modpack to resolve the final path
-        if (Utf8StringStartsWith(path, StagehandPathIdentifier) && TryParseModpackPath(ReadUtf8String(path), out var modpack, out var gamePath))
+        if (Utf8StringStartsWith(SkipCollectionTag(path), StagehandPathIdentifier) && TryParseModpackPath(pathString, out var modpack, out var gamePath))
         {
             if (_config.LogModpackResourceHandled)
             {
@@ -688,6 +715,46 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
         return isSync ? _getResourceSyncHook.OriginalDisposeSafe.Invoke(resourceManager, categoryId, resourceType, resourceHash, path, pGetResParams, file, line) : _getResourceAsyncHook.OriginalDisposeSafe.Invoke(resourceManager, categoryId, resourceType, resourceHash, path, pGetResParams, hasHandleLock, file, line);
     }
 
+    /// <summary>
+    /// Returns <paramref name="path"/> with a leading redirector tag removed, if it has one.
+    /// </summary>
+    /// <remarks>
+    /// Penumbra prefixes resource handle names with a tag of its own, e.g.
+    /// "|3_3_522250EA_00B0|shnd://2/mem://2/chara/...mtrl". A tagged name no longer starts with our identifier, so
+    /// without skipping the tag we do not recognise our own path: the request falls through to sqpack under a name no
+    /// archive contains and fails, which is why a modpack's materials fail to load while its models load fine. Game
+    /// paths never contain '|', so this is a no-op for anything the game asks for itself.
+    /// </remarks>
+    private static string SkipCollectionTag(string path)
+    {
+        if (path.Length == 0 || path[0] != '|')
+        {
+            return path;
+        }
+
+        var tagEnd = path.IndexOf('|', 1);
+        return tagEnd > 0 ? path[(tagEnd + 1)..] : path;
+    }
+
+    /// <inheritdoc cref="SkipCollectionTag(string)"/>
+    private static byte* SkipCollectionTag(byte* path)
+    {
+        if (path == null || path[0] != (byte)'|')
+        {
+            return path;
+        }
+
+        for (var i = 1; path[i] != 0; i++)
+        {
+            if (path[i] == (byte)'|')
+            {
+                return path + i + 1;
+            }
+        }
+
+        return path;
+    }
+
     private static bool Utf8StringStartsWith(byte* str, string value)
     {
         for (int i = 0; i < value.Length; i++)
@@ -711,6 +778,49 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
         return Encoding.UTF8.GetString(str, i);
     }
 
+    public void RegisterDrawObjectModpack(nint drawObject, ILiveModpack modpack)
+    {
+        if (drawObject == 0)
+        {
+            return;
+        }
+
+        // Live objects re-register on every update, so the common case is a repeat of the association we already
+        // hold. Bail out on that before touching the dictionary, so the log records real changes rather than frames.
+        if (_drawObjectModpacks.TryGetValue(drawObject, out var existing) && ReferenceEquals(existing, modpack))
+        {
+            return;
+        }
+
+        _drawObjectModpacks[drawObject] = modpack;
+        _logger.LogDebug("Registered draw object {drawObject:X} with modpack {pack}", drawObject, modpack.DebugName);
+    }
+
+    public void UnregisterDrawObjectModpack(nint drawObject)
+    {
+        if (drawObject == 0)
+        {
+            return;
+        }
+
+        if (_drawObjectModpacks.TryRemove(drawObject, out var modpack))
+        {
+            _logger.LogDebug("Unregistered draw object {drawObject:X} from modpack {pack}", drawObject, modpack.DebugName);
+        }
+    }
+
+    public bool TryGetDrawObjectModpack(nint drawObject, [NotNullWhen(true)] out ILiveModpack? modpack)
+    {
+        if (_drawObjectModpacks.TryGetValue(drawObject, out var found))
+        {
+            modpack = found;
+            return true;
+        }
+
+        modpack = null;
+        return false;
+    }
+
     public ILiveModpack? SetCurrentModpack(ILiveModpack? modpack)
     {
         // We don't need to do Interlocked or anything as this is a thread local, which by definition will not be accessed concurrently
@@ -726,5 +836,6 @@ internal unsafe class ResourceRedirectionService : IResourceRedirectionService, 
         _getResourceSyncHook?.Dispose();
         _getResourceAsyncHook?.Dispose();
         _modelResourceHandleLoadMaterialsHook.Dispose();
+        _drawObjectModpacks.Clear();
     }
 }
