@@ -13,10 +13,12 @@ namespace Stagehand.Editor.Tools;
 
 internal class ScaleTool : TransformToolBase
 {
+    public const string ToolDisplayName = "Scale Tool";
+
     private TransformOperation? _currentOperation = null;
 
-    public ScaleTool(IViewportInputService viewportInputService, IGameGui gameGui, IEditorHitTestService hitTestService, ISelectionManager selectionManager, ILogger<ScaleTool> logger, IOverlayService overlayService, StagehandConfiguration stagehandConfiguration)
-        : base("Scale Tool", "Adjust the size of objects.", FontAwesomeIcon.ExpandAlt, sortPriority: 12.0f, viewportInputService, gameGui, hitTestService, selectionManager, logger, overlayService, stagehandConfiguration)
+    public ScaleTool(IViewportInputService viewportInputService, IGameGui gameGui, IEditorHitTestService hitTestService, ISelectionManager selectionManager, ILogger<ScaleTool> logger, IOverlayService overlayService, IStagehandKeybinds stagehandKeybinds, StagehandConfiguration stagehandConfiguration)
+        : base(ToolDisplayName, "Adjust the size of objects.", FontAwesomeIcon.ExpandAlt, sortPriority: 12.0f, stagehandKeybinds.EditorScaleTool, viewportInputService, gameGui, hitTestService, selectionManager, logger, overlayService, stagehandKeybinds, stagehandConfiguration)
     { }
 
     protected override void DrawOverlay(IOverlayDrawContext context)

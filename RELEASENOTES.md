@@ -261,5 +261,6 @@ Later down the road:
 
 ## 0.5.5
 
- - Adds a toggle for Local vs World orientation for the move, rotate, and scale tool gizmos.
- - Adds snapping for the move and rotate tool gizmos.
+ - Adds a toggle for Local vs World orientation for the move, rotate, and scale tool gizmos (default keybind: O).
+ - Adds snapping for the move and rotate tool gizmos (default keybind: X).
+ - Adds keybind support for activating the Select, Move, Rotate and Scale tools (unbound by default).

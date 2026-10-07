@@ -15,6 +15,8 @@ namespace Stagehand.Editor.Tools;
 
 internal class MoveTool : TransformToolBase
 {
+    public const string ToolDisplayName = "Move Tool";
+
     public bool SnapEnabled
     {
         get => StagehandConfiguration.MoveToolSnapEnabled;
@@ -37,9 +39,30 @@ internal class MoveTool : TransformToolBase
 
     private TransformOperation? _currentOperation = null;
 
-    public MoveTool(IViewportInputService viewportInputService, IGameGui gameGui, IEditorHitTestService hitTestService, ISelectionManager selectionManager, ILogger<MoveTool> logger, IOverlayService overlayService, StagehandConfiguration stagehandConfiguration)
-        : base("Move Tool", "Move objects.", FontAwesomeIcon.ArrowsUpDownLeftRight, sortPriority: 10.0f, viewportInputService, gameGui, hitTestService, selectionManager, logger, overlayService, stagehandConfiguration)
+    public MoveTool(IViewportInputService viewportInputService, IGameGui gameGui, IEditorHitTestService hitTestService, ISelectionManager selectionManager, ILogger<MoveTool> logger, IOverlayService overlayService, IStagehandKeybinds stagehandKeybinds, StagehandConfiguration stagehandConfiguration)
+        : base(ToolDisplayName, "Move objects.", FontAwesomeIcon.ArrowsUpDownLeftRight, sortPriority: 10.0f, stagehandKeybinds.EditorMoveTool, viewportInputService, gameGui, hitTestService, selectionManager, logger, overlayService, stagehandKeybinds, stagehandConfiguration)
     { }
+
+    public override bool TryActivate()
+    {
+        base.TryActivate();
+
+        StagehandKeybinds.EditorSnapToggle.Pressed += OnSnapToggleKeybindPressed;
+
+        return true;
+    }
+
+    private void OnSnapToggleKeybindPressed()
+    {
+        SnapEnabled = !SnapEnabled;
+    }
+
+    public override void Deactivate()
+    {
+        StagehandKeybinds.EditorSnapToggle.Pressed -= OnSnapToggleKeybindPressed;
+
+        base.Deactivate();
+    }
 
     protected override void DrawOverlay(IOverlayDrawContext context)
     {

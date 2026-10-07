@@ -17,6 +17,8 @@ namespace Stagehand.Editor.Tools;
 
 internal class RotateTool : TransformToolBase
 {
+    public const string ToolDisplayName = "Rotate Tool";
+
     public bool SnapEnabled
     {
         get => StagehandConfiguration.RotateToolSnapEnabled;
@@ -39,9 +41,30 @@ internal class RotateTool : TransformToolBase
 
     private TransformOperation? _currentOperation = null;
 
-    public RotateTool(IViewportInputService viewportInputService, IGameGui gameGui, IEditorHitTestService hitTestService, ISelectionManager selectionManager, ILogger<RotateTool> logger, IOverlayService overlayService, StagehandConfiguration stagehandConfiguration)
-        : base("Rotate Tool", "Adjust the rotation of objects.", FontAwesomeIcon.ArrowsSpin, sortPriority: 11.0f, viewportInputService, gameGui, hitTestService, selectionManager, logger, overlayService, stagehandConfiguration)
+    public RotateTool(IViewportInputService viewportInputService, IGameGui gameGui, IEditorHitTestService hitTestService, ISelectionManager selectionManager, ILogger<RotateTool> logger, IOverlayService overlayService, IStagehandKeybinds stagehandKeybinds, StagehandConfiguration stagehandConfiguration)
+        : base(ToolDisplayName, "Adjust the rotation of objects.", FontAwesomeIcon.ArrowsSpin, sortPriority: 11.0f, stagehandKeybinds.EditorRotateTool, viewportInputService, gameGui, hitTestService, selectionManager, logger, overlayService, stagehandKeybinds, stagehandConfiguration)
     { }
+
+    public override bool TryActivate()
+    {
+        base.TryActivate();
+
+        StagehandKeybinds.EditorSnapToggle.Pressed += OnSnapToggleKeybindPressed;
+
+        return true;
+    }
+
+    private void OnSnapToggleKeybindPressed()
+    {
+        SnapEnabled = !SnapEnabled;
+    }
+
+    public override void Deactivate()
+    {
+        StagehandKeybinds.EditorSnapToggle.Pressed -= OnSnapToggleKeybindPressed;
+
+        base.Deactivate();
+    }
 
     protected override void DrawOverlay(IOverlayDrawContext context)
     {

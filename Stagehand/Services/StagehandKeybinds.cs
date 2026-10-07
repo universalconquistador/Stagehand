@@ -1,5 +1,6 @@
 using Dalamud.Game.ClientState.Keys;
 using Microsoft.Extensions.Hosting;
+using Stagehand.Editor.Tools;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -29,6 +30,14 @@ public interface IStagehandKeybinds
     IKeybindAction EditorUngroupObjects { get; }
     IKeybindAction EditorCenterGroupPivots { get; }
 
+    // Editor (Tools)
+    IKeybindAction EditorSelectTool { get; }
+    IKeybindAction EditorMoveTool { get; }
+    IKeybindAction EditorRotateTool { get; }
+    IKeybindAction EditorScaleTool { get; }
+    IKeybindAction EditorSnapToggle { get; }
+    IKeybindAction EditorGizmoOrientationToggle { get; }
+
     // Editor
     IKeybindAction EditorUndo { get; }
     IKeybindAction EditorRedo { get; }
@@ -46,6 +55,7 @@ internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposab
 {
     private const string EditorClipboardGroupName = "Stage Editor (Clipboard)";
     private const string EditorObjectsGroupName = "Stage Editor (Objects)";
+    private const string EditorToolsGroupName = "Stage Editor (Tools)";
     private const string EditorGroupName = "Stage Editor";
     private const string PickingGroupName = "Picking";
     private const string QuickPickerGroupName = "Quick Picker";
@@ -69,6 +79,13 @@ internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposab
     public IKeybindAction EditorGroupObjects { get; }
     public IKeybindAction EditorUngroupObjects { get; }
     public IKeybindAction EditorCenterGroupPivots { get; }
+
+    public IKeybindAction EditorSelectTool { get; }
+    public IKeybindAction EditorMoveTool { get; }
+    public IKeybindAction EditorRotateTool { get; }
+    public IKeybindAction EditorScaleTool { get; }
+    public IKeybindAction EditorSnapToggle { get; }
+    public IKeybindAction EditorGizmoOrientationToggle { get; }
 
     public IKeybindAction EditorUndo { get; }
     public IKeybindAction EditorRedo { get; }
@@ -162,6 +179,40 @@ internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposab
             Keybind.Unassigned));
 
         //
+        // Editor (Tools)
+        //
+        EditorSelectTool = _keybindService.RegisterAction(new(nameof(EditorSelectTool),
+            SelectTool.ToolDisplayName,
+            EditorToolsGroupName,
+            $"Activates the {SelectTool.ToolDisplayName}.",
+            Keybind.Unassigned));
+        EditorMoveTool = _keybindService.RegisterAction(new(nameof(EditorMoveTool),
+            MoveTool.ToolDisplayName,
+            EditorToolsGroupName,
+            $"Activates the {MoveTool.ToolDisplayName}.",
+            Keybind.Unassigned));
+        EditorRotateTool = _keybindService.RegisterAction(new(nameof(EditorRotateTool),
+            RotateTool.ToolDisplayName,
+            EditorToolsGroupName,
+            $"Activates the {RotateTool.ToolDisplayName}.",
+            Keybind.Unassigned));
+        EditorScaleTool = _keybindService.RegisterAction(new(nameof(EditorScaleTool),
+            ScaleTool.ToolDisplayName,
+            EditorToolsGroupName,
+            $"Activates the {ScaleTool.ToolDisplayName}.",
+            Keybind.Unassigned));
+        EditorSnapToggle = _keybindService.RegisterAction(new(nameof(EditorSnapToggle),
+            $"Snap Toggle",
+            EditorToolsGroupName,
+            $"Toggles the incremental snapping of various tools.",
+            new Keybind(VirtualKey.X, KeybindModifierKeys.None)));
+        EditorGizmoOrientationToggle = _keybindService.RegisterAction(new(nameof(EditorGizmoOrientationToggle),
+            "Gizmo Orientation Toggle",
+            EditorToolsGroupName,
+            "Switches between Local and World gizmo orientations.",
+            new Keybind(VirtualKey.O, KeybindModifierKeys.None)));
+
+        //
         // Editor
         //
         EditorUndo = _keybindService.RegisterAction(new(nameof(EditorUndo),
@@ -228,6 +279,13 @@ internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposab
             _keybindService.UnregisterAction(EditorSave);
             _keybindService.UnregisterAction(EditorRedo);
             _keybindService.UnregisterAction(EditorUndo);
+
+            _keybindService.UnregisterAction(EditorGizmoOrientationToggle);
+            _keybindService.UnregisterAction(EditorSnapToggle);
+            _keybindService.UnregisterAction(EditorScaleTool);
+            _keybindService.UnregisterAction(EditorRotateTool);
+            _keybindService.UnregisterAction(EditorMoveTool);
+            _keybindService.UnregisterAction(EditorSelectTool);
 
             _keybindService.UnregisterAction(EditorCenterGroupPivots);
             _keybindService.UnregisterAction(EditorUngroupObjects);

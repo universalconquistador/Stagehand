@@ -38,6 +38,7 @@ public static class TransformCoordinateSpaceExtensions
 
 internal class TransformToolBase : SelectToolBase
 {
+    protected readonly IStagehandKeybinds StagehandKeybinds;
     protected readonly StagehandConfiguration StagehandConfiguration;
 
     private readonly IOverlayService _overlayService;
@@ -52,18 +53,26 @@ internal class TransformToolBase : SelectToolBase
         }
     }
 
-    public TransformToolBase(string displayName, string description, FontAwesomeIcon icon, float sortPriority, IViewportInputService viewportInputService, IGameGui gameGui, IEditorHitTestService hitTestService, ISelectionManager selectionManager, ILogger logger, IOverlayService overlayService, StagehandConfiguration stagehandConfiguration)
-        : base(displayName, description, icon, sortPriority, viewportInputService, gameGui, hitTestService, selectionManager, logger)
+    public TransformToolBase(string displayName, string description, FontAwesomeIcon icon, float sortPriority, IKeybindAction activateKeybindAction, IViewportInputService viewportInputService, IGameGui gameGui, IEditorHitTestService hitTestService, ISelectionManager selectionManager, ILogger logger, IOverlayService overlayService, IStagehandKeybinds stagehandKeybinds, StagehandConfiguration stagehandConfiguration)
+        : base(displayName, description, icon, sortPriority, activateKeybindAction, viewportInputService, gameGui, hitTestService, selectionManager, logger)
     {
         _overlayService = overlayService;
+        StagehandKeybinds = stagehandKeybinds;
         StagehandConfiguration = stagehandConfiguration;
     }
 
     public override bool TryActivate()
     {
         _overlayService.DrawOverlays += DrawOverlay;
+        StagehandKeybinds.EditorGizmoOrientationToggle.Pressed += OnGizmoOrientationToggleKeybindPressed;
 
         return base.TryActivate();
+    }
+
+    private void OnGizmoOrientationToggleKeybindPressed()
+    {
+        var nextSpace = (TransformCoordinateSpace)(((int)CoordinateSpace + 1) % 2);
+        CoordinateSpace = nextSpace;
     }
 
     protected virtual void DrawOverlay(IOverlayDrawContext context)
@@ -91,6 +100,7 @@ internal class TransformToolBase : SelectToolBase
 
     public override void Deactivate()
     {
+        StagehandKeybinds.EditorGizmoOrientationToggle.Pressed -= OnGizmoOrientationToggleKeybindPressed;
         _overlayService.DrawOverlays -= DrawOverlay;
         base.Deactivate();
     }

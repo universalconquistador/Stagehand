@@ -41,6 +41,10 @@ internal class ToolManager : IToolManager
     public ToolManager(IEnumerable<IEditorTool> tools)
     {
         _tools = tools.OrderBy(tool => tool.SortPriority).ToArray();
+        foreach (var tool in Tools)
+        {
+            tool.ActivationRequested += () => ActiveTool = tool;
+        }
         var initialTool = Tools[0];
         if (initialTool.TryActivate())
         {

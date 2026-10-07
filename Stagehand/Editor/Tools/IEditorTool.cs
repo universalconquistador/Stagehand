@@ -1,5 +1,6 @@
 using Dalamud.Interface;
 using FFXIVClientStructs.FFXIV.Client.UI;
+using Stagehand.Editor.Services;
 using Stagehand.Services;
 using System;
 using System.Collections.Generic;
@@ -36,9 +37,19 @@ public interface IEditorTool
     float SortPriority { get; }
 
     /// <summary>
+    /// The keybind used to activate this tool.
+    /// </summary>
+    KeybindInfo ActivateKeybindInfo { get; }
+
+    /// <summary>
     /// Whether the tool is the active tool.
     /// </summary>
     bool IsActive { get; }
+
+    /// <summary>
+    /// Raised when the tool requests activation.
+    /// </summary>
+    event Action ActivationRequested;
 
     /// <summary>
     /// Attempts to activate the tool.
@@ -66,10 +77,14 @@ internal abstract class EditorToolBase : IEditorTool, IViewportInputHandler, IDi
     public string Description { get; }
     public FontAwesomeIcon Icon { get; }
     public float SortPriority { get; }
+    public IKeybindAction ActivateKeybindAction { get; }
+    public event Action? ActivationRequested;
+
+    KeybindInfo IEditorTool.ActivateKeybindInfo => ActivateKeybindAction.Info;
 
     public bool IsActive { get; private set; } = false;
 
-    public EditorToolBase(string displayName, string description, FontAwesomeIcon icon, float sortPriority, IViewportInputService viewportInputService)
+    public EditorToolBase(string displayName, string description, FontAwesomeIcon icon, float sortPriority, IKeybindAction activateKeybindAction, IViewportInputService viewportInputService)
     {
         _viewportInputService = viewportInputService;
 
@@ -77,12 +92,13 @@ internal abstract class EditorToolBase : IEditorTool, IViewportInputHandler, IDi
         Description = description;
         Icon = icon;
         SortPriority = sortPriority;
+        ActivateKeybindAction = activateKeybindAction;
+        ActivateKeybindAction.Pressed += OnKeybindActionPressed;
     }
 
-    public virtual void Deactivate()
+    protected void RequestActivation()
     {
-        _viewportInputService.RemoveInputHandler(this);
-        IsActive = false;
+        ActivationRequested?.Invoke();
     }
 
     public virtual bool TryActivate()
@@ -92,8 +108,20 @@ internal abstract class EditorToolBase : IEditorTool, IViewportInputHandler, IDi
         return true;
     }
 
+    private void OnKeybindActionPressed()
+    {
+        RequestActivation();
+    }
+
+    public virtual void Deactivate()
+    {
+        _viewportInputService.RemoveInputHandler(this);
+        IsActive = false;
+    }
+
     public virtual void Dispose()
     {
+        ActivateKeybindAction.Pressed -= OnKeybindActionPressed;
         if (IsActive)
         {
             Deactivate();

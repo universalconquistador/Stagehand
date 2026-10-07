@@ -28,8 +28,8 @@ internal class SelectToolBase : EditorToolBase
     private Vector2 _dragDelta = Vector2.Zero;
     private IEditorHitTestShape? _dragShape = null;
 
-    public SelectToolBase(string displayName, string description, FontAwesomeIcon icon, float sortPriority, IViewportInputService viewportInputService, IGameGui gameGui, IEditorHitTestService hitTestService, ISelectionManager selectionManager, ILogger logger)
-        : base(displayName, description, icon, sortPriority, viewportInputService)
+    public SelectToolBase(string displayName, string description, FontAwesomeIcon icon, float sortPriority, IKeybindAction activateKeybindAction, IViewportInputService viewportInputService, IGameGui gameGui, IEditorHitTestService hitTestService, ISelectionManager selectionManager, ILogger logger)
+        : base(displayName, description, icon, sortPriority, activateKeybindAction, viewportInputService)
     {
         GameGui = gameGui;
         HitTestService = hitTestService;
@@ -144,7 +144,9 @@ internal class SelectToolBase : EditorToolBase
 
 internal class SelectTool : SelectToolBase
 {
-    public SelectTool(IViewportInputService viewportInputService, IGameGui gameGui, IEditorHitTestService hitTestService, ISelectionManager selectionManager, ILogger<SelectTool> logger)
-        : base("Select Tool", "Select objects in the game by clicking on them.", FontAwesomeIcon.MousePointer, sortPriority: 0.0f, viewportInputService, gameGui, hitTestService, selectionManager, logger)
+    public const string ToolDisplayName = "Select Tool";
+
+    public SelectTool(IStagehandKeybinds stagehandKeybinds, IViewportInputService viewportInputService, IGameGui gameGui, IEditorHitTestService hitTestService, ISelectionManager selectionManager, ILogger<SelectTool> logger)
+        : base(ToolDisplayName, "Select objects in the game by clicking on them.", FontAwesomeIcon.MousePointer, sortPriority: 0.0f, stagehandKeybinds.EditorSelectTool, viewportInputService, gameGui, hitTestService, selectionManager, logger)
     { }
 }
