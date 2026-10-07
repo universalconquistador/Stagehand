@@ -15,6 +15,7 @@ using Stagehand.Definitions.Objects;
 using Stagehand.Editor.Services;
 using Stagehand.Live;
 using Stagehand.Services;
+using Stagehand.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -530,11 +531,57 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         {
             Position = position;
         }
+        if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
+        {
+            ImGui.OpenPopup("###PositionContextMenu");
+        }
+        using (var popup = ImRaii.Popup("###PositionContextMenu"))
+        {
+            if (popup.Success)
+            {
+                if (ImGui.MenuItem("Copy Position"))
+                {
+                    var item = new Vector3DataTransferFragment(Position);
+                    ImGui.SetClipboardText(item.ToDataString());
+                }
+                if (ImGui.MenuItem("Paste Position"))
+                {
+                    var item = DataTransferFragment.FromDataString(ImGui.GetClipboardText());
+                    if (item is Vector3DataTransferFragment vector3Fragment)
+                    {
+                        Position = vector3Fragment.Value;
+                    }
+                }
+            }
+        }
 
         Vector3 rotation = RotationPitchYawRollDegrees;
         if (ImGui.DragFloat3("Rotation", ref rotation, vSpeed: 0.5f))
         {
             RotationPitchYawRollDegrees = rotation;
+        }
+        if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
+        {
+            ImGui.OpenPopup("###RotationContextMenu");
+        }
+        using (var popup = ImRaii.Popup("###RotationContextMenu"))
+        {
+            if (popup.Success)
+            {
+                if (ImGui.MenuItem("Copy Rotation"))
+                {
+                    var item = new Vector3DataTransferFragment(RotationPitchYawRollDegrees);
+                    ImGui.SetClipboardText(item.ToDataString());
+                }
+                if (ImGui.MenuItem("Paste Rotation"))
+                {
+                    var item = DataTransferFragment.FromDataString(ImGui.GetClipboardText());
+                    if (item is Vector3DataTransferFragment vector3Fragment)
+                    {
+                        RotationPitchYawRollDegrees = vector3Fragment.Value;
+                    }
+                }
+            }
         }
 
         if (ScaleMode == ObjectScaleMode.NonUniform)
@@ -543,6 +590,29 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
             if (ImGui.DragFloat3("Scale", ref scale, vSpeed: 0.01f))
             {
                 Scale = scale;
+            }
+            if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
+            {
+                ImGui.OpenPopup("###ScaleContextMenu");
+            }
+            using (var popup = ImRaii.Popup("###ScaleContextMenu"))
+            {
+                if (popup.Success)
+                {
+                    if (ImGui.MenuItem("Copy Scale"))
+                    {
+                        var item = new Vector3DataTransferFragment(Scale);
+                        ImGui.SetClipboardText(item.ToDataString());
+                    }
+                    if (ImGui.MenuItem("Paste Scale"))
+                    {
+                        var item = DataTransferFragment.FromDataString(ImGui.GetClipboardText());
+                        if (item is Vector3DataTransferFragment vector3Fragment)
+                        {
+                            Scale = vector3Fragment.Value;
+                        }
+                    }
+                }
             }
         }
         else if (ScaleMode == ObjectScaleMode.Uniform)

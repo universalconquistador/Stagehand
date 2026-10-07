@@ -4,6 +4,7 @@ using Stagehand.Editor.DefinitionEditors.Objects;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Numerics;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -18,6 +19,7 @@ namespace Stagehand.Utils;
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "Type")]
 [JsonDerivedType(typeof(AssetBookmarkService.BookmarkDataTransferFragment), typeDiscriminator: "BookmarkDataTransferFragment")]
 [JsonDerivedType(typeof(StageDefinitionDataTransferFragment), typeDiscriminator: "StageDefinitionDataTransferFragment")]
+[JsonDerivedType(typeof(Vector3DataTransferFragment), typeDiscriminator: "Vector3DataTransferFragment")]
 public abstract record class DataTransferFragment()
 {
     private static readonly JsonSerializerOptions _dataTransferFramentJsonOptions = new()
@@ -59,3 +61,5 @@ public abstract record class DataTransferFragment()
         return await JsonSerializer.DeserializeAsync<DataTransferFragment>(utf8JsonStream, _dataTransferFramentJsonOptions, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 }
+
+public record class Vector3DataTransferFragment(Vector3 Value) : DataTransferFragment;
