@@ -79,6 +79,7 @@ internal class EditorWindow : Window, IEditorWindow, IDisposable
     private readonly StageDefinition _definition;
     private readonly StageDefinitionEditor _definitionEditor;
     private readonly Timer _autosaveTimer;
+    private readonly List<OutlinerNode> _outlinerExpandPath = new();
 
     public EditorWindow(IServiceScope serviceScope, string definitionFilename, StageDefinition definition)
         : base($"{Path.GetFileName(definitionFilename)} - Stagehand Editor###StagehandEditor")
@@ -115,6 +116,7 @@ internal class EditorWindow : Window, IEditorWindow, IDisposable
         _stagehandKeybinds.EditorUndo.Pressed += _transactionManager.Undo;
         _stagehandKeybinds.EditorRedo.Pressed += _transactionManager.Redo;
         _stagehandKeybinds.EditorSave.Pressed += SaveDefinition;
+        _stagehandKeybinds.EditorRevealSelection.Pressed += OnRevealSelectionKeybindPressed;
 
         TitleBarButtons.Add(new()
         {
@@ -155,6 +157,15 @@ internal class EditorWindow : Window, IEditorWindow, IDisposable
                 }
             }
         });
+    }
+
+    private void OnRevealSelectionKeybindPressed()
+    {
+        var primarySelectedOutlinerNode = _selectionManager.PrimarySelectedEditor?.OutlinerNode;
+        if (primarySelectedOutlinerNode != null)
+        {
+            ExpandToOutlinerNode(primarySelectedOutlinerNode);
+        }
     }
 
     private void OnTransactionDoneOrUndone(ITransaction transaction)
@@ -222,6 +233,18 @@ internal class EditorWindow : Window, IEditorWindow, IDisposable
         {
             _logger.LogError(ex, "Failed to save sage definition!");
             return false;
+        }
+    }
+
+    public void ExpandToOutlinerNode(OutlinerNode node)
+    {
+        _outlinerExpandPath.Clear();
+        _outlinerExpandPath.Add(node);
+        var parent = node.ParentNode;
+        while (parent != null)
+        {
+            _outlinerExpandPath.Add(parent);
+            parent = parent.ParentNode;
         }
     }
 
@@ -355,21 +378,24 @@ internal class EditorWindow : Window, IEditorWindow, IDisposable
         ImGui.Separator();
 
         // Object Outliner
-        var clearFilterWidth = ImGui.GetFrameHeight();
-        bool showClearFilter = _outlinerFilter.Length > 0;
-        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - (showClearFilter ? clearFilterWidth + ImGui.GetStyle().ItemInnerSpacing.X : 0.0f));
-        if (ImGui.InputTextWithHint("###OutlinerFilter", "Filter", ref _outlinerFilter, 512, ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll))
+        Utils.ImGuiExtensions.FilterBox("Filter"u8, ref _outlinerFilter, ImGui.GetContentRegionAvail().X - ImGui.GetFrameHeight() - ImGui.GetStyle().ItemInnerSpacing.X);
+        _outliner.FilterText = _outlinerFilter;
+        ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
+        var primarySelectedOutlinerNode = _selectionManager.PrimarySelectedEditor?.OutlinerNode;
+        using (ImRaii.Disabled(primarySelectedOutlinerNode == null))
         {
-            _outliner.FilterText = _outlinerFilter;
-        }
-
-        if (showClearFilter)
-        {
-            ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
-            if (ImGuiComponents.IconButton("###OutlinerFilterClear", FontAwesomeIcon.Times, new Vector2(clearFilterWidth / ImGuiHelpers.GlobalScale)))
+            if (ImGuiComponents.IconButton(FontAwesomeIcon.ArrowTurnDown, new(ImGui.GetFrameHeight() / ImGuiHelpers.GlobalScale)) && primarySelectedOutlinerNode != null)
             {
-                _outliner.FilterText = string.Empty;
-                _outlinerFilter = string.Empty;
+                ExpandToOutlinerNode(primarySelectedOutlinerNode);
+            }
+        }
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+        {
+            using (ImRaii.Tooltip())
+            {
+                ImGui.TextUnformatted("Reveal Primary Selection");
+                ImGui.Separator();
+                ImGui.TextDisabled("Shows the primary selection in the outliner.");
             }
         }
 
@@ -393,6 +419,7 @@ internal class EditorWindow : Window, IEditorWindow, IDisposable
                 }
             }
         }
+        _outlinerExpandPath.Clear();
 
         var addMenuWidth = 75.0f * ImGuiHelpers.GlobalScale;
         ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - addMenuWidth);
@@ -617,6 +644,20 @@ internal class EditorWindow : Window, IEditorWindow, IDisposable
             flags |= ImGuiTreeNodeFlags.Selected;
         }
 
+        bool scrollTo = false;
+        if (_outlinerExpandPath.Count > 0 && _outlinerExpandPath[_outlinerExpandPath.Count - 1] == node)
+        {
+            _outlinerExpandPath.RemoveAt(_outlinerExpandPath.Count - 1);
+            if (_outlinerExpandPath.Count == 0)
+            {
+                scrollTo = true;
+            }
+            else
+            {
+                ImGui.SetNextItemOpen(true);
+            }
+        }
+
         bool showNodeTooltip = false;
         string tooltipPrimary = node.TooltipPrimary;
         string tooltipSecondary = node.TooltipSecondary;
@@ -624,6 +665,10 @@ internal class EditorWindow : Window, IEditorWindow, IDisposable
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             treeNode = ImRaii.TreeNode($"{node.Icon.ToIconString()}###{node.UniqueId}", flags);
+        }
+        if (scrollTo)
+        {
+            ImGui.SetScrollHereY(0.5f);
         }
         using (treeNode)
         {
@@ -770,6 +815,7 @@ internal class EditorWindow : Window, IEditorWindow, IDisposable
 
     public void Dispose()
     {
+        _stagehandKeybinds.EditorRevealSelection.Pressed -= OnRevealSelectionKeybindPressed;
         _stagehandKeybinds.EditorUndo.Pressed -= _transactionManager.Undo;
         _stagehandKeybinds.EditorRedo.Pressed -= _transactionManager.Redo;
         _stagehandKeybinds.EditorSave.Pressed -= SaveDefinition;

@@ -32,6 +32,11 @@ public interface IDefinitionEditor : IDisposable
     bool IsSelected { get; }
 
     /// <summary>
+    /// The outliner node for this definition, if any.
+    /// </summary>
+    OutlinerNode? OutlinerNode { get; }
+
+    /// <summary>
     /// Draws the properties of the definition.
     /// </summary>
     void DrawProperties();
@@ -56,6 +61,7 @@ public abstract class DefinitionEditorBase : IDefinitionEditor
     public abstract DefinitionTypeInfo TypeInfo { get; }
 
     public bool IsSelected { get; private set; }
+    public virtual OutlinerNode? OutlinerNode => null;
 
     public DefinitionEditorBase(IServiceProvider serviceProvider)
     {

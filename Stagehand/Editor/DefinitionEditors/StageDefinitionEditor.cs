@@ -35,7 +35,7 @@ public class StageDefinitionEditor : DefinitionEditorBase
     public override string DisplayName => Name;
     public override DefinitionTypeInfo TypeInfo => StaticTypeInfo;
 
-    public OutlinerNode OutlinerNode { get; }
+    public override OutlinerNode OutlinerNode { get; }
     public DefinitionEditorDictionary<ObjectDefinition, IObjectDefinitionEditor> Objects { get; }
     public DefinitionEditorDictionary<EmbeddedModpackDefinition, EmbeddedModpackDefinitionEditor> EmbeddedModpacks { get; }
     public IReadOnlyDictionary<string, ILiveModpack> PreviewModpacks => new Dictionary<string, ILiveModpack>(EmbeddedModpacks.Select(pair => new KeyValuePair<string, ILiveModpack>(pair.Key, pair.Value.PreviewLiveModpack!)));

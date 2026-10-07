@@ -57,7 +57,7 @@ public class EmbeddedModpackDefinitionEditor : DefinitionEditorBase, IChildDefin
     public override string DisplayName => Definition.DisplayName;
     public override DefinitionTypeInfo TypeInfo => StaticTypeInfo;
     
-    public OutlinerNode OutlinerNode { get; }
+    public override OutlinerNode OutlinerNode { get; }
 
     public ILiveModpack? PreviewLiveModpack { get; private set; }
     public bool IsInStage { get; private set; } = false;

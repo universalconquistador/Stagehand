@@ -267,3 +267,4 @@ Later down the road:
  - Adds a right-click menu to the Position, Rotation, and Scale properties that lets you copy and paste them.
  - Hides selection bounds overlay while dragging the move, rotate, or scale gizmos.
  - Shows a little selection tick on the left side of collapsed outliner items when an item inside them is selected.
+ - Adds a button above the outliner to reveal the most recently selected item.

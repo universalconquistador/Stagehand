@@ -281,7 +281,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
     protected TDefinition Definition { get; }
     public string Key { get; }
     public StageDefinitionEditor Stage { get; }
-    public OutlinerNode OutlinerNode { get; }
+    public override OutlinerNode OutlinerNode { get; }
     public ILiveObject? PreviewLiveObject { get; protected set; }
     public bool IsInStage { get; private set; }
 

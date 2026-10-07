@@ -42,6 +42,7 @@ public interface IStagehandKeybinds
     IKeybindAction EditorUndo { get; }
     IKeybindAction EditorRedo { get; }
     IKeybindAction EditorSave { get; }
+    IKeybindAction EditorRevealSelection { get; }
 
     // Picking
     IKeybindAction StopPicking { get; }
@@ -90,6 +91,7 @@ internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposab
     public IKeybindAction EditorUndo { get; }
     public IKeybindAction EditorRedo { get; }
     public IKeybindAction EditorSave { get; }
+    public IKeybindAction EditorRevealSelection { get; }
 
     public IKeybindAction StopPicking { get; }
 
@@ -186,26 +188,31 @@ internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposab
             EditorToolsGroupName,
             $"Activates the {SelectTool.ToolDisplayName}.",
             Keybind.Unassigned));
+
         EditorMoveTool = _keybindService.RegisterAction(new(nameof(EditorMoveTool),
             MoveTool.ToolDisplayName,
             EditorToolsGroupName,
             $"Activates the {MoveTool.ToolDisplayName}.",
             Keybind.Unassigned));
+
         EditorRotateTool = _keybindService.RegisterAction(new(nameof(EditorRotateTool),
             RotateTool.ToolDisplayName,
             EditorToolsGroupName,
             $"Activates the {RotateTool.ToolDisplayName}.",
             Keybind.Unassigned));
+
         EditorScaleTool = _keybindService.RegisterAction(new(nameof(EditorScaleTool),
             ScaleTool.ToolDisplayName,
             EditorToolsGroupName,
             $"Activates the {ScaleTool.ToolDisplayName}.",
             Keybind.Unassigned));
+
         EditorSnapToggle = _keybindService.RegisterAction(new(nameof(EditorSnapToggle),
             $"Snap Toggle",
             EditorToolsGroupName,
             $"Toggles the incremental snapping of various tools.",
             new Keybind(VirtualKey.X, KeybindModifierKeys.None)));
+
         EditorGizmoOrientationToggle = _keybindService.RegisterAction(new(nameof(EditorGizmoOrientationToggle),
             "Gizmo Orientation Toggle",
             EditorToolsGroupName,
@@ -232,6 +239,12 @@ internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposab
             EditorGroupName,
             "Saves the stage being edited.",
             new Keybind(VirtualKey.S, KeybindModifierKeys.Control)));
+
+        EditorRevealSelection = _keybindService.RegisterAction(new(nameof(EditorRevealSelection),
+            "Reveal Primary Selection",
+            EditorGroupName,
+            "Shows the primary selected item in the outliner.",
+            new Keybind(VirtualKey.OEM_PERIOD, KeybindModifierKeys.None)));
 
         //
         // Picking
@@ -274,8 +287,12 @@ internal class StagehandKeybinds : IStagehandKeybinds, IHostedService, IDisposab
         {
             _isDisposed = true;
 
+            _keybindService.UnregisterAction(StartQuickPicking);
+            _keybindService.UnregisterAction(ToggleQuickPickerWindow);
+
             _keybindService.UnregisterAction(StopPicking);
 
+            _keybindService.UnregisterAction(EditorRevealSelection);
             _keybindService.UnregisterAction(EditorSave);
             _keybindService.UnregisterAction(EditorRedo);
             _keybindService.UnregisterAction(EditorUndo);
