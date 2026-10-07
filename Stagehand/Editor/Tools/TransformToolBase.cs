@@ -38,16 +38,17 @@ public static class TransformCoordinateSpaceExtensions
 
 internal class TransformToolBase : SelectToolBase
 {
+    protected readonly StagehandConfiguration StagehandConfiguration;
+
     private readonly IOverlayService _overlayService;
-    private readonly StagehandConfiguration _stagehandConfiguration;
 
     public TransformCoordinateSpace CoordinateSpace
     {
-        get => _stagehandConfiguration.TransformGizmoCoordinateSpace;
+        get => StagehandConfiguration.TransformGizmoCoordinateSpace;
         set
         {
-            _stagehandConfiguration.TransformGizmoCoordinateSpace = value;
-            _stagehandConfiguration.Save();
+            StagehandConfiguration.TransformGizmoCoordinateSpace = value;
+            StagehandConfiguration.Save();
         }
     }
 
@@ -55,7 +56,7 @@ internal class TransformToolBase : SelectToolBase
         : base(displayName, description, icon, sortPriority, viewportInputService, gameGui, hitTestService, selectionManager, logger)
     {
         _overlayService = overlayService;
-        _stagehandConfiguration = stagehandConfiguration;
+        StagehandConfiguration = stagehandConfiguration;
     }
 
     public override bool TryActivate()

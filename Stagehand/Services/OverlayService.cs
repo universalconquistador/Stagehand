@@ -74,8 +74,9 @@ public interface IOverlayDrawContext
     /// <param name="scale">The scale of the transform.</param>
     /// <param name="operation">The kind of gizmo to draw.</param>
     /// <param name="mode">Whether the gizmo is oriented in local or world space.</param>
+    /// <param name="snap">The increment to snap to.</param>
     /// <returns>Whether the given transform components were modified.</returns>
-    bool DrawGizmo(ImU8String id, ref Vector3 translation, ref Quaternion rotation, ref Vector3 scale, ImGuizmoOperation operation, ImGuizmoMode mode);
+    bool DrawGizmo(ImU8String id, ref Vector3 translation, ref Quaternion rotation, ref Vector3 scale, ImGuizmoOperation operation, ImGuizmoMode mode, float snap);
 }
 
 /// <summary>
@@ -252,7 +253,7 @@ internal class OverlayService : IOverlayService
             }
         }
 
-        public unsafe bool DrawGizmo(ImU8String id, ref Vector3 translation, ref Quaternion rotation, ref Vector3 scale, ImGuizmoOperation operation, ImGuizmoMode mode)
+        public unsafe bool DrawGizmo(ImU8String id, ref Vector3 translation, ref Quaternion rotation, ref Vector3 scale, ImGuizmoOperation operation, ImGuizmoMode mode, float snap)
         {
             bool result = false;
 
@@ -266,9 +267,8 @@ internal class OverlayService : IOverlayService
 
             matrix = scaleMatrix * rotationMatrix * translationMatrix;
 
-            Vector3 snap = Vector3.Zero;
-
-            result = ImGuizmo.Manipulate(ref ViewMatrix.M11, ref ProjectionMatrix.M11, operation, mode, ref matrix.M11);
+            Vector3 snapVector = new(snap);
+            result = ImGuizmo.Manipulate(ref ViewMatrix.M11, ref ProjectionMatrix.M11, operation, mode, ref matrix.M11, null, ref snapVector.X);
             if (result)
             {
                 Vector3 rotationXYZ = Vector3.Zero;

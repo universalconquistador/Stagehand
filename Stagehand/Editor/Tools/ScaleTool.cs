@@ -27,7 +27,7 @@ internal class ScaleTool : TransformToolBase
             var rotation = objectDefinitionEditor.WorldRotationQuaternion;
             var scale = objectDefinitionEditor.WorldScale;
             var mode = CoordinateSpace switch { TransformCoordinateSpace.Local => ImGuizmoMode.Local, TransformCoordinateSpace.World => ImGuizmoMode.World, _ => ImGuizmoMode.Local };
-            if (context.DrawGizmo("###ScaleToolGizmo", ref translation, ref rotation, ref scale, ImGuizmoOperation.Scale, mode))
+            if (context.DrawGizmo("###ScaleToolGizmo", ref translation, ref rotation, ref scale, ImGuizmoOperation.Scale, mode, snap: 0.0f))
             {
                 if (_currentOperation == null)
                 {

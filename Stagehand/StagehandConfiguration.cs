@@ -79,6 +79,12 @@ public class StagehandConfiguration : IPluginConfiguration
 
     public TransformCoordinateSpace TransformGizmoCoordinateSpace { get; set; } = TransformCoordinateSpace.Local;
 
+    public bool MoveToolSnapEnabled { get; set; } = false;
+    public float MoveToolSnapIncrement { get; set; } = 1.0f;
+
+    public bool RotateToolSnapEnabled { get; set; } = false;
+    public float RotateToolSnapIncrementDegrees { get; set; } = 15.0f;
+
     // The below exists just to make saving less cumbersome
     public void Save()
     {

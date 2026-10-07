@@ -262,3 +262,4 @@ Later down the road:
 ## 0.5.5
 
  - Adds a toggle for Local vs World orientation for the move, rotate, and scale tool gizmos.
+ - Adds snapping for the move and rotate tool gizmos.
