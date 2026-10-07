@@ -50,6 +50,12 @@ public interface IEditorTool
     /// Deactivates the tool.
     /// </summary>
     void Deactivate();
+
+    /// <summary>
+    /// Draws the tool options below the tool row.
+    /// </summary>
+    /// <returns>Whether any options were drawn.</returns>
+    bool DrawOptionGutter();
 }
 
 internal abstract class EditorToolBase : IEditorTool, IViewportInputHandler, IDisposable
@@ -95,6 +101,11 @@ internal abstract class EditorToolBase : IEditorTool, IViewportInputHandler, IDi
     }
 
     public virtual bool HandleMouseInput(ref readonly UIInputData inputData)
+    {
+        return false;
+    }
+
+    public virtual bool DrawOptionGutter()
     {
         return false;
     }

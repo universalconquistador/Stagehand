@@ -258,3 +258,7 @@ Later down the road:
    - You can use modded textures for lights, and the modpack selector is once again visible when editing textures.
  - Adds Inf and NaN protection to definition serialization. There is still a gimbal lock issue with rotating around the Z (blue) axis using the rotation tool while the X (pitch) rotation is exactly 90 or -90 degrees.
  - Improves the save and autosave process to be resiliant against errors so that in the case of failure your last save is preserved.
+
+## 0.5.5
+
+ - Adds a toggle for Local vs World orientation for the move, rotate, and scale tool gizmos.

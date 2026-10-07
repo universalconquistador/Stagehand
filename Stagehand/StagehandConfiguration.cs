@@ -15,6 +15,12 @@ public enum HoverPreviewMode
     AtTarget,
 }
 
+public enum TransformCoordinateSpace
+{
+    Local = 0,
+    World = 1,
+}
+
 [Serializable]
 public class StagehandConfiguration : IPluginConfiguration
 {
@@ -70,6 +76,8 @@ public class StagehandConfiguration : IPluginConfiguration
     /// Don't edit this directly; go through <see cref="IKeybindService"/>.
     /// </remarks>
     public Dictionary<string, Keybind> AssignedKeybinds { get; set; } = new();
+
+    public TransformCoordinateSpace TransformGizmoCoordinateSpace { get; set; } = TransformCoordinateSpace.Local;
 
     // The below exists just to make saving less cumbersome
     public void Save()

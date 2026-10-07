@@ -346,6 +346,12 @@ internal class EditorWindow : Window, IEditorWindow, IDisposable
             toolIndex += 1;
         }
 
+        var drewOptions = _toolManager.ActiveTool?.DrawOptionGutter();
+        if (drewOptions != true)
+        {
+            ImGui.Dummy(new Vector2(0.0f, ImGui.GetFrameHeight()));
+        }
+
         ImGui.Separator();
 
         // Object Outliner

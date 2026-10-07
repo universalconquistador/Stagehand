@@ -28,7 +28,7 @@ internal class SelectToolBase : EditorToolBase
     private Vector2 _dragDelta = Vector2.Zero;
     private IEditorHitTestShape? _dragShape = null;
 
-    public SelectToolBase(string displayName, string description, FontAwesomeIcon icon, float sortPriority, IViewportInputService viewportInputService, IGameGui gameGui, IEditorHitTestService hitTestService, ISelectionManager selectionManager, ILogger<SelectToolBase> logger)
+    public SelectToolBase(string displayName, string description, FontAwesomeIcon icon, float sortPriority, IViewportInputService viewportInputService, IGameGui gameGui, IEditorHitTestService hitTestService, ISelectionManager selectionManager, ILogger logger)
         : base(displayName, description, icon, sortPriority, viewportInputService)
     {
         GameGui = gameGui;
