@@ -275,6 +275,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
     protected IAssetBookmarkService AssetBookmarkService { get; }
     protected IGameResourceAssetService GameResourceAssetService { get; }
     protected IViewportPickerService ViewportPickerService { get; }
+    protected IToolManager ToolManager { get; }
 
     public IObjectDefinitionEditor? ParentObject { get; set; }
     protected TDefinition Definition { get; }
@@ -430,6 +431,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
         AssetBookmarkService = serviceProvider.GetRequiredService<IAssetBookmarkService>();
         GameResourceAssetService = serviceProvider.GetRequiredService<IGameResourceAssetService>();
         ViewportPickerService = serviceProvider.GetRequiredService<IViewportPickerService>();
+        ToolManager = serviceProvider.GetRequiredService<IToolManager>();
 
         Definition = definition;
         Key = key;
@@ -811,7 +813,7 @@ internal abstract class ObjectDefinitionEditor<TDefinition> : DefinitionEditorBa
 
     protected virtual void DrawOverlays(IOverlayDrawContext obj)
     {
-        if (IsSelected)
+        if (IsSelected && ToolManager.ActiveTool?.IsDraggingGizmo != true)
         {
             var color = ComputeOverlayColor();
             

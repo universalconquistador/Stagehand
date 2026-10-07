@@ -52,6 +52,11 @@ public interface IEditorTool
     event Action ActivationRequested;
 
     /// <summary>
+    /// Whether the user is currently dragging the mouse on a gizmo for this tool.
+    /// </summary>
+    bool IsDraggingGizmo { get; }
+
+    /// <summary>
     /// Attempts to activate the tool.
     /// </summary>
     /// <returns>Whether the tool successfully activated.</returns>
@@ -79,6 +84,8 @@ internal abstract class EditorToolBase : IEditorTool, IViewportInputHandler, IDi
     public float SortPriority { get; }
     public IKeybindAction ActivateKeybindAction { get; }
     public event Action? ActivationRequested;
+
+    public virtual bool IsDraggingGizmo => false;
 
     KeybindInfo IEditorTool.ActivateKeybindInfo => ActivateKeybindAction.Info;
 

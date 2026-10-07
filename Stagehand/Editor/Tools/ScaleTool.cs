@@ -42,5 +42,7 @@ internal class ScaleTool : TransformToolBase
                 _currentOperation = null;
             }
         }
+
+        base.DrawOverlay(context);
     }
 }

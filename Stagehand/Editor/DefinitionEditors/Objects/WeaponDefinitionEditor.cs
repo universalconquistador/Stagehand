@@ -183,7 +183,7 @@ internal class WeaponDefinitionEditor : ObjectDefinitionEditor<WeaponDefinition>
     {
         // Unclear why, but Weapon scene objects report their oriented bounds as weird. Sometimes exactly double their actual size, sometimes less than that, it's strange.
         // So, use the bounds computed from the .mdl by the hit test model.
-        if (IsSelected)
+        if (IsSelected && ToolManager.ActiveTool?.IsDraggingGizmo != true)
         {
             var color = ComputeOverlayColor();
 

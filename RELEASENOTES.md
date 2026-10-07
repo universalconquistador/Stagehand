@@ -265,3 +265,4 @@ Later down the road:
  - Adds snapping for the move and rotate tool gizmos (default keybind: X).
  - Adds keybind support for activating the Select, Move, Rotate and Scale tools (unbound by default).
  - Adds a right-click menu to the Position, Rotation, and Scale properties that lets you copy and paste them.
+ - Hides selection bounds overlay while dragging the move, rotate, or scale gizmos.

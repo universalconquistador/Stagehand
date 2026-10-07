@@ -1,4 +1,5 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Bindings.ImGuizmo;
 using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility;
@@ -38,6 +39,9 @@ public static class TransformCoordinateSpaceExtensions
 
 internal class TransformToolBase : SelectToolBase
 {
+    private bool _isDraggingGizmo;
+    public override bool IsDraggingGizmo => _isDraggingGizmo;
+
     protected readonly IStagehandKeybinds StagehandKeybinds;
     protected readonly StagehandConfiguration StagehandConfiguration;
 
@@ -76,7 +80,9 @@ internal class TransformToolBase : SelectToolBase
     }
 
     protected virtual void DrawOverlay(IOverlayDrawContext context)
-    { }
+    {
+        _isDraggingGizmo = ImGuizmo.IsUsing();
+    }
 
     public override bool DrawOptionGutter()
     {

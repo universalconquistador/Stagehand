@@ -126,7 +126,7 @@ internal class GroupDefinitionEditor : ObjectDefinitionEditor<GroupDefinition>
     protected override void DrawOverlays(IOverlayDrawContext obj)
     {
         // Because we have no live preview object (see comment in RefreshPreviewObject) we need to compute the bounds manually.
-        if (IsSelected)
+        if (IsSelected && ToolManager.ActiveTool?.IsDraggingGizmo != true)
         {
             var color = ComputeOverlayColor();
 

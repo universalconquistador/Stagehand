@@ -87,6 +87,8 @@ internal class RotateTool : TransformToolBase
                 _currentOperation = null;
             }
         }
+
+        base.DrawOverlay(context);
     }
 
     public override bool DrawOptionGutter()

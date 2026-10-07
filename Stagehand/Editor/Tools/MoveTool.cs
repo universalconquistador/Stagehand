@@ -85,6 +85,8 @@ internal class MoveTool : TransformToolBase
                 _currentOperation = null;
             }
         }
+
+        base.DrawOverlay(context);
     }
 
     public override bool DrawOptionGutter()
