@@ -627,6 +627,13 @@ internal class EditorWindow : Window, IEditorWindow, IDisposable
         }
         using (treeNode)
         {
+            // Selected descendant indicator
+            if (!treeNode.Success && node.SelectedDescendantCount > 0 && !node.IsSelected)
+            {
+                var left = ImGui.GetWindowDrawList().GetClipRectMin().X + ImGui.GetStyle().FramePadding.X / 2;
+                ImGui.GetWindowDrawList().AddRectFilled(new Vector2(left, ImGui.GetItemRectMin().Y), new Vector2(left + 4.0f * ImGuiHelpers.GlobalScale, ImGui.GetItemRectMax().Y), ImGui.GetColorU32(ImGui.GetStyle().Colors[(int)ImGuiCol.FrameBgActive]));
+            }
+
             showNodeTooltip = ImGui.IsItemHovered();
             bool nodeLeftClicked = ImGui.IsItemClicked(ImGuiMouseButton.Left);
             bool nodeRightClicked = ImGui.IsItemClicked(ImGuiMouseButton.Right);

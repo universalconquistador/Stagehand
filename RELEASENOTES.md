@@ -266,3 +266,4 @@ Later down the road:
  - Adds keybind support for activating the Select, Move, Rotate and Scale tools (unbound by default).
  - Adds a right-click menu to the Position, Rotation, and Scale properties that lets you copy and paste them.
  - Hides selection bounds overlay while dragging the move, rotate, or scale gizmos.
+ - Shows a little selection tick on the left side of collapsed outliner items when an item inside them is selected.

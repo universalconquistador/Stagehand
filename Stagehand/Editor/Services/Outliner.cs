@@ -84,10 +84,29 @@ public class OutlinerNode
     public FontAwesomeIcon Icon { get; set; }
     public string TooltipPrimary { get; set; } = string.Empty;
     public string TooltipSecondary { get; set; } = string.Empty;
-    public bool IsSelected { get; set; } = false;
+    public bool IsSelected
+    {
+        get => field;
+        set
+        {
+            if (value != field)
+            {
+                field = value;
+
+                var delta = value ? 1 : -1;
+                var parent = ParentNode;
+                while (parent != null)
+                {
+                    parent.SelectedDescendantCount += delta;
+                    parent = parent.ParentNode;
+                }
+            }
+        }
+    }
     public bool? IsVisible { get; set; } = null; // This node's visibility choice, regardless of inherited state
     public bool IsHiddenByParent { get; set; } = false; // The inherited visibility state from the parent, if any
     public IEnumerable<OutlinerContextMenuItem>? ContextMenuItems { get; set; }
+    public int SelectedDescendantCount { get; private set; } = 0;
 
     public OutlinerNode? ParentNode { get; private set; } = null;
     public bool IsVisibleWithFilter { get; private set; } = true;
@@ -119,12 +138,24 @@ public class OutlinerNode
         _childNodes.Add(child);
         child.ParentNode = this;
         _recomputeChildOrder = true;
+
+        SelectedDescendantCount += child.SelectedDescendantCount;
+        if (child.IsSelected)
+        {
+            SelectedDescendantCount += 1;
+        }
     }
 
     public void RemoveChild(OutlinerNode child)
     {
         child.ParentNode = null;
         _childNodes.Remove(child);
+
+        SelectedDescendantCount -= child.SelectedDescendantCount;
+        if (child.IsSelected)
+        {
+            SelectedDescendantCount -= 1;
+        }
     }
 
     public void Update(string filter)
